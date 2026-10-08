@@ -1,0 +1,351 @@
+ies genuinely overlap in these measurements — which is a scientific observation, not just an error. Always inspect the confusion matrix before the accuracy number.</p>
+<p>Third, the classification report shows <strong>precision and recall</strong> per class, and this is where Chapter 2's disease-test intuition becomes practical. On imbalanced data — say 95% healthy patients, 5% sick — a model predicting "healthy" for everyone scores 95% accuracy while finding zero sick patients. Accuracy lies; precision ("of my alarms, how many were real?") and recall ("of the real cases, how many did I catch?") tell the truth. Choose which to optimize by the <em>cost</em> of errors: in disease screening, missing a case (low recall) harms more than a false alarm (low precision), so you optimize recall even at precision's expense. In spam filtering the costs reverse — users hate losing real email — so you optimize precision. This error-cost thinking turns metrics from numbers into decisions, and a paragraph of it belongs in every thesis's evaluation section: state your costs, then justify your metric.</p>
+<p><strong>Common classification mistakes</strong> (check yourself against this list on every project): tuning hyperparameters on the test set (Chapter 4's rule still applies); ignoring class imbalance (consider class weights or resampling, and always report per-class metrics); forgetting <code>stratify</code> in splits; leaking through preprocessing (fit scalers on training data only); and comparing models on different splits. Finish with cross-validation as in Section 4.6, and you own the complete classification loop.</p>
+<p><strong>Your turn this week:</strong> take the classification loop to a dataset of your own — ideally related to your research. Write the framing paragraph (Section 4.2), run the loop, and produce the one-page report: problem, method, confusion matrix, precision/recall with error-cost justification, and what you would try next. Two worked examples (regression and classification) plus one of your own means the ML loop is no longer something you read about — it is something you do.</p>
+<h3 id="410-the-experiment-log-your-memory-externalized">4.10 The experiment log: your memory, externalized</h3>
+<p>Chapter 4 mentioned logging experiments; here is the concrete template. Keep it as a simple table — spreadsheet or markdown — with one row per experiment and these columns: <strong>Date | Code version | Change (one variable!) | Train metric | Validation metric | Test metric | Note</strong>. Example rows from the house-price project:</p>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Ver</th>
+<th>Change</th>
+<th>Val MAE</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mon</td>
+<td>a1f3</td>
+<td>baseline linear regression</td>
+<td>$28,400</td>
+<td>first honest number</td>
+</tr>
+<tr>
+<td>Tue</td>
+<td>b2e9</td>
+<td>+ price_per_sqft feature</td>
+<td>$26,100</td>
+<td>helps; keep</td>
+</tr>
+<tr>
+<td>Wed</td>
+<td>c4d2</td>
+<td>random forest, 100 trees</td>
+<td>$24,800</td>
+<td>nonlinear signal exists</td>
+</tr>
+<tr>
+<td>Thu</td>
+<td>d7a1</td>
+<td>RF, max_depth=5 (simpler)</td>
+<td>$25,000</td>
+<td>slight loss; keep depth open</td>
+</tr>
+</tbody>
+</table>
+<p>Five rules make the log work: log <em>before</em> you forget (same day); one variable per row or the row is uninterpretable; always record the code version (a Git hash) so any row is reproducible; write the note as a decision ("keep"/"drop"/"investigate"), not just a number; and review weekly — patterns across rows ("every feature from location helps") become your domain intuition. When thesis-writing time comes, this log is your results section's first draft and your defense against "did you try X?" — because you can point to the row where you did. Bring the log to advisor meetings too: a table of dated, versioned experiments communicates progress more convincingly than any verbal summary, and it lets your advisor spot patterns you missed — "every time you add location features it helps; have you considered interaction terms?" That single comment can redirect a month of work productively.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your thesis needs a baseline chapter, and this project is its prototype. Take your own dataset through these exact six steps and write it up as a technical report: problem framing, data description, baseline model, stronger model, honest evaluation with cross-validation, and an experiment log. Even if your final thesis uses deep learning, reviewers expect a simple baseline for comparison — the model you build this weekend is the "Model A" your future papers will cite as the thing you beat. Save the notebook; you will reuse its structure for every experiment you ever run.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Frame first: regression vs. classification, inputs, and success metric — in writing, before code.
+- Explore before modeling: distributions, missing values, and whether features visibly relate to the target.
+- Always train a simple baseline (and a dumb baseline) before anything fancy.
+- Compare models on the same test set with the same metric; prefer the simpler model when scores tie.
+- Use cross-validation; never tune on the test set; watch for data leakage.
+- Iterate with hypotheses and log every experiment; stop at diminishing returns.
+- One weekend, one dataset, one report: that is the unit of learning that builds real skill.</p>
+<hr />
+<h2 id="chapter-5-deep-learning-step-by-step">Chapter 5: Deep Learning, Step by Step</h2>
+<h3 id="51-what-actually-changes-when-networks-get-deep">5.1 What actually changes when networks get deep</h3>
+<p>Classical machine learning, which you practiced in Chapter 4, works in two stages: a human designs features (price-per-square-foot, average sensor reading), and the model learns weights for those features. Deep learning collapses the two stages into one: the model learns the features <em>itself</em>, directly from raw data. Feed a network raw pixels and it discovers edges, then shapes, then objects — a hierarchy of features no human designed. This idea, called <strong>representation learning</strong>, is the entire reason deep learning exists, and it explains both its power and its appetite: discovering features from scratch requires far more data and computation than weighting human-designed ones.</p>
+<p>A "deep" network simply means many layers stacked in sequence. Each layer transforms its input a little — the first layer might detect edges in an image, the next combines edges into textures, the next into parts, the next into objects. Depth is what lets the network build this hierarchy. The famous 2015 review by LeCun, Bengio, and Hinton [3] describes this hierarchy as the central idea of deep learning, and reading its first few pages is a worthwhile rite of passage once you finish this chapter.</p>
+<p>But depth comes with costs you must respect. Deep models need large datasets (thousands to millions of examples), they train for hours or days rather than seconds, they overfit eagerly on small data, and they are harder to interpret — a real problem when your thesis committee asks <em>why</em> the model decided something. Chapter 6 will help you decide when deep learning is warranted; this chapter makes sure you understand it first.</p>
+<h3 id="52-the-neuron-concretely">5.2 The neuron, concretely</h3>
+<p>Strip away the mystique and a neuron is the linear model from Chapter 2 wearing one extra piece of clothing. It computes a weighted sum of its inputs, adds a bias, and passes the result through a <strong>nonlinear activation function</strong>:</p>
+<pre><code>z = w₁x₁ + w₂x₂ + ... + wₙxₙ + b     (weighted sum, as in Chapter 2)
+a = activation(z)                      (nonlinearity — the new part)
+</code></pre>
+<p>Why the nonlinearity? Without it, stacking layers would be pointless: a stack of linear transformations is just one linear transformation, no matter how deep. The activation function — the most common is ReLU, which outputs max(0, z), passing positive values through and zeroing negatives — bends the straight lines into curves, letting the network approximate complex functions. Other activations you will meet: sigmoid (squashes to 0–1, used for binary outputs), tanh (squashes to −1 to 1), and softmax (turns a vector into probabilities summing to 1, used for multi-class outputs).</p>
+<p>A <strong>layer</strong> is many neurons side by side, each with its own weights, all reading the same input. A network is layers in sequence: the outputs of one layer become the inputs of the next. The first layer sees raw features; the last layer produces the prediction; everything between is the "hidden" machinery learning representations.</p>
+<h3 id="53-loss-functions-telling-the-network-what-wrong-means">5.3 Loss functions: telling the network what "wrong" means</h3>
+<p>A network learns by minimizing a <strong>loss function</strong> — a number measuring how wrong its predictions are. Choose the loss to match your problem:</p>
+<ul>
+<li><strong>Mean squared error (MSE)</strong> for regression: average of squared differences between prediction and truth. Squaring punishes large errors heavily.</li>
+<li><strong>Cross-entropy</strong> for classification: measures how far the predicted probabilities are from the true labels. When the model assigns 90% probability to the wrong class, cross-entropy is large; when it assigns 90% to the right class, it is small. Nearly all classification networks use it.</li>
+</ul>
+<p>The loss is the compass: every training step asks "which weight changes reduce this number?" Understand the loss and you understand what the network is <em>trying</em> to do — which also tells you what it might do wrong. A model trained with MSE on house prices will happily sacrifice accuracy on cheap houses to nail expensive ones (large errors dominate), a bias you should know about before trusting it.</p>
+<h3 id="54-how-networks-learn-gradient-descent-and-backpropagation">5.4 How networks learn: gradient descent and backpropagation</h3>
+<p>Training is a loop with three steps, repeated thousands of times:</p>
+<ol>
+<li><strong>Forward pass:</strong> feed training examples through the network, compute predictions and the loss.</li>
+<li><strong>Backward pass (backpropagation):</strong> compute the gradient of the loss with respect to every weight — how much each weight contributed to the error. This is the chain rule from Chapter 2, applied mechanically layer by layer, from output back to input. You never compute it by hand; the framework does. But you must understand <em>what</em> it computes: blame assignment. Each weight learns how guilty it is.</li>
+<li><strong>Update:</strong> nudge every weight a small step opposite the gradient: <code>w = w − learning_rate × gradient</code>. The <strong>learning rate</strong> controls step size — too large and training diverges wildly; too small and it crawls.</li>
+</ol>
+<p>That is the whole algorithm. Everything else in deep learning training — optimizers like Adam (which adapt the step size per weight), learning rate schedules, batch normalization — is refinement of this loop. When training fails, diagnose it in these terms: is the loss even decreasing (learning rate problem)? Does training loss fall but validation loss rise (overfitting — Chapter 4's old enemy, back with more appetite)? Does the loss not move at all (vanishing gradients or a bug in the data pipeline)?</p>
+<h3 id="55-your-first-network-in-code">5.5 Your first network in code</h3>
+<p>Let us train a small neural network with PyTorch on a classification task. (Keras with TensorFlow is an equally fine choice — pick one framework and go deep rather than sampling both. This book uses PyTorch because most research code you will read is written in it.)</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+# A tiny network: input -&gt; 64 neurons (ReLU) -&gt; 32 neurons (ReLU) -&gt; 1 output
+model = nn.Sequential(
+    nn.Linear(10, 64),   # 10 input features
+    nn.ReLU(),
+    nn.Linear(64, 32),
+    nn.ReLU(),
+    nn.Linear(32, 1),
+    nn.Sigmoid()         # squash output to 0-1 for binary classification
+)
+
+criterion = nn.BCELoss()                    # binary cross-entropy loss
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# The training loop: forward, backward, update — repeated
+for epoch in range(100):
+    optimizer.zero_grad()                   # clear old gradients
+    outputs = model(X_train_tensor)         # forward pass
+    loss = criterion(outputs, y_train_tensor)
+    loss.backward()                         # backpropagation
+    optimizer.step()                        # update weights
+    if epoch % 20 == 0:
+        print(f&quot;Epoch {epoch}, loss: {loss.item():.4f}&quot;)
+</code></pre>
+<p>Read the loop as the three steps of Section 5.4 made concrete. Two beginner traps to avoid: forgetting <code>optimizer.zero_grad()</code> (gradients accumulate across batches, silently corrupting training — the single most common PyTorch bug), and judging the model on training loss instead of a held-out set (Chapter 4's discipline applies fully here).</p>
+<h3 id="56-architectures-for-different-data-cnns-and-transformers">5.6 Architectures for different data: CNNs and transformers</h3>
+<p>So far we have described fully connected (dense) networks, where every neuron reads every input. For structured data like images and text, specialized architectures exploit the data's structure:</p>
+<p><strong>Convolutional neural networks (CNNs)</strong> are built for images. Instead of each neuron reading the whole image, small filters slide across it detecting local patterns — edges, textures — and deeper layers combine them into objects. This matches how images work: a cat's ear is a local pattern wherever it appears. CNNs made modern computer vision possible, and the landmark results are worth knowing as history: the 2012 ImageNet breakthrough showed deep CNNs decisively beating classical methods on large-scale image classification, which is why "deep learning" became synonymous with AI progress for several years [3].</p>
+<p><strong>Transformers</strong> are built for sequences — text, and increasingly everything else. Their core mechanism, <strong>attention</strong>, lets each position in a sequence weigh the relevance of every other position: when processing the word "it" in "the animal didn't cross the street because it was too tired," attention connects "it" to "animal." Transformers power modern language models, and they have since spread to vision and other domains. You do not need to implement attention from scratch yet — you need the intuition that it is a mechanism for <em>selective focus over long contexts</em>, and the practical knowledge that pre-trained transformers (via the Hugging Face library) can be fine-tuned on your task with modest data.</p>
+<p>Older sequence models (RNNs, LSTMs) still appear in textbooks and some papers; know their names and the basic idea (processing sequences step by step with a memory state), but invest new effort in transformers.</p>
+<h3 id="57-when-not-to-use-deep-learning">5.7 When NOT to use deep learning</h3>
+<p>This section may be the most valuable in the chapter. Deep learning is the wrong tool when:</p>
+<ul>
+<li><strong>Your data is small</strong> (hundreds or low thousands of rows). A random forest will likely beat a neural network and train in seconds.</li>
+<li><strong>Your data is tabular.</strong> On spreadsheets and sensor tables, gradient-boosted trees routinely outperform neural networks — a consistent finding across applied ML that surprises newcomers.</li>
+<li><strong>You need interpretability.</strong> A thesis committee, a doctor, or a regulator asking "why?" is easier to satisfy with a decision tree than a 50-layer network.</li>
+<li><strong>You lack compute.</strong> Training large models needs GPUs; if you have only a laptop, classical methods or small fine-tuned models are the honest choice.</li>
+<li><strong>The problem is simple.</strong> If logistic regression hits 95% accuracy, a neural network hitting 95.5% is not progress — it is complexity.</li>
+</ul>
+<p>The professional move is a ladder: baseline (Chapter 4) → stronger classical model → small neural network → large/specialized model, stopping at the first rung that solves the problem well. Each rung must justify its cost in data, compute, and interpretability.</p>
+<h3 id="58-a-six-week-deep-learning-plan">5.8 A six-week deep learning plan</h3>
+<ul>
+<li><strong>Weeks 1–2: Mechanics.</strong> Rebuild the neuron-to-training-loop story in code. Implement a tiny network with NumPy <em>by hand</em> (forward pass, numerical gradients) on a toy dataset — painful once, illuminating forever. Then redo it in PyTorch and feel the framework's gift.</li>
+<li><strong>Weeks 3–4: Practice.</strong> Train MLPs on two tabular datasets; plot training vs. validation loss every run until reading those curves is instinct. Deliberately cause overfitting (tiny dataset, huge network) and then fix it (more data, dropout, weight decay) to learn what each remedy does.</li>
+<li><strong>Weeks 5–6: Architecture.</strong> One CNN project on an image dataset (the CIFAR-10 dataset of small images is the standard teaching choice), and one fine-tuning project with a pre-trained transformer on a text classification task using the Hugging Face library. Compare against your Chapter 4 baselines — sometimes the old methods win, and noticing that is expertise.</li>
+</ul>
+<p>Keep an experiment log as in Chapter 4, now with loss curves pasted in. After six weeks you will not be a deep learning researcher — but you will be able to read deep learning papers without panic, reproduce simple results, and, crucially, decide whether your thesis needs this machinery at all.</p>
+<h3 id="59-reading-loss-curves-like-a-doctor-reads-charts">5.9 Reading loss curves like a doctor reads charts</h3>
+<p>The most information-dense artifact in deep learning is also the simplest: the plot of training loss (and validation loss) against training iterations. Learn to read its shapes and you can diagnose most training problems at a glance:</p>
+<ul>
+<li><strong>Both curves falling smoothly:</strong> healthy training. Let it run; consider training longer or tuning the learning rate only after it plateaus.</li>
+<li><strong>Both curves flat from the start:</strong> nothing is learning. Suspect a bug (data not flowing, labels shuffled, gradients not connected — check <code>loss.backward()</code> is actually called) or a learning rate far too small.</li>
+<li><strong>Loss exploding or oscillating wildly:</strong> learning rate too high. Reduce it by a factor of 10 and retry — this single fix resolves a large fraction of "my network won't train" complaints.</li>
+<li><strong>Training loss falls, validation loss rises:</strong> classic overfitting (Chapter 4's enemy, hungrier here). Remedies in order: more data or augmentation, smaller network, dropout, weight decay, early stopping (halt training when validation loss stops improving).</li>
+<li><strong>Noisy, jagged curves:</strong> normal with small batch sizes — the gradient estimate is rough. If the trend is still downward, it is fine; smooth it with a moving average before judging.</li>
+<li><strong>Validation loss much higher than training loss from the start:</strong> possible data mismatch between splits, or augmentation applied inconsistently. Verify your splits and pipeline before blaming the model.</li>
+</ul>
+<p>Make plotting these curves automatic in every training script — the five lines of Matplotlib from Chapter 3 — and glance at them the way a doctor glances at a chart: pattern first, numbers second. Keep the plots in your experiment log (Chapter 11); six months later, they will remind you <em>why</em> you chose each configuration, which is exactly what your thesis's experimental section must explain.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before committing your thesis to deep learning, run a "two-week bake-off": your best classical model versus a small neural network versus a fine-tuned pre-trained model, all evaluated with the honest methodology of Chapter 4. Document not just accuracy but training time, data requirements, and interpretability. Many theses are strengthened — not weakened — by concluding that a simpler model suffices; reviewers respect a justified negative result far more than an unjustified complex one. If deep learning wins clearly, this bake-off becomes the motivation section of your thesis: you tried the simple things first.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Deep learning = representation learning: the network discovers features from raw data in a layer-by-layer hierarchy.
+- A neuron is a weighted sum plus a nonlinearity; without the nonlinearity, depth would be pointless.
+- Training is a three-step loop: forward pass, backpropagation (chain rule assigning blame), gradient-descent update.
+- Match loss to problem: MSE for regression, cross-entropy for classification; optimizers like Adam refine the basic loop.
+- CNNs exploit image locality; transformers use attention for sequences — know the intuition before the math.
+- Do not use deep learning for small data, tabular data, or when interpretability matters — climb the ladder from simple models upward.
+- Six weeks: mechanics by hand, then practice with loss curves, then one CNN and one transformer fine-tuning project.</p>
+<hr />
+<h2 id="chapter-6-choosing-a-specialization-vision-language-or-tabular-data">Chapter 6: Choosing a Specialization: Vision, Language, or Tabular Data</h2>
+<h3 id="61-why-you-must-specialize-and-why-not-yet">6.1 Why you must specialize (and why not yet)</h3>
+<p>Up to this point, your learning has been general: math, Python, classical ML, deep learning basics. That generality was correct — it is the foundation every AI researcher stands on. But research happens at the frontier of a <em>specific</em> area, and publications are judged by specialists. A researcher who knows a little vision, a little NLP, and a little tabular ML will lose every comparison to the researcher who went deep in one. The time to specialize is now: after the foundations, before your thesis experiments.</p>
+<p>Specialization does not mean ignorance of the rest. It means an 80/20 split: 80% of your depth in one track, 20% maintaining literacy in the others so you can read broadly and borrow ideas. The three tracks below cover nearly all applied AI research. Your job in this chapter is to pick one — provisionally, since you can switch, but commit for at least six months, because depth requires sustained focus.</p>
+<h3 id="62-track-a-computer-vision">6.2 Track A: Computer vision</h3>
+<p><strong>What it is:</strong> teaching machines to understand images and video — classification (what is in this image?), detection (where are the objects?), segmentation (which pixels belong to which object?), and generation.</p>
+<p><strong>Core knowledge:</strong> CNN architectures and how they evolved (know the ideas — local filters, pooling, skip connections — more than the model names), transfer learning from pre-trained image models (in practice, you rarely train vision models from scratch; you fine-tune a model pre-trained on ImageNet), data augmentation (rotating, cropping, and flipping training images to multiply your dataset — often worth more than architectural tweaks), and evaluation beyond accuracy: mean average precision for detection, IoU (intersection over union) for segmentation.</p>
+<p><strong>Data reality:</strong> vision is data-hungry and compute-hungry. Working with images means managing large files, needing GPUs, and long training times. On the other hand, public datasets are abundant (ImageNet, COCO, and countless domain datasets), and pre-trained models make small-data vision feasible through fine-tuning.</p>
+<p><strong>Who should choose it:</strong> your research question involves images, video, satellite imagery, medical scans, or cameras — crop disease from leaf photos, defect detection on a production line, land-use classification from satellite data. Also choose it if you genuinely enjoy visual thinking; you will spend hours staring at model outputs overlaid on images, and that should sound fun, not tedious.</p>
+<p><strong>First project:</strong> fine-tune a pre-trained CNN to classify a small custom image dataset (even 500 images across 5 classes you photograph yourself), with heavy augmentation. Compare against training from scratch to <em>feel</em> why transfer learning dominates vision.</p>
+<h3 id="63-track-b-language-and-nlp">6.3 Track B: Language and NLP</h3>
+<p><strong>What it is:</strong> teaching machines to understand and generate human language — classification (sentiment, topic), named entity recognition, question answering, summarization, translation, and conversational systems.</p>
+<p><strong>Core knowledge:</strong> how text becomes numbers (tokenization — splitting text into pieces the model handles; embeddings — dense vectors where similar words sit near each other), the transformer architecture and attention (Chapter 5's intuition, deepened), pre-trained language models and fine-tuning (the modern workflow: take a model trained on vast text, adapt it to your task with your labeled data), prompt engineering and evaluation of generated text (which is genuinely hard — how do you score a summary?), and the practicalities of working with large models: memory limits, quantization, and API-versus-local trade-offs.</p>
+<p><strong>Data reality:</strong> NLP's blessing is pre-training — a fine-tuned language model can work with hundreds of labeled examples where vision might need thousands. Its curse is evaluation: generated text is hard to score automatically, benchmarks leak into training data, and models confidently produce fluent nonsense. NLP researchers must be especially rigorous about evaluation design.</p>
+<p><strong>Who should choose it:</strong> your research involves text — customer feedback, social media, legal documents, medical notes, low-resource languages, or educational content. Particularly attractive if your institution lacks GPU clusters, since fine-tuning smaller models or using APIs is feasible on modest hardware. Also the right track if your thesis is about <em>how people use</em> language technology, not just model internals.</p>
+<p><strong>First project:</strong> fine-tune a pre-trained transformer for a text classification task on a dataset you care about (even a few hundred labeled examples), and evaluate it with a confusion matrix plus manual inspection of 50 errors. The error inspection — reading what the model gets wrong — teaches more than the accuracy number.</p>
+<h3 id="64-track-c-tabular-data-and-time-series">6.4 Track C: Tabular data and time series</h3>
+<p><strong>What it is:</strong> the unglamorous majority of real-world ML — spreadsheets, sensor logs, transaction records, survey data. Predicting churn, detecting fraud, forecasting demand, diagnosing from measurements.</p>
+<p><strong>Core knowledge:</strong> tree-based models deeply (random forests, gradient boosting — the workhorses that beat neural networks on tables), feature engineering as a craft (encoding categories, handling dates, creating ratios and aggregates — often the highest-leverage skill in this track), rigorous evaluation for the data type (time-series data must be split by time, not randomly, or you leak the future into training — one of the most common thesis-invalidating errors), handling imbalance (fraud is rare; accuracy lies — use precision-recall thinking from Chapter 4), and calibration (when your model says 80%, is it right 80% of the time?).</p>
+<p><strong>Data reality:</strong> the friendliest track for limited resources. Tabular models train in seconds on a laptop, need modest data, and are interpretable enough to defend before any committee. The challenge is not modeling but <em>data work</em>: cleaning, joining, and engineering features from messy real-world tables — which is also where the research contribution often hides.</p>
+<p><strong>Who should choose it:</strong> your data is tables or sensor streams — Bilal's power-system faults, Hina's health surveys, financial records, IoT sensor data, agricultural measurements. Choose it also if you value reliability over novelty: this track produces the most deployable, defensible results per unit of effort, and many excellent theses live here without a single neural network.</p>
+<p><strong>First project:</strong> take a messy public tabular dataset, do serious feature engineering (ten new features from domain thinking), and beat a plain baseline with gradient boosting — documenting every feature's contribution. The documentation is the point: it becomes your thesis's feature-analysis section.</p>
+<h3 id="65-the-decision-framework">6.5 The decision framework</h3>
+<p>Choose with this sequence, in order:</p>
+<ol>
+<li><strong>Follow your data.</strong> What data does your research question actually involve? Images → vision. Text → language. Tables/streams → tabular. Data type decides more reliably than interest does.</li>
+<li><strong>Follow your question.</strong> Are you asking "what is in this image," "what does this text mean," or "what will this system do next"? Match the track to the verb.</li>
+<li><strong>Follow your constraints.</strong> No GPU and little labeled data? Lean language (fine-tuning small models) or tabular. Strong math background and compute access? Any track.</li>
+<li><strong>Follow your curiosity — last.</strong> Interest sustains you through hard months, but interest without matching data produces elegant solutions to nobody's problem.</li>
+</ol>
+<p><strong>Switching rule:</strong> commit six months before judging. Every track feels confusing for the first two months — that is the learning curve, not a wrong choice. Switch only if your <em>research question</em> changes, not because another track looks shinier. And note the tracks increasingly overlap: vision transformers borrow from NLP, language models process tables, multimodal models combine all three. Your 80/20 split handles this — depth in one, literacy in all.</p>
+<h3 id="66-the-generalist-base-you-never-stop-maintaining">6.6 The generalist base you never stop maintaining</h3>
+<p>Specialization adds; it does not replace. Keep these general habits forever: read one paper per month outside your track (Chapter 7's method makes this cheap), maintain your Chapter 4 evaluation discipline regardless of track (every track has its own ways to fool yourself), and revisit fundamentals yearly — re-reading the deep learning review [3] or the Géron textbook [1] after a year of specialization reveals layers you missed the first time. The best specialists are generalists who chose a home.</p>
+<h3 id="67-sampling-before-committing-the-two-week-taste-test">6.7 Sampling before committing: the two-week taste test</h3>
+<p>The decision framework in Section 6.5 is logical, but logic alone rarely settles a six-month commitment — you also need <em>feel</em>. Before locking in your track, run a two-week taste test: one tiny project per track, one week each for the two tracks you did not choose... actually, simpler and better: spend <strong>four days per track</strong> on a minimal project, then decide. Twelve days of sampling prevents six months of doubt.</p>
+<ul>
+<li><strong>Vision taste (4 days):</strong> take a pre-trained image classifier, fine-tune it on a few hundred images in two or three classes (photograph objects around your home if needed), and evaluate. Notice the data handling: image loading, resizing, augmentation. Ask yourself: did wrangling pixels feel interesting or tedious?</li>
+<li><strong>Language taste (4 days):</strong> fine-tune a small pre-trained transformer on a few hundred labeled texts (movie reviews, with positive/negative labels, are the standard toy). Notice the tokenization step and the fuzziness of evaluation. Ask: did thinking about words-as-numbers excite you?</li>
+<li><strong>Tabular taste (4 days):</strong> take a public CSV, engineer ten features, train gradient boosting, and beat a baseline. Notice how much of the work is <em>thinking about the domain</em> rather than the model. Ask: did the detective work of feature engineering feel like your kind of puzzle?</li>
+</ul>
+<p>Then decide with both head (Section 6.5's framework) and gut (which four days did you wish were longer?). A few honest notes on hybrid areas, since real research rarely respects track boundaries: <strong>multimodal</strong> work (images + text, e.g., medical scans with reports) is growing fast but demands competence in two tracks — attempt it only after depth in one. <strong>Recommender systems</strong> blend tabular and sequence thinking and are excellent thesis territory with real datasets. <strong>Time-series forecasting</strong> is tabular's temporal cousin — choose it if your data is sensor streams or financial series, and remember the golden rule: split by time, never randomly. Whatever you choose, the 80/20 split from Section 6.1 keeps you literate everywhere else.</p>
+<h3 id="68-how-to-tell-a-wrong-choice-from-a-hard-month">6.8 How to tell a wrong choice from a hard month</h3>
+<p>Every specialization feels miserable in months one and two — unfamiliar tools, papers you cannot parse, results that will not reproduce. That is the learning curve, not evidence of a wrong choice. So how do you distinguish? A <strong>wrong choice</strong> shows structural mismatch: your data keeps fighting the track's assumptions (e.g., you chose vision but your "images" are 50 blurry photos while your tables are rich), your research question keeps pulling you elsewhere, or you dread the <em>characteristic activity</em> of the track (staring at images, reading text outputs, cleaning tables) even on good days. A <strong>hard month</strong> shows the opposite: the work frustrates you but the <em>questions</em> still fascinate you — you are annoyed at your confusion, not at the subject.</p>
+<p>The switching protocol, if the verdict is "wrong choice": decide within one focused week (not three agonizing months), write down <em>why</em> in one paragraph (this prevents switching back), and carry over everything transferable — your evaluation discipline, paper-reading skill, and experiment habits move with you intact; only the track-specific knowledge resets. Most switchers report the second track goes twice as fast, because the foundations were the real curriculum all along. And remember the 80/20 rule: the "abandoned" track becomes your maintained 20% literacy, which often turns out to be a competitive advantage — the vision researcher who understands tabular evaluation, or the NLP researcher who can read a CNN paper, borrows ideas across boundaries that pure specialists never cross.</p>
+<blockquote>
+<p><strong>For your research:</strong> Write a one-page "track justification" for your thesis proposal: your data type, your research question's verb, your constraints, and why the chosen track fits — plus one paragraph on what you are <em>not</em> doing and why (e.g., "deep learning was tested and classical methods sufficed," or "vision approaches were rejected because the data is tabular"). Examiners love this page: it shows you chose deliberately rather than following hype, and it preempts the most common defense question, "why didn't you use X?"</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Specialize after foundations: 80% depth in one track, 20% literacy in the others.
+- Vision: images/video, CNNs, transfer learning, augmentation; data- and compute-hungry.
+- Language: text, transformers, fine-tuning; evaluation is the hard part; feasible on modest hardware.
+- Tabular: tables/streams, tree models, feature engineering; fastest path to defensible results.
+- Decide by data type first, research question second, constraints third, curiosity last.
+- Commit six months before judging; switch only if the research question changes.
+- Keep the generalist base: cross-track reading, evaluation discipline, yearly fundamentals review.</p>
+<hr />
+<h2 id="chapter-7-how-to-read-research-papers-and-actually-understand-them">Chapter 7: How to Read Research Papers (and Actually Understand Them)</h2>
+<h3 id="71-why-papers-feel-unreadable-and-why-it-is-not-your-fault">7.1 Why papers feel unreadable (and why it is not your fault)</h3>
+<p>Every researcher remembers the first paper they tried to read: the confident abstract, the wall of notation in Section 3, the experiments that assume you already know five other papers. Most beginners conclude they are not smart enough. The truth is less dramatic: papers are not written to teach. They are written to convince expert reviewers, under page limits, with the shared background of a subfield left unstated. Reading them is a <em>skill</em>, separate from intelligence, and like any skill it has techniques. This chapter teaches them.</p>
+<p>There is also a mindset shift. Beginners read papers hoping to understand 100%. Professionals read to extract what they need — often 20% of the paper — and move on. A paper you mine for one idea, one baseline number, or one methodological trick is a paper well read. Give yourself permission to be strategic.</p>
+<h3 id="72-anatomy-of-a-paper">7.2 Anatomy of a paper</h3>
+<p>Most AI papers share a skeleton. Knowing it lets you navigate instead of drowning:</p>
+<ul>
+<li><strong>Title and abstract:</strong> the paper's advertisement. Read skeptically — abstracts oversell by design. Your question: what is <em>claimed</em>?</li>
+<li><strong>Introduction:</strong> the story — what problem, why it matters, what the authors did, and (read carefully) what they claim is new. The last paragraph usually lists contributions explicitly; highlight it.</li>
+<li><strong>Related work:</strong> a guided tour of the neighborhood. For you, this section is gold: it names the papers you should read next and positions the work. Follow its citations outward.</li>
+<li><strong>Method:</strong> the technical core — notation, equations, architecture diagrams. The hardest section and the one beginners over-invest in. Read it <em>after</em> you understand what the method achieves (see the three-pass method below).</li>
+<li><strong>Experiments:</strong> datasets, baselines, metrics, results tables, and ablations (experiments removing parts of the method to show each part matters). Read tables before text: what beat what, by how much, on which data?</li>
+<li><strong>Conclusion and limitations:</strong> what the authors admit they did not solve. Limitations sections are increasingly required and are often the most honest paragraph — and the best source of <em>your</em> next research idea.</li>
+</ul>
+<h3 id="73-the-three-pass-method">7.3 The three-pass method</h3>
+<p>Read every paper three times, with different goals. Total time for a standard 8-page paper: about two hours spread over days — far less than the six confused hours of single-pass reading.</p>
+<p><strong>Pass 1 — The bird's eye (15 minutes).</strong> Read the title, abstract, introduction, section headings, conclusion, and glance at figures and tables. Do not touch the math. Goal: answer in writing — <em>What problem? What approach? What result?</em> Then decide: is this paper worth Pass 2? Most papers are not, for your current purpose. Skimming is not laziness; it is triage.</p>
+<p><strong>Pass 2 — The working understanding (45–60 minutes).</strong> Read the full paper except proofs and appendices. Follow the method at the level of ideas: draw the architecture diagram yourself, work through one numerical example of the key equation, and study the experiments — which baselines, which datasets, whether the ablations support the claims. Mark everything you cannot explain in one sentence. Goal: you could summarize the paper accurately to a colleague for five minutes.</p>
+<p><strong>Pass 3 — The deep read (only for the few papers that matter).</strong> Reimplement the core idea, or re-derive the key result, or run the authors' code if available. Challenge every assumption: would this work on <em>your</em> data? What breaks if you change a component? Goal: the paper becomes a tool you own, not a monument you admire. Your thesis's key references deserve Pass 3; most papers deserve only Pass 1.</p>
+<h3 id="74-reading-with-a-notebook">7.4 Reading with a notebook</h3>
+<p>Passive reading — eyes moving, nothing sticking — is the default failure mode. The fix is to read with a Jupyter notebook open and convert every paper into <em>actions</em>:</p>
+<ul>
+<li><strong>Translate notation into code.</strong> When the method defines a loss function, implement it in PyTorch or NumPy on toy data. Ten lines of code resolve more confusion than ten re-reads.</li>
+<li><strong>Redraw every important figure yourself.</strong> Copying a diagram by hand forces you to decide what each arrow means — the exact decisions the authors left implicit.</li>
+<li><strong>Maintain a paper log:</strong> one page per paper with fixed fields — problem, key idea (one sentence), method sketch, datasets and metrics, main result, limitations, and "how this connects to my work." After thirty papers, this log is a literature review draft and the most valuable document you own.</li>
+<li><strong>Write the "hostile summary."</strong> After Pass 2, write three sentences steelmanning the paper and three sentences attacking it (weak baseline? tiny dataset? missing ablation?). Critical reading is a muscle; this exercise builds it.</li>
+</ul>
+<h3 id="75-handling-the-math-you-do-not-know">7.5 Handling the math you do not know</h3>
+<p>You will constantly meet unfamiliar mathematics — that is normal at every level, including professors'. The protocol:</p>
+<ol>
+<li><strong>Name it precisely.</strong> "I don't understand Section 3" is helpless; "I don't know what KL divergence measures" is a solvable problem.</li>
+<li><strong>Get the intuition first, from the best explainer, not the paper.</strong> Textbooks ([2], [6]), visual explainers, and focused tutorials beat the paper's terse definition.</li>
+<li><strong>Work one tiny example numerically.</strong> Compute KL divergence between two simple distributions by hand or in NumPy. Intuition arrives through numbers.</li>
+<li><strong>Return to the paper and re-read the section.</strong> It will now say something specific instead of something intimidating.</li>
+<li><strong>Time-box it.</strong> If thirty focused minutes do not crack it, mark it and continue — the rest of the paper often clarifies the part, and you can return later. Do not let one equation hold a whole paper hostage.</li>
+</ol>
+<p>This is Chapter 2's just-in-time principle applied to reading. Over a year, these thirty-minute sessions compound into formidable mathematical fluency — built entirely from mathematics you actually needed.</p>
+<h3 id="76-from-reading-to-literature-review-the-pipeline">7.6 From reading to literature review: the pipeline</h3>
+<p>Random reading produces random knowledge. A pipeline produces a thesis chapter:</p>
+<ol>
+<li><strong>Seed:</strong> start with 3–5 key papers (your advisor's suggestions, the most-cited recent works, a survey paper if one exists).</li>
+<li><strong>Expand:</strong> for each seed, read its related-work citations (backward) and the papers that cite it — Google Scholar's "Cited by" is the standard tool (forward). Two hops in each direction usually captures the subfield.</li>
+<li><strong>Filter:</strong> Pass 1 everything; Pass 2 the relevant; Pass 3 the crucial. Aim for 30–60 papers at Pass 2 depth for a thesis literature review.</li>
+<li><strong>Organize:</strong> group papers by approach, not by date — a taxonomy of <em>ideas</em> ("methods using attention," "methods using augmentation") rather than a chronological list. Taxonomies reveal gaps; chronologies just narrate.</li>
+<li><strong>Synthesize:</strong> for each group, write what works, what does not, and what remains open. The open questions are your research opportunities — Chapter 11 turns them into publications.</li>
+</ol>
+<p>Maintain this in a reference manager from day one, with your one-page paper logs attached. Future-you, writing at 2 a.m. before a deadline, will be grateful.</p>
+<h3 id="77-reading-critically-what-to-distrust">7.7 Reading critically: what to distrust</h3>
+<p>Healthy skepticism distinguishes researchers from fans. Interrogate every paper:</p>
+<ul>
+<li><strong>Baselines:</strong> did they compare against strong, well-tuned baselines, or straw men? A new method beating an untuned old method proves little.</li>
+<li><strong>Datasets:</strong> one dataset or many? Results on a single benchmark may not generalize — and benchmark test sets sometimes leak into training in subtle ways.</li>
+<li><strong>Ablations:</strong> did they show each component matters, or is the "novel" part riding on good engineering elsewhere?</li>
+<li><strong>Variance:</strong> are results averaged over multiple runs with error bars, or is that 0.3% improvement a single lucky seed? Small gains without variance estimates are noise until proven otherwise.</li>
+<li><strong>Compute:</strong> would the method work with your resources, or does it assume a cluster you do not have?</li>
+</ul>
+<p>None of this is cynicism — it is the standard of evidence your own work will be held to, so apply it symmetrically.</p>
+<h3 id="78-from-paper-logs-to-literature-review-prose">7.8 From paper logs to literature review prose</h3>
+<p>Thirty paper logs do not automatically become a literature review chapter — the transformation from notes to prose needs its own method. Here it is:</p>
+<p><strong>Group, then narrate.</strong> Take your taxonomy groups (Section 7.6) and write each group as a short section with the same internal structure: what the approaches in this group assume, what they achieve, where they fail. Then write <em>transitions</em> between groups that explain why the field moved from one to the next ("early methods assumed X; when X proved false on larger datasets, the field shifted to Y"). A literature review that narrates this evolution reads as scholarship; a list of paper summaries reads as a book report. Examiners can tell the difference instantly.</p>
+<p><strong>Synthesize, don't summarize.</strong> For each group, the required sentence is some version of: "Across these N papers, the consistent finding is <strong><em>, the disagreement is </em></strong>, and nobody has addressed ___." The third blank — what nobody addressed — is your contribution's address. If you cannot fill it, you have not read enough or not read critically enough; return to the pipeline.</p>
+<p><strong>Citation hygiene.</strong> Every claim about others' work gets a citation, placed precisely — not one citation at a paragraph's end covering five claims. Keep a strict rule: no citation, no claim. Reference managers handle formatting; your job is accuracy. And read what you cite: nothing embarrasses a researcher faster than a cited paper that actually contradicts them, which happens when citations are copied from other papers' bibliographies unread.</p>
+<p><strong>Avoiding plagiarism (including accidental).</strong> Paraphrase means rewriting the <em>idea</em> in your structure and words, then citing — not swapping synonyms in their sentence. When a paper's phrasing is uniquely good, quote it briefly with quotation marks and a citation. Keep a "words vs. ideas" discipline in your logs: mark verbatim quotes clearly so months later you never mistake their words for yours. Self-plagiarism counts too: reusing your own workshop paper's text in your thesis without acknowledgment violates most institutions' policies — cite yourself like anyone else.</p>
+<p><strong>The "they say / I say" spine.</strong> Every literature review paragraph follows: <em>they</em> found/showed/assumed (with citations) → <em>I</em> note a gap or tension → <em>therefore</em> my work does X. This spine keeps the review argumentative rather than encyclopedic, and it writes your proposal's motivation section almost automatically: collect the "therefore" sentences and you have it.</p>
+<h3 id="79-the-weekly-scan-staying-current-without-drowning">7.9 The weekly scan: staying current without drowning</h3>
+<p>Beyond deep reading, professionals maintain a cheap current-awareness habit: a <strong>weekly 30-minute scan</strong> of new papers in their subfield. Use arXiv's listing for your category (or Google Scholar alerts on your key topics): read titles only, open abstracts for the 10% that look relevant, and Pass-1 the one or two that touch your work. Log anything worth a future Pass 2 in a "to read" list with a one-line reason — never an open-ended bookmark pile. This habit's value is not the papers you read but the <em>map</em> you maintain: you will notice which directions are heating up, which baselines everyone now compares against, and — crucially — whether someone just published your thesis idea, while there is still time to differentiate. Thirty minutes a week; the researchers who skip it wake up a year later in a field they no longer recognize.</p>
+<blockquote>
+<p><strong>For your research:</strong> Start your paper log this week with five papers: the two most-cited recent papers in your area, one survey if available, and two papers your advisor recommends. Do Pass 1 on all five today (about an hour), Pass 2 on the two most relevant this week, and write the hostile summary for each. Then build the one-page taxonomy: what are the 2–3 competing approaches in your subfield, and what does each fail at? That taxonomy's "failures" column is the raw material for your thesis proposal's motivation section — you are not just learning to read papers, you are prospecting for your contribution.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Papers are hard because they are written to convince reviewers, not to teach — reading them is a learnable skill.
+- Know the anatomy: abstract (claims), introduction (story), related work (map), method (core), experiments (evidence), limitations (honesty).
+- Three passes: 15-minute triage, 1-hour working understanding, deep reimplementation only for key papers.
+- Read actively: implement equations in code, redraw figures, keep a structured paper log, write hostile summaries.
+- Handle unknown math by naming it, getting intuition, working a tiny example, and time-boxing.
+- Build a literature pipeline: seed → expand (citations backward and forward) → filter → organize by ideas → synthesize gaps.
+- Read critically: interrogate baselines, datasets, ablations, variance, and compute assumptions.</p>
+<hr />
+<h2 id="chapter-8-projects-that-teach-learning-by-building">Chapter 8: Projects That Teach: Learning by Building</h2>
+<h3 id="81-the-project-ladder">8.1 The project ladder</h3>
+<p>Chapter 4 gave you one project; this chapter gives you a system for turning projects into a curriculum. The principle: arrange projects as a <strong>ladder</strong> — each rung slightly harder than the last, each building on the previous rung's skills, the top rung touching your thesis topic. Five rungs is the right size: enough to grow, few enough to finish.</p>
+<p>Here is a template ladder for a tabular-data researcher (adapt the datasets and tasks to your track):</p>
+<ul>
+<li><strong>Rung 1 — Guided replication (2 weeks).</strong> Rebuild your Chapter 4 house-price project on a new dataset, entirely from memory and your notes — no re-reading the chapter until you are stuck. Goal: the ML loop becomes recallable, not just recognizable.</li>
+<li><strong>Rung 2 — Independent analysis (3 weeks).</strong> Take a messy public dataset you have never seen. Do the full data diary, engineer ten features, and write a five-page report with plots. Goal: comfort with mess — missing values, weird encodings, ambiguous columns.</li>
+<li><strong>Rung 3 — Paper reproduction (4 weeks).</strong> Pick a paper from your paper log with available code or a clearly described method. Reproduce its main result on its dataset, then write up where reproduction was hard — unclear hyperparameters, missing preprocessing details. Goal: you learn that published results are starting points, and you practice the exact skill reviewers use to judge <em>your</em> future work.</li>
+<li><strong>Rung 4 — Method comparison (4 weeks).</strong> Take two competing approaches from your literature taxonomy and compare them fairly on one dataset — same splits, same metrics, tuned baselines, multiple seeds. Goal: the honest-evaluation discipline of Chapters 4 and 7, producing a result you can defend out loud.</li>
+<li><strong>Rung 5 — Thesis pilot (6 weeks).</strong> A small version of your actual research question: your data (or a proxy), your hypothesized method, evaluated properly. It will probably "fail" — the hypothesis will be wrong or the data insufficient. That failure is the rung's purpose: it converts your thesis from a vague plan into a list of concrete problems to solve, which is what the next year is for.</li>
+</ul>
+<p>Notice what the ladder does: by Rung 5 you have spent five months building, and "tutorial hell" (Chapter 10) never had a chance to form.</p>
+<h3 id="82-how-to-scope-a-project-so-you-finish-it">8.2 How to scope a project so you finish it</h3>
+<p>Unfinished projects teach nothing. Most die from overscoping — "I'll build a real-time multi-object tracking system" as a second project. Scope with these rules:</p>
+<ul>
+<li><strong>One new skill per project.</strong> If the project needs a new framework <em>and</em> a new data type <em>and</em> a new evaluation method, split it. Each rung teaches one thing; the ladder teaches everything.</li>
+<li><strong>Time-box ruthlessly.</strong> Assign each rung a calendar deadline before starting — "done by March 15, whatever state it is in." Deadlines force the essential skill of <em>finishing</em>: writing up partial results, which is what research deadlines demand.</li>
+<li><strong>Define "done" in advance.</strong> A project is done when: code runs end-to-end from raw data, results are in a table with a baseline comparison, and a 2-page write-up exists explaining what was tried and learned. Not when it is perfect — when it is <em>complete</em>.</li>
+<li><strong>Shrink the data first.</strong> Prototype on 1,000 rows or 100 images; scale up only after the pipeline works. Hours of debugging on full datasets is the tax beginners pay for skipping this.</li>
+</ul>
+<h3 id="83-reproducing-papers-the-highest-value-project-type">8.3 Reproducing papers: the highest-value project type</h3>
+<p>Rung 3 deserves emphasis because paper reproduction is secretly research training. Choose papers wisely: prefer recent papers with released code, clear datasets, and results you can verify in days, not months. Then:</p>
+<ol>
+<li><strong>Get the code running first</strong>, exactly as released. Do not "improve" anything until the original result reproduces — otherwise you cannot tell your changes from the authors' bugs.</li>
+<li><strong>Ablate one thing.</strong> Remove or change a single component and observe. This converts reproduction into understanding.</li>
+<li><strong>Document friction.</strong> Every unclear step — an undocumented preprocessing choice, a hyperparameter mentioned nowhere — goes in your write-up. This log is gold: it teaches you what <em>your</em> papers must document, a lesson most researchers learn only from harsh reviews.</li>
+<li><strong>Try the transfer.</strong> Run the method on a slightly different dataset. Does it generalize, or was it tuned to one benchmark? Your honest answer here is a potential research contribution.</li>
+</ol>
+<p>Researchers who have reproduced three papers read the fourth with x-ray vision — and write their own papers reproducibly from the start.</p>
+<h3 id="84-kaggle-and-open-datasets-sparring-partners">8.4 Kaggle and open datasets: sparring partners</h3>
+<p>Competitive platforms like Kaggle are excellent <em>sparring</em> — structured problems, clean-ish data, leaderboards for calibration — and terrible <em>masters</em>, because leaderboard-chasing rewards ensembling tricks over understanding. Use them correctly:</p>
+<ul>
+<li><strong>Do</strong> use Kaggle datasets and discussion forums as project material for Rungs 1–2.</li>
+<li><strong>Do</strong> study top solutions' write-ups — they are masterclasses in feature engineering and validation discipline.</li>
+<li><strong>Do not</strong> spend months climbing a leaderboard with ensemble #47. The skill being trained (micro-optimization) is not the skill research needs (asking new questions).</li>
+<li><strong>Do</strong> treat a competition's public/private split as a lesson in overfitting: the graveyard of "great public score, terrible private score" is Chapter 4's honesty lesson at scale.</li>
+</ul>
+<p>Beyond Kaggle: domain repositories (health, agriculture, climate, finance), government open-data portals, and your own institution's data. The best Rung 4–5 datasets are ones nobody has benchmarked to death — your results will be <em>new</em>, which is the point of research.</p>
+<h3 id="85-the-portfolio-your-work-visible">8.5 The portfolio: your work, visible</h3>
+<p>From Rung 2 onward, keep every project in a public code repository with three artifacts: readable code (functions, not cell-soup), a short README (problem, method, result, what you learned), and the write-up PDF. This is not vanity — it is infrastructure:</p>
+<ul>
+<li><strong>For jobs and internships</strong>, it is proof of skill beyond certificates.</li>
+<li><strong>For collaborations</strong>, it lets a potential co-author assess you in ten minutes.</li>
+<li><strong>For yourself</strong>, it is an external memory — you <em>will</em> forget how you solved that data-cleaning problem, and your past self's README will save you.</li>
+<li><strong>For your thesis</strong>, Rung 4–5 write-ups become draft sections.</li>
+</ul>
+<p>One quality bar: each repository should be reproducible by a stranger — a requirements file, a data-download script or clear data link, and notebooks that run top-to-bottom after restart-and-run-all. If you would be embarrassed for your advisor to run it, it is not done.</p>
+<h3 id="86-learning-in-public-carefully">8.6 Learning in public (carefully)</h3>
+<p>Sharing progress — short write-ups of what you built and learned — accelerates learning through feedback and accountability. But researchers should share <em>carefully</em>: never publish data you do not own, never post results you intend to publish before checking your institution's and venue's policies on preprints, and frame work-in-progress honestly ("exploratory," "unverified") rather than as conclusions. The rule: share the <em>learning</em>, protect the <em>novelty</em> until it is properly published.</p>
+<h3 id="87-designing-rung-5-your-thesis-pilot-in-detail">8.7 Designing Rung 5: your thesis pilot in detail</h3>
+<p>Rung 5 is the ladder's summit and its most personal rung, so here is a concrete worked example. Suppose your thesis question is "predicting student dropout from university records" (tabular track). Here is how the six-week pilot is designed:</p>
+<p><strong>Week 1 — Scope and data.</strong> Write the one-sentence question and the Chapter 4 framing: inputs (attendance, grades, fee-payment delays), target (dropout within one year: yes/no), metric (recall — missing an at-risk student costs more than a false alarm; see Section 4.9's error-cost thinking). Get the data: real records if available, otherwise a public education dataset as proxy. Write the data diary. Define "done": a baseline plus one stronger model, evaluated with cross-validation, in a 4-page report.</p>
+<p><strong>Weeks 2–3 — Baselines.</strong> Logistic regression first, then random forest — the Chapter 4 loop, now fluent. Expect 2–3 days of data cleaning (inconsistent student IDs, missing attendance). Log every experiment with a hypothesis. The goal is not a good score; it is a <em>trustworthy</em> score with known data quirks documented.</p>
+<p><strong>Weeks 4–5 — One idea.</strong> Pick exactly one idea from your literature taxonomy — say, adding engineered features capturing <em>trends</em> (grade trajectories, not just snapshots). Implement, compare against baseline with the same splits and seeds, run the skeptical checklist (Section 7.7) on your own result. It will probably help a little, or not at all — both outcomes are fine.</p>
+<p><strong>Week 6 — Write-up and problem list.</strong> Write the 4-page report: what worked, what did not, and — the pilot's true output — a prioritized list of problems: "need better handling of transfer students," "labels are noisy for part-time students," "recall is 0.6, need 0.8 for the thesis claim." This list <em>is</em> your next six months of research, now concrete instead of vague. Show it to your advisor: you have converted "I'm working on dropout prediction" into an agenda.</p>
+<

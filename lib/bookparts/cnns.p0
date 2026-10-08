@@ -1,0 +1,438 @@
+<h1 id="convolutional-neural-networks-for-images">Convolutional Neural Networks for Images</h1>
+<p><strong>Book 12 of 50 — AstolixGen Learning Series</strong></p>
+<p><img alt="Book cover" src="media-generation-book-12-cover-detailed-0-cb8a1fd8-aed6-440b-9804-4deaf422a3af.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>This book is written for MS and PhD students, and for early-career AI researchers who want a working understanding of convolutional neural networks — not just the vocabulary, but the machinery, the training craft, and the habits that turn CNN experiments into publishable results.</p>
+<p>CNNs were the architecture that turned deep learning from a research curiosity into the dominant approach for image understanding. They powered the ImageNet revolution of 2012, enabled medical imaging breakthroughs, and remain the default workhorse for image classification, detection, and segmentation even in an era of transformers and vision-language models. If your thesis touches images at all — radiology scans, satellite tiles, crop photographs, microscope slides — you need this material.</p>
+<p>We build from first principles. Chapter 1 answers <em>why</em> convolutions exist instead of plain fully connected layers. Chapters 2–3 give you the mechanics: the convolution operation with worked numeric examples, plus stride, padding, pooling, and receptive fields. Chapters 4–6 walk through the canonical architectures — LeNet, AlexNet, VGG, ResNet, MobileNet, EfficientNet — not as museum pieces but as design lessons you can reuse. Chapters 7–9 cover the practical core: transfer learning, data augmentation, and how to actually train a CNN without wasting weeks of GPU time. Chapter 10 shows you how to see inside your network. Chapter 11 adapts the whole recipe to three research domains: medical imaging, agriculture, and satellite imagery. Chapter 12 closes the loop from experiments to a paper: ablations, tables, and reporting standards.</p>
+<p>Every chapter contains working PyTorch code. Run it. Break it. The examples are designed to be runnable on a laptop CPU or a single modest GPU (an 8 GB card is plenty for everything here). We assume you know Python and the basics of neural networks — what a loss function is, what backpropagation does at a high level. We do not assume any image processing background.</p>
+<p><strong>How to use this book:</strong> Read Chapters 1–5 in order; they build on each other. Chapters 7–12 are largely self-contained and can be read as needed. Do every exercise that involves writing code — the gap between reading about a convolution and implementing one is where real understanding lives.</p>
+<h3 id="learning-objectives">Learning Objectives</h3>
+<p>By the end of this book, you will be able to:</p>
+<ol>
+<li>Explain, with parameter counts, why convolution beats fully connected layers for images — and quantify the savings for a concrete architecture.</li>
+<li>Compute the output of a convolution by hand for small examples, including stride, padding, and multi-channel inputs, and predict output tensor shapes with the standard sizing formulas.</li>
+<li>Describe what stride, padding, and pooling do to spatial dimensions and receptive fields, and choose them deliberately when designing an architecture.</li>
+<li>Trace the design lineage from LeNet through AlexNet, VGG, and ResNet, and explain what problem each architecture solved and what it taught the field.</li>
+<li>Explain skip connections mechanistically — why they fix the vanishing-gradient problem and why residual learning is easier to optimize.</li>
+<li>Select efficient architectures (MobileNet, EfficientNet) for compute-limited settings and justify the choice in terms of FLOPs, parameters, and latency.</li>
+<li>Apply transfer learning correctly: choose between feature extraction and full fine-tuning, set layer-wise learning rates, and avoid the common failure modes (catastrophic forgetting, negative transfer).</li>
+<li>Design a data augmentation pipeline for an image dataset, choosing augmentations that respect the data's invariances and avoiding ones that destroy label semantics.</li>
+<li>Train a CNN to convergence: pick optimizers, learning-rate schedules, and regularization; diagnose underfitting, overfitting, and optimization failures from training curves.</li>
+<li>Visualize what a trained CNN has learned (first-layer filters, activation maps, Grad-CAM), and use those visualizations to debug models and strengthen a paper's figures.</li>
+</ol>
+<hr />
+<h2 id="chapter-1-why-convolutions-for-images">Chapter 1 — Why Convolutions for Images</h2>
+<h3 id="the-problem-with-flattening-an-image">The problem with flattening an image</h3>
+<p>Imagine you have a 256×256 RGB photograph and you want to classify it with a plain feedforward network. The naive move is to flatten the image into a vector: 256 × 256 × 3 = 196,608 input numbers. Now connect that to a hidden layer of, say, 1,024 neurons. The weight matrix alone holds 196,608 × 1,024 ≈ 201 million parameters. That is a staggering amount of machinery for a single layer — more parameters than many complete modern networks — and it buys you almost nothing, because the structure of the problem has been thrown away.</p>
+<p>Flattening destroys two pieces of structure that images have and generic vectors don't:</p>
+<ol>
+<li><strong>Locality.</strong> Pixels near each other are strongly related; pixels far apart usually are not. An edge, a texture, a corner — all the visual primitives — are defined by small neighborhoods. A fully connected layer treats pixel (0, 0) and pixel (200, 150) as equally related to pixel (0, 1), which is false for natural images.</li>
+<li><strong>Stationarity (roughly).</strong> The statistics of useful visual features don't depend much on where they appear. A horizontal edge detector that works in the top-left corner of an image also works in the bottom-right. Your visual cortex doesn't learn separate edge detectors for every retinal position, and your network shouldn't either.</li>
+</ol>
+<p>A fully connected layer learns no such thing: it must independently learn, at every position, whatever pattern matters at that position. That is wasteful in parameters, slow to train, data-hungry, and prone to overfitting — because with 201 million free parameters, memorizing the training set is always the easiest path.</p>
+<p>The convolution solves this with two ideas that go together: <strong>local connectivity</strong> and <strong>parameter sharing</strong>.</p>
+<h3 id="local-connectivity">Local connectivity</h3>
+<p>Instead of connecting every neuron to every pixel, a convolutional neuron connects to a small patch — say 3×3 pixels — of the input (or of the previous layer's output). This is called the <strong>receptive field</strong> of the neuron, and the idea has a direct biological precedent: Hubel and Wiesel's work on the visual cortex showed that individual neurons in area V1 respond to stimuli in small, localized regions of the visual field. The Neocognitron (Fukushima, 1980), the direct ancestor of modern CNNs, was explicitly modeled on this.</p>
+<p>Why is local connectivity safe? Because in images, the informative relationships are local. A neuron trying to detect an eye in a face doesn't need to see the whole image; it needs to see the eye region. Higher layers, which see combinations of lower-layer outputs, get their larger effective receptive fields automatically — the hierarchy builds itself.</p>
+<h3 id="parameter-sharing-weight-tying">Parameter sharing (weight tying)</h3>
+<p>Here's the bigger idea. In a standard layer, each neuron has its own private set of weights. In a convolutional layer, the same small weight matrix — the <strong>kernel</strong> or <strong>filter</strong> — is reused at every spatial position. One 3×3×3 kernel (27 weights plus a bias) slides across the whole image, computing a response at each location. The resulting two-dimensional map of responses is called a <strong>feature map</strong> (or activation map).</p>
+<p>The consequence is a feature detector that is <strong>translation equivariant</strong>: if you shift the input pattern a few pixels, the feature map shifts by the same amount. The detector doesn't care <em>where</em> the pattern is — it finds it anywhere. (Strictly, pooling later gives approximate <em>invariance</em>, which we discuss in Chapter 3; equivariance from convolution and invariance from pooling are related but distinct, and a paper reviewer will notice if you confuse them.)</p>
+<h3 id="counting-the-savings-a-worked-example">Counting the savings — a worked example</h3>
+<p>Let's make this concrete. Take a 32×32×3 image (CIFAR-10 size) feeding a first hidden layer that produces 64 output channels, conceptually arranged as a 32×32×64 volume (same spatial size for now; padding handles this, per Chapter 3).</p>
+<p><strong>Fully connected approach:</strong> each of the 32 × 32 × 64 = 65,536 output units connects to all 3,072 input pixels: 65,536 × 3,072 ≈ <strong>201 million parameters</strong>.</p>
+<p><strong>Convolutional approach:</strong> each output channel is produced by one 3×3×3 kernel shared across all positions: 64 kernels × (3 × 3 × 3 + 1 bias) = 64 × 28 = <strong>1,792 parameters</strong>.</p>
+<p>Same output volume shape. Two hundred million parameters versus under two thousand. That ratio — five orders of magnitude — is why CNNs train at all. The convolutional layer isn't just more efficient; it encodes a correct prior about the data (locality + stationarity), which acts as a powerful regularizer. Fewer parameters means less capacity to memorize noise, which is exactly what you want when your dataset has 50,000 images and not 50 million.</p>
+<p>Of course, the fully connected layer <em>could</em> in principle learn the same function — a convolutional layer is a constrained special case of a fully connected one (a sparse weight matrix with tied weights). The constraint is the point. As with all of machine learning, the win comes from matching the model's inductive bias to the problem's structure.</p>
+<h3 id="the-hierarchy-what-stacking-buys-you">The hierarchy: what stacking buys you</h3>
+<p>A single convolutional layer detects simple local patterns: edges, color blobs, oriented bars. Stack a second convolutional layer on top, and its neurons combine those primitives into textures and simple shapes. A third layer combines shapes into parts — an eye, a wheel, a leaf vein. By layer ten or twenty, neurons respond to whole objects and scenes. This compositional hierarchy is the second great idea of CNNs, and it is why depth matters: each layer reuses the abstractions of the one below.</p>
+<p>Zeiler and Fergus's famous visualizations (2014) made this tangible — we'll reproduce the intuition in Chapter 10 — but the principle matters now: <strong>convolutional networks learn features, not just classifiers</strong>. The deep layers of a trained CNN are a general-purpose visual vocabulary, which is precisely why transfer learning (Chapter 7) works.</p>
+<h3 id="a-small-code-taste">A small code taste</h3>
+<p>Here's the two approaches side by side in PyTorch, for the 32×32×3 → 64-channel example:</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
+
+# Fully connected: 201M parameters, structure discarded
+fc = nn.Linear(32 * 32 * 3, 32 * 32 * 64)
+print(sum(p.numel() for p in fc.parameters()))  # 201,334,784
+
+# Convolutional: 1,792 parameters, structure preserved
+conv = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1)
+print(sum(p.numel() for p in conv.parameters()))  # 1,792
+</code></pre>
+<p>Run that. The numbers are the argument. Everything else in this book is about what you do with this absurd efficiency advantage.</p>
+<blockquote>
+<p><strong>For your research.</strong> If your thesis involves any image data, your baseline should be a CNN — even a simple one — before you reach for anything exotic. Reviewers will ask "did you try a standard ResNet baseline?" and if the answer is no, nothing else you report will land. The parameter-counting argument above is also directly reusable: in your paper's methods section, one sentence explaining why convolution suits your data (local structure, translation statistics) preempts the "why this architecture?" question. Keep the bias-vocabulary straight: convolutions give <em>equivariance</em>, pooling gives (approximate) <em>invariance</em>.</p>
+</blockquote>
+<h3 id="going-deeper-biology-equivariance-in-code-and-honest-limits">Going deeper: biology, equivariance in code, and honest limits</h3>
+<p><strong>The biological roots.</strong> In 1962, Hubel and Wiesel showed that neurons in a cat's visual cortex fire for edges at specific orientations within small regions of the visual field — the receptive fields this chapter borrowed as an idea. In 1980, Fukushima's Neocognitron stacked layers of such local feature detectors with a pooling-like operation between them, explicitly modeled on this biology, and recognized handwritten digits. LeCun's LeNet (Chapter 4) made the same idea trainable end-to-end with backpropagation. So when someone asks "why should local weight sharing work," the two-part answer is: (a) the statistics of natural images — local correlations, stationary features — and (b) it worked in the one vision system we know is excellent, the mammalian cortex. Nature ran the ablation study first.</p>
+<p><strong>Equivariance, demonstrated rather than asserted.</strong> Chapter 1 claimed convolution is translation <em>equivariant</em>: shift the input, and the feature map shifts by exactly the same amount. Let's verify:</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+img = torch.zeros(1, 1, 6, 6)
+img[0, 0, 1, 1] = 10.0          # bright pixel near top-left
+K = torch.tensor([[[[1., 1., 1.],
+                    [1., 1., 1.],
+                    [1., 1., 1.]]]])  # 3x3 blur kernel
+
+out1 = F.conv2d(img, K, padding=1)
+shifted = torch.roll(img, shifts=(0, 2), dims=(2, 3))  # shift right by 2
+out2 = F.conv2d(shifted, K, padding=1)
+
+print(torch.allclose(out2, torch.roll(out1, shifts=(0, 2), dims=(2, 3))))  # True
+</code></pre>
+<p>It prints True. The output moved exactly as the input did — the detector found the pattern wherever it was, with no retraining. (Boundary effects from padding can break exactness at the edges, which is one more reason to understand your padding choice from Chapter 3.)</p>
+<p><strong>What convolution cannot do — honest limits for your thesis.</strong> Knowing the failure modes is as important as knowing the mechanism:
+1. <em>No rotation equivariance.</em> Rotate the input 90 degrees and the feature maps do not rotate correspondingly through the same kernels — every orientation needs separately learned filters, or augmentation (Chapter 8), or specialized group-equivariant architectures.
+2. <em>Long-range dependencies are expensive.</em> A neuron only sees its receptive field; relating distant regions requires depth. Tasks needing whole-image reasoning (counting, global layout) are why non-local blocks — and later vision transformers — appeared.
+3. <em>The grid assumption.</em> Convolution assumes data on a regular grid. Point clouds, meshes, and graphs need different machinery (graph neural networks). Don't force image-style CNNs onto non-grid data.
+4. <em>Resolution coupling.</em> Filter scales are tied to training resolution — a network trained on 224×224 inputs doesn't automatically handle 1024×1024 well. EfficientNet's compound scaling (Chapter 6) exists partly because of this.</p>
+<p><strong>Parameter sharing as regularization — the learning-theory view.</strong> With 201 million free parameters and 50,000 training images, a fully connected network can simply memorize the training labels (Zhang et al. demonstrated in 2017 that deep networks fit even random labels). Generalization then depends on fragile optimizer biases. Weight sharing cuts capacity by five orders of magnitude <em>structurally</em>, before optimization begins. You're not hoping the network generalizes; you've made memorization geometrically harder. When your examiner asks "why not just use an MLP with dropout," this is the answer: dropout regularizes a huge capacity, while convolution removes capacity you never needed.</p>
+<p><strong>Worked example: a realistic first layer.</strong> Input 224×224×3, first convolution with 64 kernels of 7×7, stride 2, padding 3 (ResNet's stem). Parameters: 64 × (7×7×3 + 1) = 64 × 148 = <strong>9,472</strong>. Output spatial size: floor((224 − 7 + 6)/2) + 1 = 112. So a 112×112×64 volume — from nine thousand parameters. The fully connected equivalent for the same output volume: (112×112×64) × (224×224×3) ≈ 1.2×10¹¹ — 120 <em>billion</em> parameters in a single layer. Nobody trains that; everybody trains the 9,472-parameter version. Keep this example handy — it makes an excellent slide.</p>
+<h3 id="convolution-as-structured-matrix-multiplication">Convolution as structured matrix multiplication</h3>
+<p>There is a useful mental model that unifies this chapter with everything you know about fully connected layers: <strong>a convolutional layer is exactly a fully connected layer whose weight matrix is sparse and shares values.</strong> Take a 4×4 input (16 pixels) and a 3×3 kernel, stride 1, no padding → 2×2 output (4 values). Unroll the input to a 16-vector and the output to a 4-vector. The "weight matrix" is 4×16, but each row has only 9 nonzero entries (the kernel weights, in the right positions), and the same 9 numbers repeat in every row, shifted. Libraries implement convolution almost this way (the im2col transform rearranges image patches into columns, then it's one big matrix multiply — which is why GPUs love it).</p>
+<p>Why does this view matter for research? Three reasons. First, it makes parameter counting trivially general: parameters = (nonzero weights per output) × (number of distinct kernels). Second, it explains why techniques transfer between layer types — dropout, weight decay, initialization schemes all operate on the underlying matrix. Third, it clarifies what "inductive bias" means mechanically: you're not adding a new kind of learning, you're <em>deleting</em> connections and <em>tying</em> weights. Every architectural innovation in this book — depthwise separable convolutions, grouped convolutions, bottlenecks — is a different pattern of deletion and tying. When you propose your own architecture, describe it in these terms ("we tie weights across X and sparsify along Y") and reviewers will immediately understand the claim.</p>
+<p><strong>Initialization deserves a paragraph.</strong> Random weights can't be arbitrary: too large and activations explode through deep stacks; too small and they vanish. <strong>He initialization</strong> (He et al., 2015) draws weights with variance 2/fan_in — derived specifically for ReLU networks, where half the activations are zeroed. PyTorch applies it by default in conv layers (<code>kaiming_uniform_</code>), which is why your networks train at all out of the box. If you ever write a custom layer with a non-ReLU activation, revisit the initialization: Xavier/Glorot (variance 1/fan_in) suits tanh/sigmoid. "We used default He initialization" is a complete methods sentence — but now you know what it claims.</p>
+<h3 id="when-not-to-use-a-cnn-and-the-locally-connected-middle-ground">When <em>not</em> to use a CNN (and the locally-connected middle ground)</h3>
+<p>Honesty requires the counter-cases. Skip CNNs (or demote them to a baseline) when: (a) your inputs aren't grids — tabular data, point clouds, graphs, sets — where MLPs, PointNets, or GNNs match the structure better; (b) order matters more than locality — long sequences and language, where transformers dominate; (c) you have &lt; 200 images and no related pretrained model — a CNN will memorize; try classical features + a linear model, or generate data first; (d) the discriminative signal is global and non-local (e.g., "is this X-ray from scanner A or B" — often a global texture statistic a linear probe on pooled features captures better than deep hierarchies).</p>
+<p><strong>The middle ground: locally connected layers.</strong> Between fully connected (no sharing, dense) and convolutional (full sharing, sparse) sits the locally connected layer: each position gets its <em>own</em> kernel (no sharing) but only sees a local patch (sparse). DeepFace (2014) used these for face recognition — faces are roughly aligned, so position-specific features help. The cost is the parameter explosion of no sharing, which is why the idea mostly lost. Know it exists: when your data is <em>aligned</em> (registered medical images, fixed-camera industrial inspection), relaxing sharing in late layers is a legitimate, citable design choice — "we use locally connected layers in the final stage because inputs are registered" — but measure whether it beats plain convolution before committing.</p>
+<p><strong>Key takeaways</strong>
+- Flattening an image into a vector destroys locality and stationarity — the two structural facts that make images learnable.
+- Convolution = local connectivity (small receptive fields) + parameter sharing (one kernel reused everywhere).
+- The savings are enormous: ~201M parameters → ~1.8K for the same output volume in our example.
+- Stacked convolutions build a compositional hierarchy: edges → textures → parts → objects.
+- A convolutional layer is a constrained fully connected layer; the constraint is an inductive bias, and matching bias to data is the whole game.</p>
+<hr />
+<h2 id="chapter-2-the-convolution-operation-explained-step-by-step">Chapter 2 — The Convolution Operation, Explained Step by Step</h2>
+<h3 id="what-the-operation-actually-computes">What the operation actually computes</h3>
+<p>Forget neural networks for a moment. Take a small grayscale image — a 5×5 grid of pixel values — and a 3×3 kernel of weights. Place the kernel over the top-left 3×3 patch of the image. Multiply each kernel weight by the pixel underneath it, element by element. Add all nine products together. That single number becomes one pixel of the output. Then slide the kernel one step right and repeat; when you hit the edge, go down a row. The grid of output numbers is the feature map.</p>
+<p>Formally, for input I and kernel K (both 2-D for now), the cross-correlation computed by deep learning libraries is:</p>
+<p>output[i, j] = Σ_m Σ_n I[i + m, j + n] · K[m, n]</p>
+<p>(A note for the careful: what deep learning calls "convolution" is technically <strong>cross-correlation</strong> — a true mathematical convolution flips the kernel first. Since the kernel weights are learned, the flip is irrelevant; the network learns whichever orientation it needs. Every library does cross-correlation and calls it convolution. Use the word "convolution"; know the footnote.)</p>
+<h3 id="worked-numeric-example-1-edge-detection">Worked numeric example 1: edge detection</h3>
+<p>Consider this 5×5 input (think of it as a bright square on a dark background):</p>
+<pre><code>I =  0  0  0  0  0
+     0 10 10 10  0
+     0 10 10 10  0
+     0 10 10 10  0
+     0  0  0  0  0
+</code></pre>
+<p>And a vertical-edge kernel:</p>
+<pre><code>K =  1  0 -1
+     1  0 -1
+     1  0 -1
+</code></pre>
+<p>This kernel responds strongly where the left side of its window is bright and the right side is dark — i.e., a vertical edge with bright on the left.</p>
+<p><strong>Position (0, 0)</strong> (top-left patch):</p>
+<pre><code>patch =  0  0  0        K =  1  0 -1
+         0 10 10             1  0 -1
+         0 10 10             1  0 -1
+</code></pre>
+<p>Element-wise products: 0·1 + 0·0 + 0·(−1) + 0·1 + 10·0 + 10·(−1) + 0·1 + 10·0 + 10·(−1) = 0 + 0 + 0 + 0 + 0 − 10 + 0 + 0 − 10 = <strong>−20</strong>.</p>
+<p><strong>Position (0, 1)</strong> (shift right by one):</p>
+<pre><code>patch =  0  0  0
+         10 10 10
+         10 10 10
+</code></pre>
+<p>Products: 0 + 0 + 0 + 10 + 0 − 10 + 10 + 0 − 10 = <strong>0</strong>. (No vertical edge here — the patch is uniform bright in the middle columns, and the kernel's left and right columns cancel.)</p>
+<p><strong>Position (0, 2)</strong> (shift right again):</p>
+<pre><code>patch =  0  0  0
+         10 10  0
+         10 10  0
+</code></pre>
+<p>Products: 0 + 0 + 0 + 10 + 0 + 0 + 10 + 0 + 0 = <strong>+20</strong>. Strong positive response: bright on the left, dark on the right — the right edge of the square.</p>
+<p>Continuing across all nine valid positions gives the 3×3 output:</p>
+<pre><code>out = -20   0  20
+      -20   0  20
+      -20   0  20
+</code></pre>
+<p>Read it: the left column fires −20 (bright-to-dark edge in the reverse orientation — the left edge of the square, which is dark-to-bright left-to-right), the middle column is silent, and the right column fires +20 (the right edge). The kernel found exactly the vertical edges and ignored everything else. That is a feature map.</p>
+<p>Now apply a ReLU (set negatives to zero) — standard after every convolution — and the negative responses vanish, leaving only the +20 edge detections:</p>
+<pre><code>relu(out) =  0  0  20
+             0  0  20
+             0  0  20
+</code></pre>
+<h3 id="worked-numeric-example-2-multiple-channels-and-bias">Worked numeric example 2: multiple channels and bias</h3>
+<p>Real inputs have channels (RGB = 3), and real layers have many kernels. The rule: <strong>a kernel spans all input channels</strong>, and each output channel gets its own kernel plus one bias.</p>
+<p>Take a tiny 2×2×2 input (height 2, width 2, channels 2):</p>
+<pre><code>channel 0:   1  2        channel 1:   5  6
+             3  4                      7  8
+</code></pre>
+<p>One 2×2×2 kernel (no sliding possible — output is 1×1), with weights:</p>
+<pre><code>kernel ch0:  1  0        kernel ch1:  0  1
+             0 -1                    -1  0
+</code></pre>
+<p>bias = 10.</p>
+<p>Compute per channel, then sum, then add bias:</p>
+<ul>
+<li>ch0: 1·1 + 2·0 + 3·0 + 4·(−1) = 1 − 4 = −3</li>
+<li>ch1: 5·0 + 6·1 + 7·(−1) + 8·0 = 6 − 7 = −1</li>
+<li>Sum + bias: −3 + (−1) + 10 = <strong>6</strong>.</li>
+</ul>
+<p>So the single output value is 6. With 64 kernels you'd get 64 such numbers — a 1×1×64 output volume. Notice the accounting: each output channel costs kernel_height × kernel_width × in_channels weights, plus one bias. This is the parameter formula you'll use constantly:</p>
+<p><strong>params per conv layer = out_channels × (kernel_h × kernel_w × in_channels + 1)</strong></p>
+<h3 id="the-operation-in-pytorch-verified-by-hand">The operation in PyTorch, verified by hand</h3>
+<p>Let's check Example 1 in code — never trust a hand calculation you haven't run:</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+I = torch.tensor([[[[0., 0, 0, 0, 0],
+                    [0, 10, 10, 10, 0],
+                    [0, 10, 10, 10, 0],
+                    [0, 10, 10, 10, 0],
+                    [0, 0, 0, 0, 0]]]])  # shape: (1, 1, 5, 5)
+
+K = torch.tensor([[[[1., 0, -1],
+                    [1, 0, -1],
+                    [1, 0, -1]]]])      # shape: (1, 1, 3, 3)
+
+out = F.conv2d(I, K)
+print(out.squeeze())
+# tensor([[-20.,   0.,  20.],
+#         [-20.,   0.,  20.],
+#         [-20.,   0.,  20.]])
+</code></pre>
+<p>Matches the hand computation exactly. PyTorch tensor layout for conv2d is <strong>(batch, channels, height, width)</strong> — NCHW. Get comfortable with it; every shape bug you'll ever debug in a CNN is an NCHW misunderstanding.</p>
+<h3 id="what-kernels-learn-a-preview">What kernels learn (a preview)</h3>
+<p>In Example 1, we hand-designed an edge detector. In a real network, nobody designs kernels — they start random and gradient descent shapes them. The remarkable empirical finding (visualized in Chapter 10) is that first-layer kernels <em>converge to</em> edge detectors, color-blob detectors, and oriented gratings on their own. The network rediscovers classical image processing from data. Deeper layers learn combinations: a "wheel detector" is literally a weighted sum of curve and edge detectors from below, because that's all a convolution plus nonlinearity can express — and it turns out to be enough.</p>
+<h3 id="complexity-how-much-work-is-one-layer">Complexity: how much work is one layer?</h3>
+<p>For an H×W×C_in input, K×K kernels, C_out output channels, the multiply-add count is roughly H × W × C_out × K² × C_in. For a 56×56×64 input with 128 3×3 kernels: 56 × 56 × 128 × 9 × 64 ≈ 231 million MACs. This is why 3×3 kernels dominate modern design (Chapter 6 will show how 1×1 kernels cut this further) and why you should always know your model's FLOPs before promising a paper result on a deadline — a model that takes six days per training run will not get ablated.</p>
+<blockquote>
+<p><strong>For your research.</strong> Hand-computing a convolution is the fastest way to debug shape errors: when your feature map comes out 27×27 instead of 28×28, you need the sizing formula (Chapter 3), not another print statement. More importantly, the multi-channel example shows why 1×1 convolutions are so powerful — a 1×1 kernel is just a per-pixel weighted sum across channels, i.e., a learnable channel mixer with no spatial extent. Network-in-Network (Lin et al., 2014) introduced them, and every modern architecture uses them to control channel counts cheaply. If a reviewer asks how you reduced dimensionality, "1×1 convolutions" is a complete answer.</p>
+</blockquote>
+<h3 id="more-worked-examples-padding-by-hand-11-convolutions-dilation">More worked examples: padding by hand, 1×1 convolutions, dilation</h3>
+<p><strong>Example 3: padding and stride, computed by hand.</strong> Take a 4×4 input:</p>
+<pre><code>I =  1  2  3  4
+     5  6  7  8
+     9 10 11 12
+    13 14 15 16
+</code></pre>
+<p>Kernel: 3×3 of all ones, stride 2, padding 1. First the shape: floor((4 − 3 + 2)/2) + 1 = floor(3/2) + 1 = 2. Output is 2×2. Pad the input with a zero border (now 6×6):</p>
+<pre><code>0  0  0  0  0  0
+0  1  2  3  4  0
+0  5  6  7  8  0
+0  9 10 11 12  0
+0 13 14 15 16  0
+0  0  0  0  0  0
+</code></pre>
+<p>Position (0,0) — kernel over rows 0–2, cols 0–2: 0+0+0+0+1+2+0+5+6 = <strong>14</strong>. Position (0,1) — rows 0–2, cols 2–4: 0+0+0+2+3+4+6+7+8 = <strong>30</strong>. Position (1,0) — rows 2–4, cols 0–2: 0+5+6+0+9+10+0+13+14 = <strong>57</strong>. Position (1,1) — rows 2–4, cols 2–4: 6+7+8+10+11+12+14+15+16 = <strong>99</strong>.</p>
+<pre><code>out = 14  30
+      57  99
+</code></pre>
+<p>Run <code>F.conv2d(I, K, stride=2, padding=1)</code> and compare — do this; the habit of verifying hand calculations in code is exactly what makes shape bugs tractable later. Notice what happened: padding let the kernel center on every original pixel including borders, while stride 2 still halved the size. This combination — pad for alignment, stride for downsampling — is precisely what ResNet's stem does.</p>
+<p><strong>1×1 convolution, numeric.</strong> Input 2×2×3:</p>
+<pre><code>ch0:  1  0      ch1:  0  2      ch2:  1  1
+      0  1            3  0            1  0
+</code></pre>
+<p>Two 1×1×3 kernels: k_a = [1, 0, −1], k_b = [0, 1, 1], biases 0. A 1×1 convolution computes, at each pixel independently, a dot product across channels. Pixel (0,0) has channels (1, 0, 1): k_a → 1·1 + 0·0 + 1·(−1) = <strong>0</strong>; k_b → 1·0 + 0·1 + 1·1 = <strong>1</strong>. Pixel (0,1), channels (0, 2, 1): k_a → <strong>−1</strong>; k_b → <strong>3</strong>. Pixel (1,0), channels (0, 3, 1): k_a → <strong>−1</strong>; k_b → <strong>4</strong>. Pixel (1,1), channels (1, 0, 0): k_a → <strong>1</strong>; k_b → <strong>0</strong>.</p>
+<p>Output channel a: [[0, −1], [−1, 1]]; channel b: [[1, 3], [4, 0]]. Zero spatial mixing — pure per-pixel channel recombination. This is why 1×1 convolutions are the standard tool for changing channel counts: with a ReLU after, they add representational power at minimal cost, and they appear in every modern architecture (bottlenecks, projections, SE blocks).</p>
+<p><strong>Dilated (atrous) convolutions.</strong> Insert gaps into the kernel: dilation d=2 spreads a 3×3 kernel over a 5×5 area with no extra parameters. Effective kernel size: K_eff = K + (K−1)(d−1). The receptive field grows while resolution stays fixed — the trick behind DeepLab's dense prediction and WaveNet's audio modeling. Same parameter count as a normal 3×3, but stacking identical dilations causes gridding artifacts (checkerboard gaps in coverage), so dilations are usually increased gradually (1, 2, 4). In PyTorch: <code>nn.Conv2d(64, 64, 3, padding=2, dilation=2)</code>. Reach for dilation when your task needs large context at full resolution — e.g., segmenting large structures in medical or satellite images without downsampling away the details.</p>
+<h3 id="backpropagation-through-convolution-the-intuition">Backpropagation through convolution (the intuition)</h3>
+<p>You don't need the full index gymnastics, but you need the shape story — because "how do gradients flow through my custom layer" is a question you'll face. Forward: input (B, C_in, H, W), kernel (C_out, C_in, K, K) → output (B, C_out, H', W'). Backward has two parts:</p>
+<ol>
+<li><strong>Gradient w.r.t. the kernel</strong> (for learning): it's a convolution of the <em>input</em> with the <em>upstream gradient</em> — intuitively, "which input patterns coincided with large errors, and in which direction should the kernel change to fix them." Shape check: upstream grad (B, C_out, H', W') convolved with input (B, C_in, H, W) yields (C_out, C_in, K, K) — exactly the kernel's shape. ✓</li>
+<li><strong>Gradient w.r.t. the input</strong> (to pass backward): it's a <em>transposed</em> convolution of the upstream gradient with the kernel — the error is "spread back" through the same connectivity. Shape: (B, C_in, H, W). ✓</li>
+</ol>
+<p>The beautiful symmetry: forward and both backward passes are all convolutions, which is why frameworks implement one kernel and reuse it three ways. And notice the parameter-sharing payoff again: the kernel's gradient <em>sums</em> contributions from every spatial position — each training image gives the kernel H'×W' learning signals, not one. This dense supervision per parameter is a hidden reason CNNs are so sample-efficient compared to fully connected nets.</p>
+<p><strong>Grouped convolutions.</strong> Split C_in input channels into G groups; each group gets its own kernels producing C_out/G outputs; concatenate. Parameters and FLOPs drop by ~G×. ResNeXt (Chapter 5) uses G=32 for representational reasons; the original motivation was AlexNet's two-GPU split (Chapter 4). Depthwise convolution is the extreme: G = C_in. In PyTorch it's one argument: <code>nn.Conv2d(64, 64, 3, padding=1, groups=8)</code>. Constraints: C_in and C_out must both be divisible by G. Use grouped convolutions when you want ResNeXt-style capacity at lower cost, or when channels have natural groupings (e.g., separate processing per spectral band group before fusion).</p>
+<h3 id="grouped-convolution-numeric-and-the-flop-ledger">Grouped convolution, numeric — and the FLOP ledger</h3>
+<p><strong>Grouped convolution by hand.</strong> Input: 4 channels, 2×2 spatial. Groups G=2 → group A sees channels 0–1, group B sees channels 2–3. Suppose 4 output channels (2 per group), kernel 1×1 for simplicity. Kernel weights: group A: k0=[1,0], k1=[0,1] (identity on its channels); group B: k2=[1,1], k3=[−1,1]. Pixel values across channels: (2, 3, 5, 7). Outputs: o0 = 2·1+3·0 = 2; o1 = 2·0+3·1 = 3; o2 = 5·1+7·1 = 12; o3 = 5·(−1)+7·1 = 2. No information crosses the group boundary — that's the point and the price. (ShuffleNet later added channel shuffling between grouped layers to restore cross-talk cheaply.)</p>
+<p><strong>The FLOP ledger habit.</strong> Before any architecture decision, fill one row: layer → params, MACs. For conv: params = C_out(C_in·K²+1); MACs ≈ H·W·C_out·C_in·K² (output spatial size). Sum the MACs; that's your per-image cost. Two uses: (1) predicting training time — MACs × 3 (forward + 2× backward) × dataset × epochs ÷ GPU throughput ≈ wall-clock; (2) catching design mistakes — if one layer holds 60% of FLOPs, it's your optimization target. Researchers who keep a FLOP ledger stop being surprised by slow experiments. <code>fvcore</code> or <code>thop</code> compute it automatically; do it by hand once so you trust the tool.</p>
+<p><strong>Key takeaways</strong>
+- Convolution = slide kernel, element-wise multiply, sum. Deep learning libraries compute cross-correlation and call it convolution; the distinction doesn't matter for learned weights.
+- One kernel spans all input channels; each output channel has its own kernel plus bias.
+- Output size without padding/stride: (H − K + 1) × (W − K + 1).
+- PyTorch uses NCHW layout: (batch, channels, height, width). Memorize it.
+- First-layer kernels learn edge/color detectors on their own; deeper layers compose them hierarchically.</p>
+<hr />
+<h2 id="chapter-3-pooling-stride-padding-receptive-fields">Chapter 3 — Pooling, Stride, Padding, Receptive Fields</h2>
+<h3 id="stride-how-far-the-kernel-steps">Stride: how far the kernel steps</h3>
+<p>So far the kernel moved one pixel at a time. The <strong>stride</strong> S is the step size. With stride 2, the kernel jumps two pixels between positions, producing an output roughly half the spatial size. Stride is the cheapest form of downsampling: you simply compute fewer positions.</p>
+<p>The general output-size formula for one spatial dimension, given input size W, kernel K, padding P, stride S:</p>
+<p><strong>W_out = floor((W − K + 2P) / S) + 1</strong></p>
+<p>Check it against Chapter 2's example: W = 5, K = 3, P = 0, S = 1 → (5 − 3)/1 + 1 = 3. ✓. With stride 2 instead: floor((5 − 3)/2) + 1 = floor(1) + 1 = 2. Positions: kernel covers columns 0–2, then 2–4. Two outputs. ✓.</p>
+<p>Memorize this formula. You will use it weekly.</p>
+<h3 id="padding-keeping-the-edges-and-the-size">Padding: keeping the edges (and the size)</h3>
+<p>Without padding, every convolution shrinks the map: a 5×5 input with a 3×3 kernel gives 3×3. Two problems: (a) deep stacks shrink to nothing — ten 3×3 layers on a 32×32 input would collapse the spatial dimensions entirely; (b) border pixels participate in fewer computations than center pixels, so the network systematically under-uses edge information (bad when your object touches the image border, as in many medical scans).</p>
+<p><strong>Padding</strong> adds a border of (usually zero) pixels around the input before convolving. The standard choice is "same" padding: P = (K − 1)/2 for odd K, which with stride 1 preserves the spatial size. For K = 3, P = 1: (32 − 3 + 2)/1 + 1 = 32. ✓.</p>
+<pre><code class="language-python">conv = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+x = torch.randn(1, 3, 32, 32)
+print(conv(x).shape)  # torch.Size([1, 64, 32, 32]) -- size preserved
+</code></pre>
+<p>Padding types matter more than beginners expect. <strong>Zero padding</strong> is the default and mostly harmless, but it injects a fake border of zeros that the network can learn to detect — CNNs are known to exploit padding artifacts as positional cues. <strong>Reflection padding</strong> mirrors the edge pixels and avoids the artificial zero border; some segmentation work prefers it. For a paper, "we used zero padding" needs no justification; anything else deserves one sentence.</p>
+<h3 id="pooling-downsampling-with-approximate-invariance">Pooling: downsampling with (approximate) invariance</h3>
+<p>A <strong>pooling</strong> layer slides a window over each feature map independently (no cross-channel mixing, no learned weights) and summarizes each window with one number. <strong>Max pooling</strong> takes the maximum; <strong>average pooling</strong> takes the mean.</p>
+<p>Why max pooling works: if a feature (say, a vertical edge) appears anywhere inside the 2×2 window, the max operation reports it. Shift the input by one pixel and the max is usually unchanged. This is where translation <em>invariance</em> comes from — small shifts in the input produce (approximately) identical pooled outputs. (It's approximate: a shift that moves the feature across a window boundary changes the result. Truly invariant pooling doesn't exist; "approximately invariant" is the honest phrase.)</p>
+<p>The standard recipe: 2×2 max pooling with stride 2 halves each spatial dimension:</p>
+<pre><code class="language-python">pool = nn.MaxPool2d(kernel_size=2, stride=2)
+x = torch.randn(1, 64, 32, 32)
+print(pool(x).shape)  # torch.Size([1, 64, 16, 16])
+</code></pre>
+<p>Pooling has no parameters — it can't overfit — and it aggressively reduces computation for later layers. Its deeper purpose is building the hierarchy: after pooling, the next convolution's 3×3 window covers a 6×6 region of the original input. Downsampling <em>grows</em> the effective receptive field, which is how deep layers see whole objects.</p>
+<p>Modern trend worth knowing: many architectures (ResNet onwards) replaced most pooling with <strong>strided convolutions</strong> — a convolution with stride 2 downsamples <em>and</em> learns the downsampling filter instead of using a fixed max. The intuition: why hand-design the downsampling when the network can learn it? Max pooling survives mainly right after the input stem and as global average pooling before the classifier (Chapter 5).</p>
+<h3 id="global-average-pooling-the-classifiers-front-door">Global average pooling: the classifier's front door</h3>
+<p>Before the final fully connected layer, modern CNNs collapse each feature map to a single number by averaging over all spatial positions — <strong>global average pooling</strong> (GAP). A 7×7×512 volume becomes a 512-vector. Two wins: (a) it enforces a correspondence between feature maps and categories (each map becomes a confidence map for some visual concept), and (b) it has zero parameters, unlike a fully connected layer on the flattened volume, which would add millions. Lin et al.'s Network-in-Network introduced it; ResNet made it standard. If you're adapting a classifier backbone for a new task, GAP output is the feature vector you want (Chapter 7).</p>
+<h3 id="receptive-fields-what-each-neuron-actually-sees">Receptive fields: what each neuron actually sees</h3>
+<p>The <strong>receptive field</strong> of a neuron is the region of the input image that can influence its value. For a single 3×3 convolution, it's 3×3. Stack another 3×3 on top: each neuron in layer 2 sees 3×3 of layer 1, and each of those saw 3×3 of the input — so layer 2's receptive field is 5×5. The recurrence, with kernel sizes k_i and strides s_i:</p>
+<p><strong>RF_l = RF_{l−1} + (k_l − 1) × Π_{i&lt;l} s_i</strong>, with RF_0 = 1.</p>
+<p>Worked example — three 3×3 convs (stride 1), then a 2×2 stride-2 pool, then a 3×3 conv:</p>
+<ul>
+<li>After conv1: RF = 1 + (3−1)×1 = 3</li>
+<li>After conv2: RF = 3 + 2×1 = 5</li>
+<li>After conv3: RF = 5 + 2×1 = 7</li>
+<li>After pool (k=2, s=2): RF = 7 + (2−1)×1 = 8; cumulative stride now 2</li>
+<li>After conv4: RF = 8 + (3−1)×2 = 12</li>
+</ul>
+<p>So a layer-4 neuron sees a 12×12 patch of the input. Two subtleties researchers should know:</p>
+<ol>
+<li><strong>The effective receptive field is smaller than the theoretical one</strong> — and Gaussian-shaped. Luo et al. (2016) showed that center pixels of the receptive field influence the output far more than edge pixels, because there are exponentially more paths from the center. A neuron with a theoretical RF of 200×200 may effectively use only the central 50×50. If your task needs genuine long-range context (e.g., relating a tumor to a distant anatomical landmark), you may need dilated convolutions or attention — don't assume a deep stack sees the whole image uniformly.</li>
+<li>Receptive field arithmetic is how you sanity-check architecture choices: if your objects are 100 pixels wide but your classifier's RF is 40, the network <em>cannot</em> be using whole-object shape — it's classifying from texture, which may or may not be what you want (and is a great discussion point in a paper).</li>
+</ol>
+<p><img alt="Convolution operation diagram" src="media-generation-book-12-fig1-0-5e6dd209-3793-436f-921a-9b6584c18a69.webp" /></p>
+<blockquote>
+<p><strong>For your research.</strong> Receptive field analysis belongs in your methods section when spatial context matters: "the final feature map has a theoretical receptive field of 212×212 on 256×256 inputs, covering typical lesion sizes (30–80 px) with margin." Reviewers in medical imaging and remote sensing respect this calculation — it shows you designed rather than guessed. And remember the equivariance/invariance distinction from Chapter 1: if your application needs rotation invariance (e.g., cells under a microscope have no canonical orientation), standard CNNs don't provide it — that's what your augmentation strategy (Chapter 8) must supply.</p>
+</blockquote>
+<h3 id="upsampling-anti-aliasing-and-shape-tracing">Upsampling, anti-aliasing, and shape tracing</h3>
+<p><strong>Transposed convolution.</strong> Segmentation and generative models need to go from coarse feature maps back to full resolution. A <strong>transposed convolution</strong> learns an upsampling: roughly, output = (W−1)·S − 2P + K, so stride 2 doubles the spatial size. Despite the old name "deconvolution," it is <em>not</em> an inverse of convolution — it's a convolution with the forward and backward passes swapped, and its weights are learned like any other's. Practical warning: transposed convolutions can produce <strong>checkerboard artifacts</strong> — visible grid textures from uneven kernel overlap. The common fix is "resize-convolution": nearest-neighbor upsampling followed by a regular convolution. Uglier in theory, cleaner in practice. In U-Net-style decoders (Chapter 11) either works; if your segmentation masks show grid artifacts, check the upsampling first.</p>
+<p><strong>Anti-aliased pooling (BlurPool).</strong> Strided max pooling downsamples without low-pass filtering, which violates the Nyquist sampling theorem and causes aliasing — tiny input shifts produce disproportionate output changes, quietly damaging the translation invariance pooling is supposed to provide. Zhang (2019) showed that inserting a small blur filter before strided downsampling improves both accuracy and shift-stability across architectures. Most libraries don't do this by default; it's a one-line change (and <code>timm</code> models often include it). A nice "attention to detail" line in a methods section.</p>
+<p><strong>Shape tracing: the debugging recipe.</strong> Every CNN bug is a shape bug. The recipe: (1) write the expected shape after each layer as a comment <em>before</em> coding; (2) run one forward pass with a dummy tensor and print shapes; (3) when they disagree, apply the sizing formula by hand:</p>
+<pre><code class="language-python">model = nn.Sequential(
+    nn.Conv2d(3, 64, 7, stride=2, padding=3),  # 224 -&gt; 112
+    nn.MaxPool2d(3, stride=2, padding=1),      # 112 -&gt; 56
+    nn.Conv2d(64, 128, 3, padding=1),          # 56 -&gt; 56
+)
+x = torch.randn(1, 3, 224, 224)
+for i, layer in enumerate(model):
+    x = layer(x)
+    print(i, type(layer).__name__, tuple(x.shape))
+# 0 Conv2d (1, 64, 112, 112)
+# 1 MaxPool2d (1, 64, 56, 56)
+# 2 Conv2d (1, 128, 56, 56)
+</code></pre>
+<p>Verify each line: conv → floor((224−7+6)/2)+1 = 112 ✓; pool → floor((112−3+2)/2)+1 = 56 ✓. Do this once per architecture and shape bugs stop being mysterious.</p>
+<p><strong>Worked: ResNet-18's spatial ladder.</strong> Input 224 → conv1 (7×7, s2) → 112 → maxpool (3×3, s2) → 56 → layer1 (s1) → 56 → layer2 (s2) → 28 → layer3 (s2) → 14 → layer4 (s2) → 7 → GAP → 1×1×512 → FC → classes. Total downsampling: 32×. This 32× ladder (224→7) is near-universal in classification CNNs. When you design a custom stem, matching it keeps you in well-tested territory; when you deviate, the sizing formula tells you exactly what you built.</p>
+<h3 id="receptive-field-arithmetic-fully-worked-and-aspp">Receptive field arithmetic, fully worked — and ASPP</h3>
+<p><strong>A complete worked example.</strong> Let's compute receptive fields through a realistic small network — input 64×64, layers: conv1 (3×3, s1) → conv2 (3×3, s1) → pool (2×2, s2) → conv3 (3×3, s1) → conv4 (3×3, s2) → conv5 (3×3, s1). Track (RF, cumulative stride), starting at (1, 1):</p>
+<ul>
+<li>conv1: RF = 1 + (3−1)×1 = 3, stride 1 → (3, 1)</li>
+<li>conv2: RF = 3 + 2×1 = 5 → (5, 1)</li>
+<li>pool: RF = 5 + (2−1)×1 = 6, stride 2 → (6, 2)</li>
+<li>conv3: RF = 6 + 2×2 = 10 → (10, 2)</li>
+<li>conv4: RF = 10 + 2×2 = 14, stride 4 → (14, 4)</li>
+<li>conv5: RF = 14 + 2×4 = 22 → (22, 4)</li>
+</ul>
+<p>Final neuron sees 22×22 of the 64×64 input. Now the judgment call: if your objects are ~40 pixels wide, this network <em>cannot</em> use whole-object shape — it's deciding from parts and texture. Either deepen the network, add stride-2 stages, or accept texture-based classification and say so. Doing this arithmetic before training is the difference between designing and hoping.</p>
+<p><strong>The effective receptive field, quantified.</strong> Luo et al. (2016) proved the influence distribution is Gaussian: in a deep stack, the center pixel of the theoretical RF contributes exponentially more than the edges, because combinatorially more paths connect center to output. Practical consequence: a "theoretical RF of 400" might effectively use only the central ~100 pixels. If your application needs genuine long-range integration — a tumor's relation to a distant anatomical landmark, a field's relation to a far irrigation channel — don't trust depth alone. Options: dilated convolutions (Chapter 2), non-local/self-attention blocks, or multi-scale architectures.</p>
+<p><strong>ASPP: multi-scale context without losing resolution.</strong> Atrous Spatial Pyramid Pooling (DeepLab) runs several dilated convolutions <em>in parallel</em> (rates 1, 6, 12, 18) on the same feature map and concatenates the results. Each branch sees a different scale; together they capture both fine detail and broad context at full resolution. It's the standard "context module" dropped into segmentation heads for medical and satellite work — one import in <code>segmentation_models_pytorch</code>, and a citable, well-understood component rather than a hand-rolled context hack.</p>
+<h3 id="worked-a-mini-alexnets-shapes-end-to-end">Worked: a mini-AlexNet's shapes, end to end</h3>
+<p>Input 227×227×3 (AlexNet's odd size). conv1: 96 kernels, 11×11, stride 4, no padding → floor((227−11)/4)+1 = 55. Output: 55×55×96. pool1: 3×3, stride 2 → floor((55−3)/2)+1 = 27. Output: 27×27×96. conv2: 256 kernels, 5×5, stride 1, padding 2 → (27−5+4)+1 = 27. Output: 27×27×256. pool2: 3×3 s2 → floor((27−3)/2)+1 = 13. Output: 13×13×256. conv3/4/5: 3×3, s1, p1 → 13×13 preserved; channels 384, 384, 256. pool3: 3×3 s2 → floor((13−3)/2)+1 = 6. Output: 6×6×256 = 9,216 features → FC 4096 → FC 4096 → 1000.</p>
+<p>Now read the design: aggressive early downsampling (11×11 s4 + pool) collapses 227→27 in two steps — fast, but fine detail is gone before layer 3. Modern stems (ResNet's 7×7 s2 + pool: 224→56) preserve more. When you adapt these classics, the stem is the first thing to modernize. And notice the channel pattern 96→256→384→384→256 with spatial 55→27→13→6: halve space, grow channels — VGG later regularized this into the doubling rule (Chapter 4). The classics were already groping toward it.</p>
+<p><strong>Key takeaways</strong>
+- W_out = floor((W − K + 2P)/S) + 1. Memorize it.
+- Padding P = (K−1)/2 with stride 1 preserves spatial size ("same" convolution).
+- Max pooling (2×2, stride 2) halves dimensions and gives approximate translation invariance; it has no parameters.
+- Strided convolutions have largely replaced pooling for learned downsampling; global average pooling replaced giant FC layers before the classifier.
+- Receptive fields grow additively with depth and multiplicatively with stride; the <em>effective</em> RF is smaller and Gaussian — verify your network can actually see your objects.</p>
+<hr />
+<h2 id="chapter-4-classic-architectures-lenet-alexnet-vgg">Chapter 4 — Classic Architectures: LeNet, AlexNet, VGG</h2>
+<p>Architectures are not just historical trivia. Each classic network solved a specific problem, and each solution became a reusable design pattern. Read this chapter as a catalog of patterns, not a museum tour.</p>
+<h3 id="lenet-5-lecun-et-al-1998-the-template">LeNet-5 (LeCun et al., 1998): the template</h3>
+<p>LeNet-5 classified handwritten digits (MNIST) with this structure:</p>
+<p><strong>Conv → Pool → Conv → Pool → Conv → FC → FC → output</strong></p>
+<p>Two 5×5 convolutions with average pooling between them, then fully connected layers. About 60,000 parameters. On MNIST it reached ~99% accuracy — essentially solving the dataset.</p>
+<p>What LeNet taught us (patterns still in use):</p>
+<ol>
+<li><strong>Alternating convolution and pooling</strong> builds the feature hierarchy: each stage sees more abstract, more spatially coarse features.</li>
+<li><strong>End-to-end gradient learning</strong> beats hand-designed features. Before LeNet, digit recognition meant carefully engineered feature extractors feeding a classifier; LeNet learned the features <em>and</em> the classifier jointly.</li>
+<li>Small kernels stacked (5×5 here) compose into larger effective patterns.</li>
+</ol>
+<p>LeNet's limitation was scale: 60K parameters, tiny 32×32 inputs, trained on CPUs. It proved the concept but couldn't touch real-world image complexity — the hardware and data didn't exist yet.</p>
+<h3 id="alexnet-krizhevsky-sutskever-hinton-2012-the-big-bang">AlexNet (Krizhevsky, Sutskever &amp; Hinton, 2012): the big bang</h3>
+<p>AlexNet won ImageNet 2012 (1.2M images, 1000 classes) with 15.3% top-5 error versus 26.2% for the runner-up — a margin so large it ended the era of hand-engineered vision features overnight. 60 million parameters, 8 layers.</p>
+<p>Its innovations, each a pattern:</p>
+<ol>
+<li><strong>ReLU instead of tanh/sigmoid.</strong> ReLU (max(0, x)) doesn't saturate for positive inputs, so gradients flow undiminished through deep stacks. Training was several times faster. Today ReLU (and variants) are the default nonlinearity — the tanh era ended here.</li>
+<li><strong>GPU training.</strong> Two GTX 580s, model split across them. This wasn't a footnote; it was the enabling condition. Deep learning's progress has been gated by compute at every step, and AlexNet was the demonstration.</li>
+<li><strong>Dropout (0.5) in the FC layers.</strong> Randomly zeroing half the activations during training prevented the giant fully connected layers from co-adapting and overfitting. Dropout remains a standard regularizer (Chapter 9).</li>
+<li><strong>Data augmentation.</strong> Random crops, horizontal flips, and PCA-based color jitter artificially expanded the training set — the first large-scale proof that augmentation is not optional (Chapter 8).</li>
+<li><strong>Overlapping max pooling</strong> (3×3 pool, stride 2) — slightly better than non-overlapping.</li>
+</ol>
+<p>The lesson of AlexNet for researchers: <strong>scale plus the right training recipe beats clever features</strong>. A decade of SIFT/HOG engineering was outrun in one paper by a bigger network trained properly. When your hand-designed baseline loses to a plain ResNet, this is why — and it's not an insult to your idea, it's the field's central empirical fact.</p>
+<p>PyTorch gives you AlexNet in one line (<code>torchvision.models.alexnet(weights=...)</code>), but its real value today is as a transfer-learning baseline and a teaching model — it's obsolete for new work.</p>
+<h3 id="vgg-simonyan-zisserman-2014-depth-with-discipline">VGG (Simonyan &amp; Zisserman, 2014): depth with discipline</h3>
+<p>VGG asked: what if we just make it deeper, but keep everything else brutally simple? VGG-16 uses <strong>only 3×3 convolutions</strong> (stride 1, padding 1) and <strong>only 2×2 max pooling</strong> (stride 2), stacked 16 layers deep. 138 million parameters — most in the three giant FC layers at the end.</p>
+<p>VGG's enduring contributions:</p>
+<ol>
+<li><strong>Small stacked kernels beat large single kernels.</strong> Two 3×3 convolutions have the same 5×5 effective receptive field as one 5×5 convolution, but use fewer parameters (2 × 9C² = 18C² vs 25C²) and add an extra nonlinearity between them — more expressive per parameter. Three 3×3s ≈ one 7×7 (27C² vs 49C²). This is why 3×3 became the default kernel everywhere. <em>Know this derivation; interviewers and reviewers both ask for it.</em></li>
+<li><strong>Uniform, modular design.</strong> VGG showed that a simple repeated block (conv-conv-pool) scales cleanly. Modularity became the design norm — ResNet's residual blocks and Inception's modules are its descendants.</li>
+<li><strong>Depth helps, up to a point.</strong> VGG-19 barely beat VGG-16, hinting at the optimization wall that ResNet would break (Chapter 5).</li>
+</ol>
+<p>VGG's costs: 138M parameters and ~15 GFLOPs per image made it slow, and those FC layers are pure parameter bloat. Modern practice keeps VGG's convolutional wisdom and discards its classifier — which is exactly what transfer learning does (Chapter 7).</p>
+<h3 id="the-lineage-in-one-table">The lineage in one table</h3>
+<table>
+<thead>
+<tr>
+<th>Network</th>
+<th>Year</th>
+<th>Depth</th>
+<th>Params</th>
+<th>ImageNet top-5 err</th>
+<th>Core lesson</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeNet-5</td>
+<td>1998</td>
+<td>7</td>
+<td>60K</td>
+<td>n/a (MNIST)</td>
+<td>Conv-pool alternation; end-to-end learning</td>
+</tr>
+<tr>
+<td>AlexNet</td>
+<td>2012</td>
+<td>8</td>
+<td>60M</td>
+<td>15.3%</td>
+<td>ReLU, GPU, dropout, augmentation</td>
+</tr>
+<tr>
+<td>VGG-16</td>
+<td>2014</td>
+<td>16</td>
+<td>138M</td>
+<td>7.3%</td>
+<td>Stacked 3×3 &gt; large kernels; modular depth</td>
+</tr>
+</tbody>
+</table>
+<h3 id="code-the-vgg-block-pattern">Code: the VGG block pattern</h3>
+<pre><code class="language-python">import torch.nn as nn
+
+def vgg_block(in_ch, out_ch, n_convs):
+    layers = []
+    for _ in range(n_convs):
+        layers += [nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1),
+                   nn.ReLU(inplace=True)]
+        in_ch = out_ch
+    layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+    return nn.Sequential(*layers)
+
+# VGG-16's convolutional stages: (64)x2, (128)x2, (256)x3, (512)x3, (512)x3
+features = nn.Sequential(
+    vgg_block(3, 64, 2), vgg_block(64, 128, 2), vgg_block(128, 256, 3),
+    vgg_block(256, 512, 3), vgg_block(512, 512, 3),
+)
+x = torch.randn(1, 3, 224, 224)
+print(features(x).shape)  # torch.Size([1, 512, 7, 7])
+</code></pre>
+<p>Five poolings halve 224 → 112 → 56 → 28 → 14 → 7. That 7×7×512 tensor is the classic "conv feature volume" that older papers fed to SVMs or FC layers — and that you'll feed to global average pooling in modern variants.</p>
+<blockquote>
+<p><strong>For your research.</strong> Cite these three papers correctly (references at the end of this book) — mis-citing AlexNet's venue or year is a classic student tell. More substantially: when you write "we use a VGG-style backbone," say what you mean — stacked 3×3 convolutions with doubling channels after each pooling (64→128→256→512). That channel-doubling convention (halve spatial, double channels) preserves approximate computational cost per stage and is the single most-copied design decision in CNN history. If you deviate from it, explain why.</p>
+</blockquote>
+<h3 id="engineering-details-the-history-books-skip">Engineering details the history books skip</h3>
+<p><strong>AlexNet's forgotten tricks.</strong> Two deserve mention because they teach lessons. (a) <strong>Local Response Normalization (LRN)</strong> — AlexNet normalized each activation by its neighbors' activity, inspired by lateral inhibition in real neurons. It helped slightly in 2012 and was abandoned within two years once Batch Normalization (2015) did the job properly. Lesson: biologically-inspired heuristics lose to principled optimization tools; don't cargo-cult old tricks into new architectures. (b) <strong>Split-GPU training</strong> — the model was split across two GTX 580s because one card couldn't hold it. The accidental consequence: the two halves learned somewhat specialized features (one largely color-agnostic, one color-focused) — an early hint of the grouped convolutions that ResNeXt later used deliberately. Engineering constraints becoming design principles is a recurring pattern in this field.</p>
+<p><strong>Where VGG's 138 million parameters actually live.</str

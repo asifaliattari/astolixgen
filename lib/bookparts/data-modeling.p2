@@ -1,0 +1,723 @@
+nizing-the-model-for-humans-folders-descriptions-hierarchies">Organizing the model for humans: folders, descriptions, hierarchies</h3>
+<p>A technically correct model that users cannot navigate still fails. In Power BI's Model view:</p>
+<ul>
+<li><strong>Display folders:</strong> group measures (<code>Sales</code>, <code>Targets</code>, <code>Time Intelligence</code>) so the field list stays navigable at 50+ measures. One flat list of 80 measures is unusable.</li>
+<li><strong>Descriptions:</strong> every measure and key column gets a one-line description ("Total sales incl. tax, additive across all dimensions"). It appears as a tooltip — the cheapest documentation there is.</li>
+<li><strong>Hierarchies:</strong> define drill hierarchies explicitly (Year → Quarter → Month → Day; Category → Subcategory → Product) so users drill with one click instead of adding columns manually.</li>
+<li><strong>Hide ruthlessly:</strong> keys, intermediate columns, and ETL artifacts hidden from report view. The field list should show <em>business concepts</em>, not plumbing.</li>
+<li><strong>Calculation groups (advanced):</strong> for repetitive time logic (YTD, last year, % change) defined once and applied to any measure — the DRY principle for DAX. Learn these after the fundamentals are solid.</li>
+</ul>
+<p>Treat the field list as a user interface: if a new user cannot find "total sales by month" in 30 seconds, the model's presentation needs work regardless of its technical quality.</p>
+<h3 id="publishing-and-refresh-the-model-goes-live">Publishing and refresh: the model goes live</h3>
+<p>A model is not done when it works on your laptop. Publishing checklist:</p>
+<ul>
+<li><strong>Dataset settings:</strong> scheduled refresh aligned with source availability (nightly ETL → morning refresh); refresh failure alerts to the owner, not to a void.</li>
+<li><strong>Gateways:</strong> on-premises sources need a data gateway; test refresh from the service, not just Desktop — credentials and paths differ.</li>
+<li><strong>RLS roles:</strong> define roles on dimensions, test with "View as" for each role, and document who belongs where. RLS on a fact table instead of its dimensions is a common error — filters must flow downhill.</li>
+<li><strong>Endorsement and discovery:</strong> certify the dataset as the sanctioned source ("use this, not the spreadsheet") — organizational trust is a feature you ship.</li>
+<li><strong>Version note:</strong> keep a one-line dataset description with the model version and last refresh date, visible to consumers. "v3.2, refreshed 2026-10-08 06:00" prevents a week of confusion when numbers move.</li>
+</ul>
+<p><strong>For your research:</strong> Power BI (free Desktop version) is an excellent tool for exploratory analysis of research data and for building the charts in your thesis defense. Model your survey data as a star (Chapter 4's research example), set single-direction relationships, write explicit measures (<code>Response Rate = DIVIDE(COUNT(FactResponses[ResponseID]), [Eligible Count])</code>), and test totals against your raw data before trusting any visual. A screenshot of a clean star-schema Model view in your thesis appendix is a strong, concrete signal of data management rigor.</p>
+<p><strong>Key takeaways:</strong>
+- A healthy Power BI model looks like a star: facts centered, dimensions around, single-direction relationships.
+- Set four things deliberately per relationship: columns, cardinality (1:* dimension→fact), cross-filter direction (single by default), active/inactive.
+- Bi-directional everywhere causes ambiguity, slowness, and wrong totals — justify each exception.
+- One date table with role-playing (inactive relationships + USERELATIONSHIP) beats duplicated date tables.
+- Test the model before the DAX: totals must match the source, and matrices must foot to the grand total.</p>
+<hr />
+<h2 id="chapter-9-common-modeling-mistakes-and-how-to-avoid-them">Chapter 9: Common Modeling Mistakes and How to Avoid Them</h2>
+<p>This chapter is a field guide to the errors that experienced modelers see again and again — each with symptoms, diagnosis, and fix. Use it as a checklist before you call any model "done."</p>
+<h3 id="mistake-1-no-grain-statement-the-root-of-all-evil">Mistake 1: No grain statement (the root of all evil)</h3>
+<p><strong>Symptom:</strong> two analysts compute "total sales" and get different numbers; nobody can explain why.
+<strong>Cause:</strong> the fact table's grain was never defined, so rows mean different things in different loads.
+<strong>Fix:</strong> write the grain statement; add a data-quality check that fails the load if a row violates it.</p>
+<h3 id="mistake-2-using-names-as-keys">Mistake 2: Using names as keys</h3>
+<p><strong>Symptom:</strong> "Ali" the customer merged with "Ali" the supplier; a renamed product splits its history in two.
+<strong>Cause:</strong> natural text used as a join key.
+<strong>Fix:</strong> surrogate integer keys everywhere in the analytical model; keep natural keys as attributes for searching.</p>
+<h3 id="mistake-3-the-spreadsheet-shaped-model-repeating-groups">Mistake 3: The spreadsheet-shaped model (repeating groups)</h3>
+<p><strong>Symptom:</strong> columns named <code>Q1…Q40</code>, <code>Jan…Dec</code>, <code>Phone1, Phone2</code>; adding a question/month/phone requires schema surgery.
+<strong>Cause:</strong> 1NF violation carried into the model.
+<strong>Fix:</strong> reshape to rows (Chapter 3). In Power BI, unpivot in Power Query.</p>
+<h3 id="mistake-4-bi-directional-relationships-everywhere">Mistake 4: Bi-directional relationships everywhere</h3>
+<p><strong>Symptom:</strong> ambiguous-relationship errors, slow refresh, totals that change when you add an unrelated slicer.
+<strong>Cause:</strong> covered in Chapter 8 — filters flowing uphill through every relationship.
+<strong>Fix:</strong> single direction by default; bi-directional only where specifically needed and tested.</p>
+<h3 id="mistake-5-joining-at-the-wrong-grain-fan-out">Mistake 5: Joining at the wrong grain (fan-out)</h3>
+<p><strong>Symptom:</strong> revenue doubles when you add the promotions table to a visual.
+<strong>Detailed example:</strong> <code>FactSales</code> has 1,000 rows totaling 500,000. <code>BridgeOrderPromotions</code> maps some order lines to two promotions each. Joining at order-line grain duplicates those rows → total becomes 620,000. The report looks fine; the number is fiction.
+<strong>Fix:</strong> verify every join's grain; when a many-to-many genuinely exists, decide the allocation rule explicitly (split evenly? attribute to first?) and document it — never let the join decide silently.</p>
+<h3 id="mistake-6-two-date-tables-or-none">Mistake 6: Two date tables (or none)</h3>
+<p><strong>Symptom:</strong> time-intelligence measures return blanks; "month" sorts alphabetically; fiscal vs. calendar confusion.
+<strong>Fix:</strong> one conformed DimDate per model, marked as date table, with all needed attributes and roles handled via inactive relationships.</p>
+<h3 id="mistake-7-storing-computed-ratios-in-fact-tables">Mistake 7: Storing computed ratios in fact tables</h3>
+<p><strong>Symptom:</strong> "average discount %" summed across regions gives 340%; nobody notices for months.
+<strong>Cause:</strong> non-additive facts (Chapter 5) stored and then summed.
+<strong>Fix:</strong> store additive components; compute ratios in measures after aggregation.</p>
+<h3 id="mistake-8-null-dimension-keys-silently-dropping-rows">Mistake 8: NULL dimension keys silently dropping rows</h3>
+<p><strong>Symptom:</strong> total in the dashboard is slightly less than the source total; the gap is the "unknown" rows that failed to join.
+<strong>Fix:</strong> "Unknown" member rows in every dimension (key −1/0) and ETL that maps unmatched keys to them; add a reconciliation check (fact total vs. source total) to every load.</p>
+<h3 id="mistake-9-snowflaking-by-habit">Mistake 9: Snowflaking by habit</h3>
+<p><strong>Symptom:</strong> simple questions need four joins; business users give up and go back to spreadsheets.
+<strong>Fix:</strong> default to star; snowflake only with a documented maintenance reason (Chapter 4).</p>
+<h3 id="mistake-10-no-documentation-the-model-only-exists-in-one-persons-head">Mistake 10: No documentation (the model only exists in one person's head)</h3>
+<p><strong>Symptom:</strong> the modeler leaves; the model becomes untouchable; every change is feared.
+<strong>Fix:</strong> Chapter 10 — document as you build, not after.</p>
+<h3 id="mistake-11-mixing-facts-and-dimensions-in-one-table">Mistake 11: Mixing facts and dimensions in one table</h3>
+<p><strong>Symptom:</strong> a "Sales" table with customer names, product categories, <em>and</em> amounts; every change to a product name requires updating a million rows.
+<strong>Fix:</strong> separate facts from dimensions (Chapter 5).</p>
+<h3 id="mistake-12-ignoring-slowly-changing-dimensions-until-it-is-too-late">Mistake 12: Ignoring slowly changing dimensions until it is too late</h3>
+<p><strong>Symptom:</strong> "sales by customer segment" history rewrites itself every time segments are redefined; trend analyses are meaningless.
+<strong>Fix:</strong> decide SCD types during design (Chapter 6), not after the first reorganization.</p>
+<h3 id="the-pre-flight-checklist">The pre-flight checklist</h3>
+<p>Before publishing any model, run through this:</p>
+<ul>
+<li>[ ] Grain statement written for every fact table</li>
+<li>[ ] Surrogate keys on all dimensions; no text keys in joins</li>
+<li>[ ] No repeating-group columns (Q1…Q40 patterns)</li>
+<li>[ ] Relationships: 1:* dimension→fact, single filter direction (exceptions documented)</li>
+<li>[ ] One conformed date table; roles via inactive relationships</li>
+<li>[ ] Measures classified additive/semi/non-additive; ratios computed, not stored</li>
+<li>[ ] "Unknown" members in dimensions; reconciliation totals match source</li>
+<li>[ ] Star schema (or documented reason for snowflake)</li>
+<li>[ ] SCD types decided per attribute</li>
+<li>[ ] Data dictionary started (Chapter 10)</li>
+</ul>
+<h3 id="case-study-rescuing-the-sales_final_v2-model">Case study: rescuing the "Sales_FINAL_v2" model</h3>
+<p>A realistic rescue, step by step. You inherit a Power BI file from a departed colleague. Symptoms: the revenue total disagrees with finance by 18%; adding the Region slicer changes the grand total; some months show no data; nobody dares touch it.</p>
+<p><strong>Diagnosis (one hour in Model view):</strong>
+1. No date table — visuals use <code>FactSales[OrderDate]</code>, a raw datetime with gaps; time intelligence is broken (Mistake 6).
+2. <code>DimCustomer</code> uses customer <em>name</em> as the key; two "Ali Traders" merged into one (Mistake 2).
+3. Every relationship is bi-directional; Region slicer filters uphill through facts into other dimensions, shifting totals (Mistake 4).
+4. <code>FactSales</code> contains a <code>DiscountPct</code> column that someone summed in a visual → 340% "total discount" (Mistake 7).
+5. Promotion analysis joins at order grain to a line-grain fact → fan-out inflating revenue 18% (Mistake 5).
+6. No documentation; the ETL is a chain of undocumented Power Query steps (Mistake 10).</p>
+<p><strong>The rescue plan (in order — sequence matters):</strong>
+1. Freeze the current file as <code>Sales_FINAL_v2_ARCHIVE</code> — never operate without a rollback.
+2. Build a proper <code>DimDate</code>; re-point all time analysis at it.
+3. Introduce surrogate <code>CustomerKey</code>; remap facts; keep name as attribute.
+4. Set all relationships to single direction; re-test each visual's totals.
+5. Fix the promotion join: move to line grain with a documented allocation rule; reconcile to finance's 800K-equivalent figure until it matches to the rupee.
+6. Replace the summed <code>DiscountPct</code> with a proper <code>Avg Discount % = DIVIDE(SUM(DiscountAmount), SUM(GrossAmount))</code> measure.
+7. Write the data dictionary and grain statements <em>as you go</em> — the rescue produces the documentation the original never had.
+8. Run the pre-flight checklist; get finance to sign off on the reconciled total.</p>
+<p><strong>Lesson:</strong> every item in the rescue maps to one chapter of this book. Modeling knowledge is debugging knowledge — the same principles that build a good model diagnose a broken one. When you inherit a mess, resist the urge to rebuild from zero immediately: diagnose first (the business logic buried in the mess is valuable), then rebuild deliberately with the checklist.</p>
+<h3 id="mistake-13-modeling-without-stakeholders-the-elegant-irrelevance">Mistake 13: Modeling without stakeholders (the elegant irrelevance)</h3>
+<p><strong>Symptom:</strong> a technically beautiful model that answers questions nobody asks; users keep their spreadsheets.
+<strong>Cause:</strong> the modeler designed from the source system's structure instead of from users' questions — the model mirrors the database, not the business.
+<strong>Fix:</strong> start every engagement with the question list (Chapter 1's workflow, step 1). Validate the conceptual sketch with actual users before building. A model is a communication tool first and a technical artifact second.</p>
+<h3 id="mistake-14-over-engineering-the-framework-astronaut">Mistake 14: Over-engineering (the framework astronaut)</h3>
+<p><strong>Symptom:</strong> a seven-table snowflake where a three-table star would do; generic "flexible" structures (entity-attribute-value tables) that make every query a puzzle; SCD Type 6 on attributes nobody will ever analyze historically.
+<strong>Cause:</strong> designing for imagined future requirements instead of real ones.
+<strong>Fix:</strong> model for the questions you have, with <em>sensible</em> extension points (surrogate keys, a date dimension with room to grow). YAGNI — "you aren't gonna need it" — applies to data models too. Simple models get used; clever models get abandoned.</p>
+<h3 id="mistake-15-no-data-quality-checks-at-load-garbage-in-gospel-out">Mistake 15: No data-quality checks at load (garbage in, gospel out)</h3>
+<p><strong>Symptom:</strong> the dashboard confidently shows wrong numbers for weeks before anyone notices; every fix is reactive.
+<strong>Cause:</strong> the ETL loads whatever the source sends — duplicates, negative quantities, future dates, orphaned keys — with no validation.
+<strong>Fix:</strong> a validation layer on every load, with three outcomes: <strong>reject</strong> (bad rows quarantined, load fails loudly — e.g., duplicate primary keys), <strong>warn</strong> (load continues, owner notified — e.g., 2% null emails, within tolerance), <strong>accept</strong>. Standard checks: row counts within expected bounds, key uniqueness, referential integrity (no orphaned foreign keys), value ranges (<code>Qty &gt; 0</code>, dates not in the future), and the reconciliation total vs. source. Log every check result with the load — the log is your alibi when numbers are questioned.</p>
+<h3 id="the-reconciliation-habit-trust-but-verify-every-time">The reconciliation habit: trust but verify, every time</h3>
+<p>The single highest-value habit in this book: <strong>after every load, reconcile.</strong> Fact row counts vs. source counts. Sum of <code>SalesAmount</code> vs. the source system's total. Dimension counts vs. yesterday (a 10× jump means something broke). Keep a tiny reconciliation table — <code>LoadDate, TableName, RowCount, TotalAmount, Status</code> — and review it like a pilot's checklist. Models with reconciliation catch corruption in hours; models without it catch corruption when a stakeholder does, which is the worst possible way to find out.</p>
+<h3 id="when-a-checklist-item-fails-triage-order">When a checklist item fails: triage order</h3>
+<p>A failed check is not a verdict — it is a work ticket. Triage in this order:</p>
+<ol>
+<li><strong>Reconciliation failures first.</strong> If totals do not match the source, nothing downstream can be trusted — stop and fix the grain, joins, or load before anything else.</li>
+<li><strong>Key violations second.</strong> Duplicate or null primary keys, orphaned foreign keys — these corrupt every join; fix the ETL or the source extract.</li>
+<li><strong>SCD/history issues third.</strong> Wrong "as was" results are subtle and erode trust slowly; fix versioning logic and reload affected dimensions.</li>
+<li><strong>Presentation issues last.</strong> Sorting, naming, display folders — important for adoption, but they never make numbers wrong.</li>
+</ol>
+<p>Document each failure and its fix in the change log. Over time the log becomes a runbook: "when X fails, we do Y" — which is how a fragile model becomes a robust system.</p>
+<p><strong>For your research:</strong> Run this checklist on your thesis dataset before analysis. The most common research-data failures — double-counted respondents from a fan-out join, summed percentages, silently dropped "unknown" rows — are all on this list. A reviewer who finds one will doubt everything else; a methods section that shows you checked will do the opposite. Print the checklist, initial each item, keep it with your project files.</p>
+<p><strong>Key takeaways:</strong>
+- Most modeling disasters come from a short list of repeatable mistakes — grain, keys, filter direction, additivity, history.
+- Every mistake has a visible symptom; learn the symptoms and you can diagnose any model.
+- Test totals against the source at every stage; a model whose totals do not reconcile is not done.
+- Use the pre-flight checklist before publishing or submitting.</p>
+<hr />
+<h2 id="chapter-10-documenting-your-data-model">Chapter 10: Documenting Your Data Model</h2>
+<p>An undocumented model is a rumor. Documentation is what turns your design from personal knowledge into an organizational and scientific asset — it lets teammates use the model correctly, lets successors maintain it, and lets reviewers validate your work. This chapter gives you the complete documentation kit: what to write, how much, and in what format.</p>
+<h3 id="why-documentation-is-a-modeling-activity-not-an-afterthought">Why documentation is a modeling activity, not an afterthought</h3>
+<p>Documentation written after the build is archaeology — you reconstruct intent from artifacts, and you get it half wrong. Documentation written <em>during</em> design captures the decisions and their reasons: <em>why</em> this grain, <em>why</em> Type 2 for this attribute, <em>why</em> this allocation rule. Reasons are what future maintainers and reviewers need most, because reasons are what change.</p>
+<h3 id="the-five-documentation-artifacts">The five documentation artifacts</h3>
+<p><strong>1. Entity-relationship diagram (ERD).</strong> The visual map: tables as boxes, keys marked (PK/FK), relationship lines labeled with cardinality. Tools: dbdiagram.io, draw.io, SQL Server Database Diagrams, Power BI Model view screenshots. Keep the ERD at the logical level (no data types) for communication, and generate a physical version from the database for precision. Update the diagram when the model changes — a stale diagram is worse than none, because it misleads with authority.</p>
+<p>Text-described example ERD (retail star): center box <code>FactSales</code>; four boxes around it (<code>DimDate</code>, <code>DimProduct</code>, <code>DimCustomer</code>, <code>DimStore</code>); each dimension box connects to the center with a line labeled <code>1:*</code>; key columns listed inside each box with PK/FK markers. Anyone seeing it grasps the whole model in ten seconds.</p>
+<p><strong>2. Data dictionary.</strong> A table describing every column of every table. Minimum columns:</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Column</th>
+<th>Data type</th>
+<th>Key?</th>
+<th>Nullable?</th>
+<th>Definition</th>
+<th>Example</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FactSales</td>
+<td>SalesAmount</td>
+<td>decimal(18,2)</td>
+<td>—</td>
+<td>No</td>
+<td>Line-level sales incl. tax</td>
+<td>3000.00</td>
+<td>Additive; source: POS</td>
+</tr>
+<tr>
+<td>DimCustomer</td>
+<td>City</td>
+<td>varchar(100)</td>
+<td>—</td>
+<td>No</td>
+<td>Current city (Type 1)</td>
+<td>Karachi</td>
+<td>SCD Type 1</td>
+</tr>
+<tr>
+<td>DimCustomer</td>
+<td>Segment</td>
+<td>varchar(50)</td>
+<td>—</td>
+<td>No</td>
+<td>Value segment (Type 2)</td>
+<td>Gold</td>
+<td>SCD Type 2; history kept</td>
+</tr>
+</tbody>
+</table>
+<p>The <em>Definition</em> column is the soul of the dictionary: "what does this column mean, precisely?" If you cannot write the definition in one clear sentence, the column's meaning is not settled — fix the model, not the sentence. Include <em>source</em> (which system it comes from) and <em>transformation notes</em> (how it was derived) for every non-trivial column.</p>
+<p><strong>3. Grain statements and business rules.</strong> One page listing each fact table's grain statement, each dimension's SCD treatment per attribute, allocation rules for many-to-many joins, and definitions of key business terms ("a <em>customer</em> is…", "revenue is recognized when…"). This is the document that ends arguments about what numbers mean.</p>
+<p><strong>4. Lineage: where data comes from and what happens to it.</strong> For each table: source system → extraction method → transformations applied → load schedule → downstream consumers. Even a simple sketch ("SurveyCTO export → Python cleaning script v2 → SQLite → Power BI") is enormously valuable. In research, this is the provenance chain reviewers ask about.</p>
+<p><strong>5. Change log.</strong> Date, change, reason, author. "2026-04-02: DimProduct.Category changed to SCD Type 2 — marketing requested historical category trending. Author: A. Ali." Six months later, when someone asks why the dimension doubled in size, the answer is one line away.</p>
+<h3 id="how-much-is-enough-the-right-size-rule">How much is enough? (The right-size rule)</h3>
+<ul>
+<li><strong>Personal research project:</strong> ERD sketch + data dictionary + grain statements. One to three pages. Non-negotiable minimum.</li>
+<li><strong>Team project / thesis:</strong> add lineage and the business-rules page. Five to ten pages, or a well-organized wiki section.</li>
+<li><strong>Enterprise warehouse:</strong> all five artifacts, version-controlled, reviewed like code.</li>
+</ul>
+<p>The test: <em>could a competent stranger reproduce your key results from the documentation plus the raw data?</em> If yes, you have documented enough.</p>
+<h3 id="versioning-documentation-with-the-model">Versioning documentation with the model</h3>
+<p>Store documentation alongside the model definition in version control (a Markdown file next to the SQL DDL, or a wiki page linked from the repo). When the model changes in a pull request, the documentation changes in the same pull request — this single habit prevents nearly all documentation rot.</p>
+<h3 id="worked-example-documenting-the-chapter-5-experiment-model">Worked example: documenting the Chapter 5 experiment model</h3>
+<p>A one-page data dictionary excerpt for the reaction-time study:</p>
+<ul>
+<li><strong>FactTrials</strong> — grain: one row per participant per trial.</li>
+<li><code>ParticipantKey</code> (int, FK → DimParticipant, not null) — surrogate participant identifier.</li>
+<li><code>ConditionKey</code> (int, FK → DimCondition, not null).</li>
+<li><code>TrialNumber</code> (int, not null) — 1–200 within participant session.</li>
+<li><code>ReactionTimeMs</code> (int, nullable) — ms from stimulus to response; NULL = no response (timeout). Non-additive: report means/medians only.</li>
+<li><code>CorrectFlag</code> (bit, not null) — 1 = correct response. Additive: sums to total correct.</li>
+<li><strong>DimParticipant</strong> — grain: one row per participant (Type 2 on Group if re-assignment possible).</li>
+<li><strong>DimCondition</strong> — grain: one row per experimental condition.</li>
+</ul>
+<p>Plus a lineage line: "PsychoPy experiment logs → clean_trials.py (outlier removal &gt; 2000 ms, documented) → SQLite research.db → analysis notebooks." A reviewer reading this knows exactly what every number is and where it came from.</p>
+<h3 id="naming-conventions-the-cheapest-documentation">Naming conventions: the cheapest documentation</h3>
+<p>Consistent names prevent a whole class of confusion. Adopt and enforce a convention from day one:</p>
+<ul>
+<li><strong>Tables:</strong> <code>Dim</code>/<code>Fact</code>/<code>Bridge</code> prefixes for analytical models (<code>DimCustomer</code>, <code>FactSales</code>, <code>BridgeOrderPromotion</code>); singular nouns (<code>Customer</code>, not <code>Customers</code>) in operational models — pick one style per project and never mix.</li>
+<li><strong>Keys:</strong> <code>TableName + Key</code> for surrogates (<code>CustomerKey</code>), <code>TableName + ID</code> for natural IDs (<code>CustomerID</code>). Anyone reading <code>FactSales[CustomerKey]</code> instantly knows it is a surrogate joining to <code>DimCustomer</code>.</li>
+<li><strong>Dates:</strong> <code>…Date</code> for dates, <code>…DateKey</code> for integer keys (<code>OrderDateKey</code>); never <code>Date1</code>, <code>Date2</code> — use role names (<code>OrderDateKey</code>, <code>ShipDateKey</code>).</li>
+<li><strong>Flags:</strong> <code>Is…</code>/<code>Has…</code> booleans (<code>IsCurrent</code>, <code>IsWeekend</code>); <strong>amounts:</strong> suffix the currency or use <code>Amount</code> (<code>SalesAmount</code>, never ambiguous <code>Sales</code>); <strong>counts:</strong> <code>…Count</code> (<code>ResponseCount</code>).</li>
+<li><strong>No abbreviations</strong> unless they are in a published project glossary (<code>Qty</code> is fine; <code>CstmrSgmntCd</code> is not).</li>
+</ul>
+<p>Enforce with a one-page naming standard in the project wiki and a review checklist item. Future maintainers will never know your name, but they will bless your naming.</p>
+<h3 id="documentation-tooling-from-napkin-to-enterprise">Documentation tooling (from napkin to enterprise)</h3>
+<ul>
+<li><strong>Sketching:</strong> paper, whiteboard, or Excalidraw for the first conceptual pass — speed matters more than polish.</li>
+<li><strong>Logical ERDs:</strong> dbdiagram.io (text-to-diagram, version-controllable), draw.io/diagrams.net (free, flexible), or your database's native designer.</li>
+<li><strong>Data dictionaries:</strong> a Markdown table in the repo (simplest, diffable), a wiki page, or tools like dbdocs. The format matters less than the habit of updating it with every schema change.</li>
+<li><strong>Lineage:</strong> for pipelines, a simple diagram plus a <code>README</code> per ETL script beats an expensive catalog nobody opens. At enterprise scale, dedicated catalogs (Microsoft Purview, OpenLineage-based tools) auto-capture lineage.</li>
+<li><strong>The golden rule of tooling:</strong> documentation lives <em>next to</em> the thing it describes (same repo, same folder) and changes in the <em>same commit</em>. Documentation in a separate system that nobody updates is decoration.</li>
+</ul>
+<h3 id="documentation-review-checklist">Documentation review checklist</h3>
+<ul>
+<li>[ ] ERD matches the actual schema (regenerate or redraw after changes)</li>
+<li>[ ] Every column has a one-sentence definition a non-expert understands</li>
+<li>[ ] Grain statements exist for every fact table</li>
+<li>[ ] SCD types recorded per attribute</li>
+<li>[ ] Sources and transformations noted for derived columns</li>
+<li>[ ] Naming convention followed (or deviations listed with reasons)</li>
+<li>[ ] Change log has an entry for the latest change</li>
+<li>[ ] A stranger could reproduce the headline numbers from docs + raw data</li>
+</ul>
+<h3 id="the-dataset-readme-documentation-researchers-actually-write">The dataset README: documentation researchers actually write</h3>
+<p>If a full data dictionary feels heavy, start with a <code>README.md</code> beside your dataset — researchers reliably maintain these, and reviewers reliably read them. Template:</p>
+<pre><code class="language-markdown"># &lt;Study name&gt; — analysis dataset v2.1
+
+## What this is
+One row per participant per trial (N=12,000). See grain statements below.
+
+## Files
+- participants.csv — one row per participant (DimParticipant)
+- trials.csv — one row per trial (FactTrials)
+- codebook.csv — question/condition definitions (dimensions)
+
+## Grain statements
+- trials.csv: one row per participant per trial.
+
+## Keys
+- ParticipantID: anonymous surrogate, unique, never reused.
+- trials.ParticipantID → participants.ParticipantID (all match; verified 2026-09-01).
+
+## Known limitations
+- 3% of trials have NULL reaction time (timeouts); see ExcludedTrials.md.
+- Wave 2 used revised instructions (see changelog).
+
+## Lineage
+PsychoPy logs → clean_trials.py (commit a3f9c1) → this dataset.
+
+## Contact / citation
+&lt;name, email, preferred citation&gt;
+</code></pre>
+<p>A README like this takes an hour and answers 80% of what a reuser or reviewer needs. Grow it into the full dictionary as the project grows — documentation that starts small and lives beats documentation that is planned grandly and never written.</p>
+<h3 id="data-contracts-documentation-between-teams">Data contracts: documentation between teams</h3>
+<p>When one team's output is another team's input (ETL team → analytics team, lab → statistician), a <strong>data contract</strong> formalizes the handoff: the schema (tables, columns, types), the grain statements, freshness guarantees ("daily by 7 AM"), quality SLAs (null rates, reconciliation rules), and a change-notification policy ("schema changes announced 2 weeks ahead; breaking changes versioned"). It is the data dictionary plus service-level promises, signed by both sides. For researchers, the equivalent is the agreement with a data-collection partner or field team: instrument versions frozen during a wave, file formats specified, delivery schedules set. Contracts turn "the data changed and nobody told us" from a recurring crisis into a handled event.</p>
+<h3 id="full-worked-dictionary-page-dimcustomer">Full worked dictionary page: DimCustomer</h3>
+<p>Seeing one complete page makes the standard concrete. Here is <code>DimCustomer</code> documented end to end:</p>
+<p><strong>Table:</strong> DimCustomer — <em>One row per customer per version of tracked attributes (SCD Type 2 on City, Segment). Source: CRM nightly extract.</em></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Key</th>
+<th>Null</th>
+<th>Definition</th>
+<th>SCD</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CustomerKey</td>
+<td>int</td>
+<td>PK</td>
+<td>No</td>
+<td>Surrogate identifier, generated at load</td>
+<td>—</td>
+<td>9001</td>
+</tr>
+<tr>
+<td>CustomerID</td>
+<td>varchar(20)</td>
+<td>AK</td>
+<td>No</td>
+<td>Natural key from CRM, stable</td>
+<td>—</td>
+<td>C-100</td>
+</tr>
+<tr>
+<td>FullName</td>
+<td>varchar(100)</td>
+<td>—</td>
+<td>No</td>
+<td>Customer's full name as in CRM</td>
+<td>Type 1</td>
+<td>Ali Raza</td>
+</tr>
+<tr>
+<td>City</td>
+<td>varchar(100)</td>
+<td>—</td>
+<td>No</td>
+<td>City of residence at version start</td>
+<td>Type 2</td>
+<td>Karachi</td>
+</tr>
+<tr>
+<td>Segment</td>
+<td>varchar(50)</td>
+<td>—</td>
+<td>No</td>
+<td>Value segment: New/Regular/Premium</td>
+<td>Type 2</td>
+<td>Regular</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>varchar(150)</td>
+<td>—</td>
+<td>Yes</td>
+<td>Contact email; not used in analysis</td>
+<td>Type 1</td>
+<td>ali@example.com</td>
+</tr>
+<tr>
+<td>EffectiveFrom</td>
+<td>date</td>
+<td>—</td>
+<td>No</td>
+<td>First date this version is valid</td>
+<td>—</td>
+<td>2026-03-01</td>
+</tr>
+<tr>
+<td>EffectiveTo</td>
+<td>date</td>
+<td>—</td>
+<td>No</td>
+<td>Last date valid; 9999-12-31 = current</td>
+<td>—</td>
+<td>9999-12-31</td>
+</tr>
+<tr>
+<td>IsCurrent</td>
+<td>bit</td>
+<td>—</td>
+<td>No</td>
+<td>1 = current version</td>
+<td>—</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Business rules:</strong> a customer has exactly one current row (<code>IsCurrent = 1</code> unique per CustomerID — enforced by ETL check). <strong>Lineage:</strong> CRM.customers → etl_dim_customer.py → warehouse.DimCustomer, nightly 02:00. <strong>Changelog:</strong> 2026-04-02 Segment promoted to Type 2 (marketing request). One page per table, written in this format, and your model is documented to a professional standard.</p>
+<h3 id="documentation-anti-patterns-and-their-fixes">Documentation anti-patterns (and their fixes)</h3>
+<ul>
+<li><strong>The screenshot graveyard:</strong> ERDs pasted as images into slides, uneditable and instantly stale. <em>Fix:</em> keep the diagram source (the dbdiagram.io text, the draw.io file) in version control; export images only for presentations.</li>
+<li><strong>The dictionary nobody trusts:</strong> definitions copied from column names ("CustNm = customer name"). <em>Fix:</em> the definition must add information — business meaning, edge cases, source. If it adds nothing, the column needs a conversation, not a row.</li>
+<li><strong>The 200-page tomb:</strong> exhaustive documentation written once, read never, stale within a month. <em>Fix:</em> right-size per Chapter 10's rule; a living 5-page doc beats a dead 200-page one.</li>
+<li><strong>The oral tradition:</strong> "ask Fatima, she knows the model." <em>Fix:</em> every answer Fatima gives twice goes into the dictionary. Documentation is just captured conversation.</li>
+</ul>
+<h3 id="keeping-documentation-alive-the-quarterly-review">Keeping documentation alive: the quarterly review</h3>
+<p>Schedule 30 minutes per quarter: regenerate or redraw the ERD and diff it against the doc version; check that every new column has a definition; confirm the changelog is current; re-run the stranger test on one headline number. Put it on the calendar like a backup — unglamorous, and the reason the documentation still works in year three. Assign an owner: documentation without an owner is documentation without a future.</p>
+<p><strong>For your research:</strong> Journals increasingly require data availability statements and supplementary data files. A data dictionary submitted as supplementary material, matching the deposited dataset column-for-column, is the gold standard — it makes your work reusable, citable, and reproducible, which is precisely what editors and reviewers reward. Start the dictionary on day one of data collection, not the week before submission.</p>
+<p><strong>Key takeaways:</strong>
+- Document during design, not after — capture reasons, not just structures.
+- Five artifacts: ERD, data dictionary, grain statements + business rules, lineage, change log.
+- The data dictionary's Definition column is the core: one precise sentence per column.
+- Right-size it: 1–3 pages for personal projects, more for teams; the stranger-reproduction test decides.
+- Version documentation with the model; change them in the same step.</p>
+<hr />
+<h2 id="chapter-11-modeling-for-research-datasets-surveys-experiments-longitudinal-data">Chapter 11: Modeling for Research Datasets — Surveys, Experiments, Longitudinal Data</h2>
+<p>Research data has its own shapes and its own traps. This chapter applies everything so far to the three dataset types researchers meet most: surveys, experiments, and longitudinal studies — with concrete table designs you can adapt directly.</p>
+<h3 id="universal-research-modeling-principles">Universal research-modeling principles</h3>
+<ol>
+<li><strong>Separate collection from analysis.</strong> Keep raw responses/measurements immutable in "bronze" tables; build cleaned, modeled "gold" tables for analysis. Never edit raw data in place — every cleaning step is a scripted, documented transformation (lineage, Chapter 10).</li>
+<li><strong>Anonymous but linkable IDs.</strong> Respondents get random surrogate IDs at collection; the mapping to identities (if any) lives separately under access control. The analysis model uses only the surrogate.</li>
+<li><strong>Record metadata as data.</strong> Who collected it, when, with which instrument version, under which protocol — these are columns, not footnotes. Protocol changes mid-study are SCD events (Chapter 6).</li>
+<li><strong>Model the non-responses.</strong> A survey dataset is not just answers — it is answers <em>plus</em> who was asked and did not answer. Non-response is data; model it or your response rates are fiction.</li>
+</ol>
+<h3 id="pattern-1-survey-data">Pattern 1: Survey data</h3>
+<p>The classic shape, fully modeled:</p>
+<ul>
+<li><code>DimRespondent(RespondentKey PK, AnonymousID, Age, Gender, InstitutionKey FK, WaveKey FK, …)</code> — one row per respondent per wave (Type 2 across waves).</li>
+<li><code>DimInstitution(InstitutionKey PK, InstitutionName, City, InstitutionType)</code> — 3NF split from Chapter 3.</li>
+<li><code>DimQuestion(QuestionKey PK, QuestionCode, QuestionText, ScaleType, Section)</code> — the questionnaire as data; adding Q41 is a row, not a schema change.</li>
+<li><code>DimDate</code>, <code>DimWave(WaveKey PK, WaveName, StartDate, EndDate)</code>.</li>
+<li><code>FactResponses(RespondentKey FK, QuestionKey FK, DateKey FK, WaveKey FK, ScoreValue, ResponseText)</code> — grain: one row per respondent per question per wave. <code>ScoreValue</code> numeric (nullable for skipped); <code>ResponseText</code> for open-ended (nullable).</li>
+<li><code>FactEligibility(RespondentKey FK, WaveKey FK, WasInvited, RespondedFlag)</code> — the factless fact table for response rates: grain one row per respondent per wave. Response rate = SUM(RespondedFlag) / COUNT(*) per wave — computed from data, not typed into a slide.</li>
+</ul>
+<p><strong>Handling real survey messiness:</strong>
+- <em>Multi-select questions</em> ("check all that apply"): one row per selected option in <code>FactResponses</code> (repeating group → rows, 1NF), or a bridge table if options have their own attributes.
+- <em>Likert scales</em>: store the numeric score <em>and</em> keep the scale definition in <code>DimQuestion</code> ("1 = strongly disagree … 5 = strongly agree") — never rely on column headers.
+- <em>"Other (please specify)"</em>: <code>ResponseText</code> column alongside; code it later into a dimension of coded themes, keeping the raw text immutable.
+- <em>Partial completes</em>: <code>FactEligibility</code> records invited/responded/completed status separately from answers — your denominator is always honest.</p>
+<h3 id="pattern-2-experimental-data">Pattern 2: Experimental data</h3>
+<p>From the Chapter 5 reaction-time example, generalized:</p>
+<ul>
+<li><code>DimParticipant(ParticipantKey PK, AnonymousID, Age, Gender, GroupAssignment, …)</code> — GroupAssignment is Type 2 if re-randomization can occur.</li>
+<li><code>DimCondition(ConditionKey PK, ConditionName, StimulusType, DifficultyLevel)</code>.</li>
+<li><code>DimTrial(TrialKey PK, TrialNumber, BlockNumber)</code> — when trial structure itself is analytical (practice vs. test blocks).</li>
+<li><code>FactTrials(ParticipantKey FK, ConditionKey FK, TrialKey FK, DateKey FK, ReactionTimeMs, CorrectFlag, TimeoutFlag)</code> — grain: one row per participant per trial.</li>
+<li><code>FactSessions(ParticipantKey FK, DateKey FK, SessionNumber, CompletedFlag, ExcludedReason)</code> — session-level facts; <code>ExcludedReason</code> ("equipment failure", "withdrew") makes exclusions auditable — reviewers <em>will</em> ask about excluded participants, and this table is your answer.</li>
+</ul>
+<p><strong>Design for the analysis you will run:</strong> if you will run mixed-effects models, keep trial-level grain (the model needs it). If you will also report participant means, compute them as measures/views over the fact table — never as the only stored form. Preregistration pairs naturally with modeling: your preregistered analysis plan <em>is</em> a specification of grains, measures, and exclusion rules — write the model to match it.</p>
+<h3 id="pattern-3-longitudinal-data">Pattern 3: Longitudinal data</h3>
+<p>The panel survey from Chapter 6, fully specified:</p>
+<ul>
+<li><code>DimRespondent</code> as <strong>Type 2 SCD</strong>: new row per respondent per wave when tracked attributes change; <code>EffectiveFrom/To</code>, <code>IsCurrent</code>, natural <code>AnonymousID</code> constant across rows.</li>
+<li><code>DimWave(WaveKey PK, WaveNumber, WaveLabel, StartDate, EndDate)</code>.</li>
+<li><code>FactResponses</code> gains <code>WaveKey FK</code> — grain becomes one row per respondent per question per wave.</li>
+<li><code>FactAttrition(RespondentKey FK, WaveKey FK, Status)</code> — Status ∈ {Responded, NonResponse, DroppedOut, Deceased, Ineligible}: the factless fact table that makes attrition analysis (and the CONSORT-style flow diagram) a query instead of a forensic exercise.</li>
+</ul>
+<p><strong>The wave-consistency contract:</strong> the same <code>QuestionKey</code> must mean the same question across waves. If Q7's wording changes in Wave 3, that is a new <code>QuestionKey</code> (new version) linked to the old via a <code>ReplacesQuestionKey</code> self-reference — or your "trend" is comparing different questions. Document every instrument change as an SCD/lineage event.</p>
+<h3 id="pattern-4-sensor-and-iot-time-series-data">Pattern 4: Sensor and IoT time-series data</h3>
+<p>Environmental and IoT studies produce high-volume time-series: air-quality monitors, soil sensors, wearables. The pattern:</p>
+<ul>
+<li><code>DimSensor(SensorKey PK, SensorID natural, SensorType, LocationKey FK, InstallDate, …)</code> — Type 2 on location and calibration version (a recalibrated sensor is a new version — Chapter 6; otherwise pre/post-calibration readings are incomparable and nobody can tell).</li>
+<li><code>DimLocation(LocationKey PK, SiteName, District, Latitude, Longitude, LandUse)</code>.</li>
+<li><code>DimDate</code>, <code>DimTime(TimeKey PK, Hour, Minute, Shift)</code> — splitting time-of-day out of the datetime keeps the date dimension clean and enables "pollution by hour of day" analysis.</li>
+<li><code>FactReadings(SensorKey FK, DateKey FK, TimeKey FK, PM2_5, PM10, TemperatureC, HumidityPct, BatteryV, QualityFlag)</code> — grain: one row per sensor per timestamp. Measures are readings (non-additive — average them, never sum); <code>QualityFlag</code> (junk-dimension-style codes: OK, SensorFault, OutOfRange) makes data cleaning auditable.</li>
+<li><code>FactCalibration(SensorKey FK, DateKey FK, CalibrationVersion, TechnicianKey FK)</code> — the factless fact table recording calibration <em>events</em>; join it to readings to know which calibration applies to which period.</li>
+</ul>
+<p><strong>Downsampling strategy:</strong> store raw readings at full resolution (the finest grain affordable — Chapter 7), then build aggregate fact tables (<code>FactReadingsHourly</code>, <code>FactReadingsDaily</code>) for dashboards. The aggregates are derived and documented, never the only copy. A "daily average PM2.5" chart reads the daily aggregate; a spike investigation drills through to raw rows.</p>
+<h3 id="pattern-5-qualitative-data-interviews-and-thematic-coding">Pattern 5: Qualitative data — interviews and thematic coding</h3>
+<p>Not all research data is numeric. A rigorous model for interview studies:</p>
+<ul>
+<li><code>DimParticipant(ParticipantKey PK, AnonymousID, AgeBand, Role, …)</code> — de-identified; quasi-identifiers banded.</li>
+<li><code>DimInterview(InterviewKey PK, ParticipantKey FK, DateKey FK, InterviewerKey FK, DurationMin, Setting)</code> — grain: one interview.</li>
+<li><code>DimCode(CodeKey PK, CodeName, CodeDefinition, ThemeName, ParentCodeKey FK)</code> — the codebook as a self-referencing dimension (parent-child hierarchy, Chapter 7): codes roll up into themes.</li>
+<li><code>FactCoding(InterviewKey FK, CodeKey FK, CoderKey FK, ExcerptRef, ConfidenceLevel)</code> — grain: one row per coded excerpt per coder. <strong>Double-coding</strong> (two coders, same excerpt) is naturally represented — and inter-rater reliability (Cohen's kappa) becomes a query comparing coders' rows, not a spreadsheet ordeal.</li>
+<li><code>DimCoder(CoderKey PK, CoderName, TrainingLevel)</code> — because <em>who coded</em> is metadata that affects interpretation.</li>
+</ul>
+<p>This turns "we coded the interviews" from a black box into a queryable, auditable dataset — exactly what qualitative reviewers probe.</p>
+<h3 id="ethics-and-privacy-in-the-model">Ethics and privacy in the model</h3>
+<ul>
+<li><strong>De-identification by design:</strong> no names, emails, or national IDs in analysis tables — surrogate keys only. Quasi-identifiers (age + institution + gender) can re-identify; consider banding ages and suppressing small cells.</li>
+<li><strong>Access tiers:</strong> raw identifiable data (separate, restricted) → de-identified analysis model (research team) → aggregated public-use tables (supplementary material). The model enforces the tiers structurally, not by promise.</li>
+<li><strong>Consent as data:</strong> <code>DimRespondent.ConsentScope</code> records what each respondent agreed to (analysis only? data sharing? future contact?) — a Type 2 attribute, because consent can be withdrawn, and withdrawal must propagate to the analysis set.</li>
+</ul>
+<h3 id="pattern-6-geospatial-data">Pattern 6: Geospatial data</h3>
+<p>Location-based research (disease mapping, agricultural plots, urban studies) adds geometry to the model:</p>
+<ul>
+<li><code>DimLocation(LocationKey PK, SiteName, District, Latitude, Longitude, GeoHash, LandUse)</code> — store coordinates as numeric attributes; add a <strong>geohash</strong> (a short string encoding a grid cell) for fast "nearby" grouping without spatial indexes.</li>
+<li>Keep geometry <em>out</em> of the fact table's grain logic: the grain stays "one row per measurement"; location is a dimension like any other.</li>
+<li><strong>Resolution discipline:</strong> record coordinates at the finest resolution ethically allowed, then aggregate up (plot → village → district) via hierarchy columns — the Chapter 7 roll-up principle applied to space.</li>
+<li><strong>Privacy:</strong> precise coordinates of households or farms are identifying — band them to grid cells or add controlled jitter <em>before</em> the analysis dataset, and document the transformation. The raw precise layer stays restricted (access tiers, above).</li>
+</ul>
+<h3 id="versioning-datasets">Versioning datasets</h3>
+<p>Datasets change: errors are found, waves are added, variables are recoded. Version them like software:</p>
+<ul>
+<li><strong>Semantic versions</strong> (<code>v1.0</code>, <code>v1.1</code>, <code>v2.0</code>): patch = error fixes, minor = added waves/variables (backward compatible), major = redefined variables or grains (breaks old code).</li>
+<li><strong>Immutable releases:</strong> never overwrite <code>survey_v1.csv</code> — publish <code>survey_v2.csv</code> alongside it, with a changelog. Anyone reproducing the published paper uses v1; new work uses v2.</li>
+<li><strong>The changelog is the SCD log for your dataset:</strong> "v1.1 (2026-08-02): corrected 14 miscoded responses in Wave 1, Q7 (see errata.csv)." This is the dataset-level equivalent of Chapter 6 — history preserved, changes explicit.</li>
+</ul>
+<h3 id="mixed-methods-linking-qualitative-and-quantitative-models">Mixed methods: linking qualitative and quantitative models</h3>
+<p>Many theses combine a survey (quantitative) with interviews (qualitative). Model the link explicitly rather than keeping two disconnected datasets:</p>
+<ul>
+<li>The same <code>DimParticipant</code> (anonymous surrogate key) serves both the survey star and the interview coding model — one person, one key, two analytical lenses.</li>
+<li><code>BridgeParticipantInterview</code> or a shared <code>ParticipantKey</code> in both fact tables lets you ask: "Do high-burnout survey respondents (quantitative) mention workload in interviews (qualitative)?" — a query joining <code>FactResponses</code> (burnout score) to <code>FactCoding</code> (workload code) on <code>ParticipantKey</code>.</li>
+<li>Keep method-specific attributes in method-specific tables (survey responses vs. coded excerpts) and shared attributes (demographics) in the shared dimension — the conformed-dimension principle applied across methods.</li>
+</ul>
+<p>Examiners love this: it shows the mixed-methods design is not two studies stapled together but one modeled dataset answering one research question from two angles.</p>
+<p><strong>For your research:</strong> Before collecting data, draw the full model for your study — tables, keys, grains, SCD decisions — and review it with your supervisor as you would a questionnaire draft. Piloting the <em>model</em> on 20 fake rows (enter them by hand, run your planned analyses) catches design flaws while they are still free to fix. Attach the final ERD and data dictionary to your thesis appendix and your journal supplementary files: it is the clearest possible evidence of methodological care.</p>
+<p><strong>Key takeaways:</strong>
+- Research modeling principles: immutable raw layer, anonymous linkable IDs, metadata as columns, model non-responses.
+- Surveys: respondent/question/wave dimensions + response facts + an eligibility fact table for honest response rates.
+- Experiments: participant/condition/trial dimensions + trial-grain facts + a session/exclusion table that answers reviewer questions.
+- Longitudinal: Type 2 respondent dimensions, wave dimension, attrition fact table, and a wave-consistency contract for questions.
+- Build ethics into the structure: de-identification, access tiers, and consent as a tracked attribute.</p>
+<hr />
+<h2 id="chapter-12-capstone-design-a-complete-model-for-a-sample-business">Chapter 12: Capstone — Design a Complete Model for a Sample Business</h2>
+<p>You now have the full toolkit. This capstone walks through a complete, realistic modeling engagement end to end — requirements, conceptual sketch, logical design with full table definitions, SCD and grain decisions, the Power BI implementation plan, and documentation. Treat it as the template for your own projects.</p>
+<h3 id="the-scenario-greenbasket-an-online-grocery-startup">The scenario: "GreenBasket" — an online grocery startup</h3>
+<p>GreenBasket sells groceries online in two cities. Requirements gathered from stakeholders:</p>
+<ol>
+<li>Track every order line: what was sold, to whom, when, at what price, with what discount.</li>
+<li>Analyze sales by product category, customer segment, city, and month.</li>
+<li>Customers change segments (New → Regular → Premium) and move cities — marketing wants history.</li>
+<li>Products change categories occasionally — merchandising wants history too.</li>
+<li>Promotions apply to order lines; one line can have multiple promotions.</li>
+<li>Monthly revenue targets per city; compare actuals vs. targets.</li>
+<li>The owner wants a Power BI dashboard: sales trends, top products, segment migration.</li>
+</ol>
+<h3 id="step-1-conceptual-model-the-what">Step 1: Conceptual model (the "what")</h3>
+<p>Entities: Customer, Product, Category, Promotion, Order, OrderLine, City, Date, SalesTarget. Relationships: a Customer places many Orders; an Order has many OrderLines; each OrderLine is for one Product and can have many Promotions; Products belong to Categories; Targets are set per City per Month.</p>
+<h3 id="step-2-grain-decisions-the-discipline-first">Step 2: Grain decisions (the discipline first)</h3>
+<table>
+<thead>
+<tr>
+<th>Fact table</th>
+<th>Grain statement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FactSales</td>
+<td>One row per order line per promotion allocation (see Step 4)</td>
+</tr>
+<tr>
+<td>FactTargets</td>
+<td>One row per city per month</td>
+</tr>
+</tbody>
+</table>
+<p>Two grains → two fact tables (Chapter 7). Targets at city-month grain will drill across with sales via conformed DimDate and DimCity.</p>
+<h3 id="step-3-logical-design-dimensions">Step 3: Logical design — dimensions</h3>
+<p><strong>DimDate(DateKey PK, Date, DayName, MonthNumber, MonthName, Quarter, Year, IsWeekend)</strong> — built once, conformed everywhere. 2025-01-01 to 2030-12-31.</p>
+<p><strong>DimCustomer(CustomerKey PK, CustomerID natural, FullName, City, Segment, EffectiveFrom, EffectiveTo, IsCurrent)</strong> — Type 2 on City and Segment (requirement 3: marketing wants history); Type 1 on FullName (corrections) and phone/email (contact only).</p>
+<p><strong>DimProduct(ProductKey PK, ProductID natural, ProductName, Category, Subcategory, Brand, UnitCost, EffectiveFrom, EffectiveTo, IsCurrent)</strong> — Type 2 on Category (requirement 4); Type 1 on ProductName, UnitCost.</p>
+<p><strong>DimPromotion(PromotionKey PK, PromotionCode, PromotionName, PromotionType, DiscountPct)</strong> — Type 1; promotions are rarely analyzed historically by attribute.</p>
+<p><strong>DimCity(CityKey PK, CityName, Region)</strong> — small, conformed; shared by FactSales and FactTargets.</p>
+<p>Sample rows — DimCustomer (Type 2 in action):</p>
+<table>
+<thead>
+<tr>
+<th>CustomerKey</th>
+<th>CustomerID</th>
+<th>FullName</th>
+<th>City</th>
+<th>Segment</th>
+<th>EffectiveFrom</th>
+<th>EffectiveTo</th>
+<th>IsCurrent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>101</td>
+<td>C-001</td>
+<td>Fatima R.</td>
+<td>Karachi</td>
+<td>New</td>
+<td>2026-01-10</td>
+<td>2026-05-31</td>
+<td>No</td>
+</tr>
+<tr>
+<td>118</td>
+<td>C-001</td>
+<td>Fatima R.</td>
+<td>Karachi</td>
+<td>Regular</td>
+<td>2026-06-01</td>
+<td>2026-08-14</td>
+<td>No</td>
+</tr>
+<tr>
+<td>134</td>
+<td>C-001</td>
+<td>Fatima R.</td>
+<td>Lahore</td>
+<td>Regular</td>
+<td>2026-08-15</td>
+<td>9999-12-31</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-4-logical-design-facts">Step 4: Logical design — facts</h3>
+<p><strong>FactSales(SalesKey PK surrogate, DateKey FK, CustomerKey FK, ProductKey FK, CityKey FK, PromotionKey FK, OrderNumber degenerate, Quantity, UnitPrice, DiscountAmount, SalesAmount)</strong> — grain: one row per order line per promotion. Requirement 5 (multiple promotions per line) is handled by allocating the line's amounts across its promotions evenly (documented allocation rule) — or, alternatively, a factless bridge <code>BridgeLinePromotion</code> kept separate from the additive facts. The chosen design (allocation in the fact) keeps "total sales" simple; the bridge alternative keeps promotion analysis exact. We document the trade-off and choose allocation, noting that promotion-attributed revenue is directional, not exact.</p>
+<p>Sample rows:</p>
+<table>
+<thead>
+<tr>
+<th>DateKey</th>
+<th>CustomerKey</th>
+<th>ProductKey</th>
+<th>CityKey</th>
+<th>PromotionKey</th>
+<th>OrderNo</th>
+<th>Qty</th>
+<th>UnitPrice</th>
+<th>Discount</th>
+<th>SalesAmount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>20260615</td>
+<td>118</td>
+<td>501</td>
+<td>1</td>
+<td>10</td>
+<td>ORD-8841</td>
+<td>2</td>
+<td>1500</td>
+<td>300</td>
+<td>2700</td>
+</tr>
+<tr>
+<td>20260615</td>
+<td>118</td>
+<td>502</td>
+<td>1</td>
+<td>-1</td>
+<td>ORD-8841</td>
+<td>1</td>
+<td>95000</td>
+<td>0</td>
+<td>95000</td>
+</tr>
+</tbody>
+</table>
+<p>(PromotionKey −1 = the "No Promotion" unknown member — Chapter 9, Mistake 8.)</p>
+<p><strong>FactTargets(CityKey FK, DateKey FK at month grain, TargetAmount)</strong> — grain: one row per city per month; DateKey points to the month's first day. Semi-additive caution: targets sum across cities but a yearly target is not the sum of monthly targets unless defined that way — documented.</p>
+<h3 id="step-5-power-bi-implementation-plan">Step 5: Power BI implementation plan</h3>
+<ol>
+<li>Load five dimensions + two facts; hide all key columns from report view.</li>
+<li>Relationships: each dimension 1:* single-direction → FactSales; DimCity and DimDate also → FactTargets (role-playing: targets use month-start dates — an inactive relationship + USERELATIONSHIP, or a DimMonth view).</li>
+<li>Measures: <code>Total Sales = SUM(FactSales[SalesAmount])</code>, <code>Total Target = SUM(FactTargets[TargetAmount])</code>, <code>Achievement % = DIVIDE([Total Sales], [Total Target])</code> (ratio computed after aggregation — Chapter 5), <code>Avg Basket = DIVIDE([Total Sales], DISTINCTCOUNT(FactSales[OrderNumber]))</code>.</li>
+<li>Segment migration visual: matrix of previous vs. current segment using the Type 2 history (natural CustomerID to track individuals across versions).</li>
+<li>Pre-flight checklist (Chapter 9) before publish; reconciliation: dashboard total = source POS total.</li>
+</ol>
+<h3 id="step-6-documentation-deliverables">Step 6: Documentation deliverables</h3>
+<ul>
+<li>ERD (star diagram with both facts sharing DimDate/DimCity — the conformed dimensions highlighted).</li>
+<li>Data dictionary (every column, with SCD types and additivity labeled).</li>
+<li>Grain statements page; allocation rule for promotions; target definition ("monthly city revenue target set by finance on the 25th").</li>
+<li>Lineage: POS exports → nightly ETL → warehouse → Power BI dataset; refresh schedule and owner.</li>
+<li>Change log started.</li>
+</ul>
+<h3 id="what-done-looks-like">What "done" looks like</h3>
+<p>The owner opens the dashboard, filters to Lahore / Q3, and sees sales, targets, achievement %, top products, and segment trends — all from one model, all reconciling to the POS total, with history preserved for every segment and category change. A new analyst can read the documentation and extend the model (add a DimSupplier, a third city) without breaking anything. That is the payoff of the twelve chapters: not a diagram, but a living, trustworthy analytical asset.</p>
+<h3 id="extension-add-a-loyalty-program-do-it-yourself-then-check">Extension: add a loyalty program (do it yourself, then check)</h3>
+<p>GreenBasket launches loyalty points: customers earn 1 point per 100 spent, redeem points for discounts, and tiers (Silver/Gold/Platinum) depend on 12-month rolling spend. Before reading on, sketch: which new tables? Which grains? Which SCD types?</p>
+<p><strong>Reference solution:</strong>
+- <code>DimLoyaltyTier(TierKey PK, TierName, MinSpend, PointMultiplier)</code> — Type 1 (tier definitions are reference data; changes are corrections or new tiers).
+- Extend <code>DimCustomer</code> (Type 2) with <code>CurrentTier</code> — tier changes are history marketing wants (segment migration, Chapter 8's visual, now includes tiers).
+- <code>FactPointsEarned(CustomerKey FK, DateKey FK, OrderNumber degenerate, PointsEarned, SpendAmount)</code> — <strong>transaction</strong> fact, grain one row per order.
+- <code>FactPointsBalanceSnapshot(CustomerKey FK, MonthKey FK, PointsBalance, TierKey FK)</code> — <strong>periodic snapshot</strong>, grain one row per customer per month (balances are semi-additive — Chapter 5).
+- <code>FactRedemptions(CustomerKey FK, DateKey FK, PromotionKey FK, PointsRedeemed, DiscountValue)</code> — transaction fact for redemptions.
+- Rolling 12-month spend is a <em>measure</em> over <code>FactSales</code> (rolling window in DAX/SQL), not a stored column — computed after aggregation, always current.</p>
+<p>Notice the reasoning chain: grains first, fact types chosen by question (Chapter 5's table), SCD by history needs (Chapter 6), tiers as a dimension not a fact column. If your sketch matches this shape, you have internalized the book.</p>
+<h3 id="self-assessment-rubric">Self-assessment rubric</h3>
+<p>Score your capstone (or your own project's model) honestly:</p>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>0 — missing</th>
+<th>1 — partial</th>
+<th>2 — solid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Requirements → questions listed</td>
+<td>No question list</td>
+<td>Some questions</td>
+<td>10+ real questions documented</td>
+</tr>
+<tr>
+<td>Grain statements</td>
+<td>None</td>
+<td>Some tables</td>
+<td>Every fact table</td>
+</tr>
+<tr>
+<td>Keys</td>
+<td>Text/natural keys</td>
+<td>Mixed</td>
+<td>Surrogate keys throughout</td>
+</tr>
+<tr>
+<td>Normalization</td>
+<td>Repeating groups present</td>
+<td>Mostly 3NF</td>
+<td>Clean 3NF source + star serving layer</td>
+</tr>
+<tr>
+<td>SCD decisions</td>
+<td>Not considered</td>
+<td>Some attributes</td>
+<td>Per-attribute table with reasons</td>
+</tr>
+<tr>
+<td>Additivity</td>
+<td>Ratios stored/summed</td>
+<td>Mixed</td>
+<td>Components stored, ratios computed</td>
+</tr>
+<tr>
+<td>Power BI relationships</td>
+<td>Bi-di everywhere</td>
+<td>Mostly single</td>
+<td>Single 1:*, exceptions documented</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>None</td>
+<td>ERD only</td>
+<td>ERD + dictionary + lineage + changelog</td>
+</tr>
+</tbody>
+</table>
+<p><strong>14–16:</strong> publish-ready. <strong>10–13:</strong> solid, fix the gaps. <strong>Below 10:</strong> revisit the flagged chapters before building further.</p>
+<h3 id="presenting-the-model-the-10-minute-stakeholder-walkthrough">Presenting the model: the 10-minute stakeholder walkthrough</h3>
+<p>A model nobody understands is a model nobody trusts. Walk stakeholders through yours in ten minutes:</p>
+<ol>
+<li><strong>The questions (2 min):</strong> "This model answers these 12 questions" — show the list. Everything else follows from it.</li>
+<li><strong>The picture (3 min):</stron

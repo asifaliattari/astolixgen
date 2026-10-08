@@ -1,0 +1,356 @@
+g> the star ERD. "Facts in the middle are what happened; dimensions around are how we slice it." Point at each table and say its grain in one sentence.</li>
+<li><strong>The tricky decisions (3 min):</strong> SCD choices, the promotion allocation rule, the grain of FactTargets. State each decision <em>and its reason</em> — this is where trust is built.</li>
+<li><strong>The proof (2 min):</strong> live demo — total matches the source system; drill from year to month; show the "as was" history for one changed customer. Nothing persuades like reconciled numbers.</li>
+</ol>
+<p>Bring the one-page grain statements + SCD table as a handout. Stakeholders will not remember the diagram, but they will remember that every number reconciles and every decision had a reason — and they will defend the model to others, which is how models survive organizational change.</p>
+<h3 id="from-capstone-to-portfolio">From capstone to portfolio</h3>
+<p>The GreenBasket model is more than an exercise — it is a portfolio artifact. Package it: the ERD diagram, the data dictionary, the grain/SCD decision tables, the Power BI file with its Model view screenshot, and a one-page narrative ("requirements → decisions → proof of reconciliation"). Host it on GitHub alongside the DDL scripts. For a researcher, the equivalent package is your thesis data appendix; for a job seeker, it is the single most persuasive interview artifact in analytics — "walk me through a model you designed" is a standard interview question, and candidates who answer with a documented star schema, stated grains, and justified SCD choices stand far apart from those who describe dragging tables into a BI tool. This book's capstone, done properly, <em>is</em> that answer.</p>
+<p><strong>For your research:</strong> Use this capstone as the worked template for your thesis data chapter. Replace GreenBasket with your study: requirements → grains → dimensions (with SCD decisions) → facts (with additivity labels) → implementation → documentation. Examiners and reviewers respond to this structure because it shows you thought before you collected — the hallmark of a researcher, not just an analyst.</p>
+<p><strong>Key takeaways:</strong>
+- Real modeling runs: requirements → grain decisions → dimensions → facts → implementation → documentation.
+- Decide grains before tables; one grain per fact table; share conformed dimensions to drill across.
+- Handle many-to-many (promotions) with an explicit, documented allocation rule or a bridge — never a silent join.
+- Type 2 history is what makes "segment migration" and trend analysis possible at all.
+- "Done" = trusted numbers, documented decisions, and a model a stranger can extend.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="normal-forms-checklist">Normal forms checklist</h3>
+<table>
+<thead>
+<tr>
+<th>Normal form</th>
+<th>Rule</th>
+<th>Violation symptom</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1NF</td>
+<td>Atomic values; no repeating groups</td>
+<td>Columns like Q1…Q40, Phone1/Phone2</td>
+<td>One row per value; unpivot</td>
+</tr>
+<tr>
+<td>2NF</td>
+<td>No partial dependency on part of a composite key</td>
+<td>StudentName repeated per course row</td>
+<td>Split into separate tables per dependency</td>
+</tr>
+<tr>
+<td>3NF</td>
+<td>No transitive dependency via non-key columns</td>
+<td>DeptName repeated per student (depends on DeptCode)</td>
+<td>Split the transitively-dependent columns out</td>
+</tr>
+<tr>
+<td>BCNF</td>
+<td>Every determinant is a candidate key</td>
+<td>Rare overlapping-key anomalies</td>
+<td>Refine keys (rarely needed in practice)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="star-vs-snowflake-comparison">Star vs. snowflake comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Star schema</th>
+<th>Snowflake schema</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dimension shape</td>
+<td>Flat, denormalized, wide</td>
+<td>Normalized into sub-dimensions</td>
+</tr>
+<tr>
+<td>Joins per query</td>
+<td>One hop per dimension</td>
+<td>Chains through sub-dimensions</td>
+</tr>
+<tr>
+<td>Ease of use</td>
+<td>High — self-service friendly</td>
+<td>Lower — needs SQL/join skill</td>
+</tr>
+<tr>
+<td>Query speed (analytical engines)</td>
+<td>Faster</td>
+<td>Slower</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>Higher (redundancy)</td>
+<td>Lower</td>
+</tr>
+<tr>
+<td>Dimension maintenance</td>
+<td>Update one wide table</td>
+<td>Update small tables</td>
+</tr>
+<tr>
+<td>Default choice</td>
+<td>✅ Yes — default to star</td>
+<td>Only with documented reason</td>
+</tr>
+</tbody>
+</table>
+<h3 id="relationship-cardinality-quick-reference-power-bi">Relationship cardinality quick-reference (Power BI)</h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Cardinality</th>
+<th>Filter direction</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dimension → Fact</td>
+<td>1 : *</td>
+<td>Single (dim → fact)</td>
+<td>The standard; "one" side must be unique</td>
+</tr>
+<tr>
+<td>Fact → Fact (drill across)</td>
+<td>— (via conformed dims)</td>
+<td>—</td>
+<td>Aggregate each to common grain first</td>
+</tr>
+<tr>
+<td>Bridge (M:N)</td>
+<td>1 : * : 1 via bridge</td>
+<td>Single; bi-di only if tested</td>
+<td>Verify totals; document allocation</td>
+</tr>
+<tr>
+<td>Role-playing date</td>
+<td>1 active + N inactive</td>
+<td>Single</td>
+<td>Activate with USERELATIONSHIP in DAX</td>
+</tr>
+<tr>
+<td>Reference 1:1 split</td>
+<td>1 : 1</td>
+<td>Single</td>
+<td>Rare; performance or security splits</td>
+</tr>
+</tbody>
+</table>
+<h3 id="scd-type-quick-reference">SCD type quick-reference</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>On change</th>
+<th>History</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Type 1</td>
+<td>Overwrite the row</td>
+<td>Lost</td>
+<td>Corrections; current-only attributes</td>
+</tr>
+<tr>
+<td>Type 2</td>
+<td>New row, new surrogate key</td>
+<td>Full</td>
+<td>Any historical analysis by the attribute</td>
+</tr>
+<tr>
+<td>Type 3</td>
+<td>Shift current → previous column</td>
+<td>One step</td>
+<td>Current-vs-previous only (rare)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fact-table-types-quick-reference">Fact table types quick-reference</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Grain</th>
+<th>Rows</th>
+<th>Answers</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transaction</td>
+<td>One row per event</td>
+<td>Insert-only, grows forever</td>
+<td>How many? How much?</td>
+<td>FactSales (order line)</td>
+</tr>
+<tr>
+<td>Periodic snapshot</td>
+<td>One row per thing per period</td>
+<td>Dense, large</td>
+<td>What was the state on date X?</td>
+<td>FactInventorySnapshot</td>
+</tr>
+<tr>
+<td>Accumulating snapshot</td>
+<td>One row per process, updated</td>
+<td>One row per instance, updated at milestones</td>
+<td>How long? Where do things stall?</td>
+<td>FactOrderPipeline</td>
+</tr>
+</tbody>
+</table>
+<h3 id="modeling-workflow-summary">Modeling workflow summary</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Output</th>
+<th>Chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Gather requirements</td>
+<td>Question list (10–20 real questions)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>2. Identify entities &amp; grains</td>
+<td>Grain statements per fact</td>
+<td>7</td>
+</tr>
+<tr>
+<td>3. Sketch conceptual model</td>
+<td>Boxes-and-lines diagram, validated</td>
+<td>1–2</td>
+</tr>
+<tr>
+<td>4a. Normalize source</td>
+<td>3NF tables, keys, constraints</td>
+<td>2–3</td>
+</tr>
+<tr>
+<td>4b. Design analytical star</td>
+<td>Fact/dimension tables, SCD types, additivity</td>
+<td>4–6</td>
+</tr>
+<tr>
+<td>5. Plan physical implementation</td>
+<td>Types, indexes, relationships, refresh</td>
+<td>8</td>
+</tr>
+<tr>
+<td>6. Document as you build</td>
+<td>ERD, dictionary, lineage, changelog</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<h3 id="measure-additivity-quick-reference">Measure additivity quick-reference</h3>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Sums across…</th>
+<th>Example</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Additive</td>
+<td>All dimensions</td>
+<td>SalesAmount, Quantity</td>
+<td>SUM freely</td>
+</tr>
+<tr>
+<td>Semi-additive</td>
+<td>Some (not time)</td>
+<td>Balances, inventory</td>
+<td>Use latest-period logic for time</td>
+</tr>
+<tr>
+<td>Non-additive</td>
+<td>None</td>
+<td>Ratios, unit prices</td>
+<td>Compute after aggregating components</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Additive fact</strong> — a measure that can be summed across all dimensions (e.g., sales amount).</li>
+<li><strong>Attribute</strong> — a single descriptive column of a table (e.g., CustomerName).</li>
+<li><strong>Bridge table</strong> — a table resolving a many-to-many relationship by holding key pairs from both sides; also called junction or associative table.</li>
+<li><strong>Cardinality</strong> — the numeric relationship between tables: one-to-one, one-to-many, many-to-many.</li>
+<li><strong>Composite key</strong> — a primary key made of two or more columns.</li>
+<li><strong>Conformed dimension</strong> — a dimension shared with identical keys and definitions across multiple fact tables or models, enabling consistent drilling across.</li>
+<li><strong>Cross-filter direction</strong> — in Power BI, which way filters propagate along a relationship (single vs. both directions).</li>
+<li><strong>Data dictionary</strong> — documentation describing every table and column: definitions, types, keys, rules.</li>
+<li><strong>Data model</strong> — the blueprint of tables, columns, relationships, and rules organizing a dataset.</li>
+<li><strong>Degenerate dimension</strong> — a dimension identifier (e.g., order number) stored in the fact table without its own dimension table.</li>
+<li><strong>Denormalization</strong> — deliberate reintroduction of redundancy into an analytical copy of data to speed up and simplify reads.</li>
+<li><strong>Dimension table</strong> — descriptive context table in a star schema (who/what/where/when); the "by" of every analysis.</li>
+<li><strong>Drilling across</strong> — combining two fact tables at different grains by aggregating each to shared conformed dimensions.</li>
+<li><strong>ERD (entity-relationship diagram)</strong> — visual map of tables, keys, and relationships.</li>
+<li><strong>Fact table</strong> — central table recording measurable events; holds dimension foreign keys and numeric measures.</li>
+<li><strong>Factless fact table</strong> — a fact table with no measures recording only that an event occurred (e.g., attendance, eligibility).</li>
+<li><strong>Fan-out</strong> — row multiplication from joining at the wrong grain, inflating totals.</li>
+<li><strong>Foreign key</strong> — a column holding another table's primary key value, implementing a relationship.</li>
+<li><strong>Grain</strong> — the precise definition of what one row of a table represents; declared in a grain statement.</li>
+<li><strong>Granularity</strong> — the level of detail of data (transaction, daily, monthly).</li>
+<li><strong>Hierarchy</strong> — a chain of attributes from fine to coarse within a dimension (Day → Month → Quarter → Year).</li>
+<li><strong>Lineage</strong> — the documented path of data from source systems through transformations to consumers.</li>
+<li><strong>Many-to-many</strong> — a relationship where each side can link to many of the other; resolved with a bridge table.</li>
+<li><strong>Measure</strong> — a DAX/calculated numeric aggregation (e.g., Total Sales) defined once and reused.</li>
+<li><strong>Natural key</strong> — a real-world identifier used as a key (e.g., national ID, ISBN).</li>
+<li><strong>Normalization</strong> — organizing tables to remove redundancy and prevent update/insert/delete anomalies (1NF, 2NF, 3NF…).</li>
+<li><strong>NULL</strong> — the absence of a value; means unknown or not applicable, not zero.</li>
+<li><strong>One-to-many</strong> — the standard relationship: one dimension row relates to many fact rows.</li>
+<li><strong>Primary key</strong> — the unique, non-null, stable identifier of each row in a table.</li>
+<li><strong>Referential integrity</strong> — the rule that foreign keys must match existing primary keys (or be null where allowed).</li>
+<li><strong>Role-playing dimension</strong> — one physical dimension (e.g., dates) serving multiple roles (order date, ship date) via multiple relationships.</li>
+<li><strong>SCD (slowly changing dimension)</strong> — a dimension whose attributes change over time; handled with Types 1, 2, or 3.</li>
+<li><strong>Semi-additive fact</strong> — a measure summable across some dimensions but not time (e.g., account balances).</li>
+<li><strong>Snowflake schema</strong> — a star schema with normalized dimension hierarchies (more joins, less redundancy).</li>
+<li><strong>Star schema</strong> — an analytical design with one central fact table joined directly to denormalized dimension tables.</li>
+<li><strong>Surrogate key</strong> — a meaningless system-generated identifier used as a primary key.</li>
+<li><strong>USERELATIONSHIP</strong> — a DAX function activating an inactive relationship for a specific calculation.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Keys check.</strong> A <code>Students</code> table uses <code>FullName</code> as its primary key. List three specific things that will go wrong, and redesign the key properly.</li>
+<li><strong>1NF fix.</strong> You inherit a survey export with columns <code>RespondentID, Age, Q1, Q2, …, Q30</code>. Sketch the 1NF-compliant tables (names, keys, columns) and show five sample rows of the response fact table.</li>
+<li><strong>Normalize.</strong> Take the messy enrollment sheet from Chapter 3 and add two columns: <code>InstructorEmail</code> and <code>DeptHead</code>. Normalize the full table to 3NF, showing each step and justifying every split.</li>
+<li><strong>Star design.</strong> A clinic tracks appointments: patients, doctors, departments, dates, and consultation fees. Design a star schema: name the fact table, declare its grain, list all dimensions with three attributes each, and classify each measure's additivity.</li>
+<li><strong>SCD choice.</strong> A university tracks <code>StudentStatus</code> (Active/Suspended/Graduated) and <code>EmergencyPhone</code>. For each attribute, choose an SCD type and write two sentences justifying it. What breaks if you choose Type 1 for status?</li>
+<li><strong>Grain detective.</strong> A dashboard shows "total donations" = 1.2M, but the finance system says 800K. The model joins <code>FactDonations</code> (one row per donation) to <code>BridgeDonationCampaigns</code> (donations can fund multiple campaigns). Diagnose the error, explain the fan-out, and propose two fixes.</li>
+<li><strong>Power BI build.</strong> Using any small dataset (or the GreenBasket sample), build the star in Power BI Desktop: set 1:* single-direction relationships, hide keys, write <code>Total Sales</code> and <code>Achievement %</code> measures, and verify the grand total matches the source. Screenshot your Model view.</li>
+<li><strong>Documentation.</strong> Write a one-page data dictionary for a dataset you currently use (tables, columns, definitions, keys, nullability). Then answer honestly: which three columns lack a precise definition? Fix the model or the definition.</li>
+<li><strong>(Research) Longitudinal design.</strong> You are planning a 4-wave panel survey of 300 teachers measuring burnout (Maslach Burnout Inventory, 22 items). Design the full model: tables, keys, grain statements, SCD decisions for changing schools, the attrition fact table, and the wave-consistency contract for the instrument. Write it as a two-page methods appendix.</li>
+<li><strong>(Research) Reproducibility audit.</strong> Take a published paper in your field that shares its dataset. Reconstruct its data model from the files: list the tables, infer the grain of each, identify the keys, and check the three anomaly risks (update/insert/delete). Write a one-page audit: is the shared dataset in 3NF? Could you reproduce the headline table from the raw files? Submit the audit as a critical appraisal.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] R. Kimball and M. Ross, <em>The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling</em>, 3rd ed. Hoboken, NJ, USA: Wiley, 2013.</p>
+<p>[2] R. Kimball and M. Ross, <em>The Kimball Group Reader: Relentlessly Practical Tools for Data Warehousing and Business Intelligence Remastered</em>. Hoboken, NJ, USA: Wiley, 2015.</p>
+<p>[3] Microsoft Learn, "Model data in Power BI," Microsoft Corporation. [Online]. Available: https://learn.microsoft.com/en-us/power-bi/guidance/model-data-in-power-bi</p>
+<p>[4] Microsoft Learn, "Understand star schema and the importance for Power BI," Microsoft Corporation. [Online]. Available: https://learn.microsoft.com/en-us/power-bi/guidance/star-schema</p>
+<p>[5] E. F. Codd, "A relational model of data for large shared data banks," <em>Communications of the ACM</em>, vol. 13, no. 6, pp. 377–387, Jun. 1970.</p>
+<p>[6] C. J. Date, <em>An Introduction to Database Systems</em>, 8th ed. Boston, MA, USA: Addison-Wesley, 2003.</p>
+<p>[7] W. H. Inmon, <em>Building the Data Warehouse</em>, 4th ed. Hoboken, NJ, USA: Wiley, 2005.</p>
+<p>[8] J. Mundy, W. Thornthwaite, and R. Kimball, <em>The Microsoft Data Warehouse Toolkit: With SQL Server 2008 R2 and the Microsoft Business Intelligence Toolset</em>, 2nd ed. Hoboken, NJ, USA: Wiley, 2011.</p>
+<p>[9] A. Ferrari and M. Russo, <em>The Definitive Guide to DAX: Business Intelligence for Microsoft Power BI, SQL Server Analysis Services, and Excel</em>, 2nd ed. Redmond, WA, USA: Microsoft Press, 2019.</p>
+<p>[10] T. Connolly and C. Begg, <em>Database Systems: A Practical Approach to Design, Implementation, and Management</em>, 6th ed. Boston, MA, USA: Pearson, 2014.</p>
+<hr />
+<p><em>End of Book 25. Next: Book 26 — SQL for Researchers: Querying with Confidence.</em></p>

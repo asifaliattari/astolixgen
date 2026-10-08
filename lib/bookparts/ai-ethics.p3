@@ -1,0 +1,42 @@
+roup memberships.</li>
+<li><strong>k-anonymity:</strong> Syntactic privacy property requiring each quasi-identifier combination to appear at least k times.</li>
+<li><strong>Machine unlearning:</strong> Techniques for removing the influence of specific training data from an already-trained model.</li>
+<li><strong>Measurement bias:</strong> Unfairness from the choice of features, labels, or proxies used to operationalize the prediction target.</li>
+<li><strong>Model card:</strong> Structured summary of a model's intended use, evaluation results, and limitations.</li>
+<li><strong>Moral crumple zone:</strong> A human operator positioned to absorb blame for system failures they could not realistically prevent.</li>
+<li><strong>Proxy variable:</strong> A feature correlated with a sensitive attribute that allows discrimination to persist after the attribute's removal.</li>
+<li><strong>Purpose limitation:</strong> Principle that data collected for one purpose should not be reused for incompatible purposes without fresh consent.</li>
+<li><strong>Quasi-identifier:</strong> An attribute (e.g., zip code, birth date) that identifies individuals when combined with others.</li>
+<li><strong>Redlining:</strong> Historical discriminatory practice of denying services to residents of certain areas; a canonical source of historical bias in lending data.</li>
+<li><strong>Representation bias:</strong> Underrepresentation of some population segment in training or evaluation data.</li>
+<li><strong>Secure multi-party computation:</strong> Cryptographic protocols letting parties jointly compute over combined data without revealing individual inputs.</li>
+<li><strong>SHAP/LIME:</strong> Popular post-hoc feature-attribution methods for explaining individual model predictions.</li>
+<li><strong>Sociotechnical system:</strong> The combined system of technology, people, incentives, and institutions — the proper unit of ethical analysis.</li>
+<li><strong>Synthetic data:</strong> Artificially generated data mimicking real data's statistics, used to enable sharing without exposing real records.</li>
+</ul>
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Harm paragraph.</strong> Choose an AI application you find interesting (hiring, lending, content moderation, medical triage). Write a one-paragraph "harm paragraph" describing who could be harmed if the system works as designed but is deployed carelessly. Identify at least three distinct stakeholder groups.</li>
+<li><strong>Bias walkthrough.</strong> Take a public dataset you have used (or plan to use). Walk it through the six pipeline stages from Chapter 2, writing one risk per stage. List three features that could act as proxies for a sensitive attribute.</li>
+<li><strong>Fairness metrics by hand.</strong> A loan model approves 340 of 1,000 group-A applicants and 220 of 1,000 group-B applicants. Among applicants who would repay (600 in A, 500 in B), it approves 468 in A and 320 in B. Compute demographic parity rates and equal opportunity (true positive) rates for each group, and state the gaps. Which criterion shows the larger disparity?</li>
+<li><strong>Impossibility discussion.</strong> Using the numbers from Exercise 3, explain in plain language why a single threshold adjustment cannot simultaneously achieve demographic parity, equalized odds, and calibration. Write your explanation as if for a non-technical stakeholder.</li>
+<li><strong>Re-identification risk.</strong> You plan to publish a dataset of 5,000 hospital visits with columns: admission date, discharge date, zip code, age, gender, diagnosis code. Identify the quasi-identifiers, describe a plausible re-identification attack using public records, and propose a concrete protection plan using at least one Chapter 9 technique with parameters.</li>
+<li><strong>Counterfactual explanations.</strong> For a hypothetical hiring model that rejected a candidate, write three counterfactual explanations: one that offers genuine recourse, one that is technically valid but offers no realistic recourse, and one that reveals reliance on a proxy. Explain what each teaches you about the model.</li>
+<li><strong>Accountability map.</strong> Pick a real or realistic deployed AI system (e.g., a university's automated exam proctoring). Draw up the accountability map from Chapter 6: list each party, their responsibility, the standard they are held to, and the consequence of failure. Identify the weakest link.</li>
+<li><strong>Mini audit.</strong> Using any classifier you have trained (or a scikit-learn example on a public dataset with group labels), compute overall accuracy plus demographic parity and equal opportunity disaggregated by group, with 95% confidence intervals. Write a half-page audit summary including limitations and one remediation proposal.</li>
+<li><strong>Ethics statement draft.</strong> Draft the four-paragraph ethics statement from Chapter 10 (provenance/consent, fairness evaluation, dual use, limitations/reproducibility) for your current research project. Exchange it with a peer and critique each other's for platitudes versus specifics.</li>
+<li><strong>Workflow installation.</strong> Create the ethics log file described in Chapter 11 for your current project. Complete Gate 0 fully (harm paragraph, stakeholder map, risk tier, applicable gates) and schedule Gate 1 against your timeline. Bring the log to your next supervision meeting.</li>
+</ol>
+<h2 id="references">References</h2>
+<p>[1] A. Jobin, M. Ienca, and E. Vayena, "The global landscape of AI ethics guidelines," <em>Nature Machine Intelligence</em>, vol. 1, no. 9, pp. 389–399, 2019.
+[2] European Commission, "Ethics guidelines for trustworthy AI," Brussels, Belgium: European Commission, 2019.
+[3] J. Buolamwini and T. Gebru, "Gender shades: Intersectional accuracy disparities in commercial gender classification," in <em>Proc. Conf. Fairness, Accountability, and Transparency (FAT*)</em>, 2018, pp. 77–91.
+[4] S. Barocas, M. Hardt, and A. Narayanan, <em>Fairness and Machine Learning</em>. fairmlbook.org, 2019.
+[5] C. Dwork, M. Hardt, T. Pitassi, O. Reingold, and R. Zemel, "Fairness through awareness," in <em>Proc. 3rd Innovations in Theoretical Computer Science Conf.</em>, 2012, pp. 214–226.
+[6] A. Chouldechova, "Fair prediction with disparate impact: A study of bias in recidivism prediction instruments," <em>Big Data</em>, vol. 5, no. 2, pp. 153–163, 2017.
+[7] J. Kleinberg, S. Mullainathan, and M. Raghavan, "Inherent trade-offs in the fair determination of risk scores," in <em>Proc. 8th Innovations in Theoretical Computer Science Conf. (ITCS)</em>, 2017, pp. 43:1–43:23.
+[8] L. Sweeney, "k-anonymity: A model for protecting privacy," <em>Int. J. Uncertainty, Fuzziness and Knowledge-Based Systems</em>, vol. 10, no. 5, pp. 557–570, 2002.
+[9] C. Dwork, "Differential privacy," in <em>Automata, Languages and Programming (ICALP)</em>, Springer, 2006, pp. 1–12.
+[10] A. Narayanan and V. Shmatikov, "Robust de-anonymization of large sparse datasets," in <em>Proc. IEEE Symp. Security and Privacy</em>, 2008, pp. 111–125.
+[11] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas, "Communication-efficient learning of deep networks from decentralized data," in <em>Proc. 20th Int. Conf. Artificial Intelligence and Statistics (AISTATS)</em>, 2017, pp. 1273–1282.</p>
+<p><em>End of Book 46.</em></p>

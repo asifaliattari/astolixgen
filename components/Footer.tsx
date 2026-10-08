@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { company, services } from "@/lib/data";
+import { company, services, team } from "@/lib/data";
 
 /** Site footer: sitemap, services, contact and socials. */
 export default function Footer() {
@@ -7,7 +7,7 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-white/10 bg-[#04060b]">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-5">
         {/* Brand */}
         <div>
           <p className="font-display text-lg font-bold text-white">
@@ -41,6 +41,15 @@ export default function Footer() {
           links={services.slice(0, 5).map((s) => ({
             href: `/services/${s.slug}`,
             label: s.name,
+          }))}
+        />
+
+        {/* Team */}
+        <FooterCol
+          title="Team"
+          links={team.map((m) => ({
+            href: `/team/${m.slug}`,
+            label: m.name,
           }))}
         />
 

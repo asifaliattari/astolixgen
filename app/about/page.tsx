@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import SectionHeading from "@/components/SectionHeading";
 import Reveal from "@/components/Reveal";
-import { founder, values, company } from "@/lib/data";
+import { founder, values, company, team } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "About",
@@ -153,17 +153,23 @@ export default function AboutPage() {
           description="The team building AstolixGen together."
         />
         <div className="mx-auto mt-10 grid max-w-3xl gap-5 sm:grid-cols-3">
-          {founder.cofounders.map((name, i) => (
-            <Reveal key={name} delay={i * 90}>
-              <div className="card-border rounded-2xl p-6 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-accent to-viol font-display text-lg font-bold text-ink">
-                  {name.charAt(0)}
-                </div>
-                <h3 className="mt-4 font-display text-lg font-semibold text-white">{name}</h3>
-                <p className="mt-1 text-sm text-slate-400">Co-Founder</p>
-              </div>
-            </Reveal>
-          ))}
+          {team
+            .filter((m) => m.slug !== "asif-ali")
+            .map((m, i) => (
+              <Reveal key={m.slug} delay={i * 90}>
+                <Link
+                  href={`/team/${m.slug}`}
+                  className="card-border block rounded-2xl p-6 text-center transition-colors hover:border-accent/50"
+                >
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-accent to-viol font-display text-lg font-bold text-ink">
+                    {m.initials}
+                  </div>
+                  <h3 className="mt-4 font-display text-lg font-semibold text-white">{m.name}</h3>
+                  <p className="mt-1 text-sm text-slate-400">Co-Founder</p>
+                  <p className="mt-3 text-xs font-medium text-accent">View profile →</p>
+                </Link>
+              </Reveal>
+            ))}
         </div>
       </section>
 

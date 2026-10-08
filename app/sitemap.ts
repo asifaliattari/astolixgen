@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL, services, projects, posts } from "@/lib/data";
+import { SITE_URL, services, projects, posts, team } from "@/lib/data";
 
 /** Static sitemap: all routes are statically generated. */
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -33,5 +33,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...entries, ...serviceRoutes, ...projectRoutes, ...postRoutes];
+  const teamRoutes = team.map((m) => ({
+    url: `${SITE_URL}/team/${m.slug}`,
+    lastModified: new Date("2026-10-08"),
+    changeFrequency: "yearly" as const,
+    priority: 0.6,
+  }));
+
+  return [...entries, ...serviceRoutes, ...projectRoutes, ...postRoutes, ...teamRoutes];
 }

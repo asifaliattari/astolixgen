@@ -477,3 +477,71 @@ export const impactPhotos: { src: string; alt: string }[] = [
   // Example once photos are provided:
   // { src: "/impact/kpk-visit-1.jpg", alt: "AstolixGen team with students in rural KPK" },
 ];
+
+/* ---------------------------------- Team --------------------------------- */
+/* Individual profile pages live at /team/<slug>.                           */
+
+export const team = [
+  {
+    slug: "asif-ali",
+    name: "Asif Ali",
+    role: "Founder & CEO, AstolixGen",
+    linkedin: "https://www.linkedin.com/in/asif-ali-a1879a2ba/",
+    initials: "AA",
+    bio: [
+      "Asif Ali is the Founder & CEO of AstolixGen and co-founder of BlackInkMotion. With 22+ years in IT and technical operations — including service in the Pakistan Navy in high-responsibility, mission-critical environments — he brings a rare mix of disciplined operations experience and hands-on modern technology skills.",
+      "His work spans AI solutions, business automation, software development, data analytics and IoT concepts. At AstolixGen he focuses on practical, working systems: AI assistants that answer from your own documents, automations that remove repetitive work, dashboards that turn raw data into decisions, and technology that reaches underserved communities.",
+      "Asif is a Karachi City Hackathon winner and a recipient of the Tamgha-i-Khidmat, a distinguished service medal awarded by the Government of Pakistan. He is also a Google Local Guide (Level 7) and holds certifications in Google Data Analytics, Agentic AI Development, Google Build With AI, and Cisco Networking Academy.",
+    ],
+    highlights: [
+      "Tamgha-i-Khidmat — Distinguished Service Medal, Government of Pakistan",
+      "Karachi City Hackathon — Winner",
+      "22+ years in IT & technical operations",
+    ],
+  },
+  {
+    slug: "taha-siddiqui",
+    name: "Taha Siddiqui",
+    role: "Co-founder, AstolixGen · Founder, BlackInkMotion",
+    linkedin: "https://www.linkedin.com/in/taha-siddiqui-dev/",
+    initials: "TS",
+    bio: [
+      "Taha Siddiqui is a co-founder of AstolixGen and the founder of BlackInkMotion, an AI video production and motion design studio creating cinematic brand films, commercials and visual storytelling for ambitious brands.",
+      "At AstolixGen, Taha bridges creative technology and artificial intelligence — leading how the company's work is documented, explained and shared with the world, from field-visit documentaries in rural KPK to educational content that makes AI click for beginners.",
+      "His studio's expertise in AI-driven video production, motion graphics and character animation powers AstolixGen's mission to spread AI and IT education far beyond the big cities.",
+    ],
+    highlights: [
+      "Founder — BlackInkMotion (AI video production studio)",
+      "AI-driven storytelling & motion design",
+      "Educational media for underserved communities",
+    ],
+  },
+  {
+    slug: "sharmeen-asif",
+    name: "Sharmeen Asif",
+    role: "Co-founder, AstolixGen",
+    linkedin: "https://www.linkedin.com/in/sharmeen-asif-654727373/",
+    initials: "SA",
+    bio: [
+      "Sharmeen Asif is a co-founder of AstolixGen, bringing academic depth in artificial intelligence to the team's practical work.",
+      "She is pursuing her MS in Artificial Intelligence at Bahria University, Karachi, and is actively engaged in research and publications — keeping AstolixGen's solutions grounded in current science, not just current hype.",
+      "Her research perspective shapes how AstolixGen evaluates new AI techniques and translates them into systems that work reliably for real clients and real communities.",
+    ],
+    highlights: [
+      "MS Artificial Intelligence — Bahria University, Karachi",
+      "Active in AI research & publications",
+    ],
+  },
+  {
+    slug: "ishtiaq-khan",
+    name: "Ishtiaq Khan",
+    role: "Co-founder, AstolixGen",
+    linkedin: "https://www.linkedin.com/in/ishtiaq-khan2603/",
+    initials: "IK",
+    bio: [
+      "Ishtiaq Khan is a co-founder of AstolixGen, part of the founding team building practical AI, automation and digital solutions from Karachi, Pakistan.",
+      "As a co-founder, he shares the company's mission of delivering honest, working technology — and of carrying AI and IT education to communities that need it most.",
+    ],
+    highlights: ["Co-founder, AstolixGen"],
+  },
+];

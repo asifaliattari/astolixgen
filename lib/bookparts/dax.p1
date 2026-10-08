@@ -1,0 +1,719 @@
+ion, the "North" bar carries the filter <code>Sales[Region] = "North"</code>. A measure evaluated there sees only North rows. <strong>CALCULATE lets you add, remove, or replace those filters inside the formula.</strong></p>
+<pre><code class="language-dax">CALCULATE (
+    &lt;expression&gt;,     -- what to compute
+    &lt;filter1&gt;,        -- how to change the context
+    &lt;filter2&gt;,       -- ... (as many as you like)
+)
+</code></pre>
+<h3 id="example-1-overriding-a-filter">Example 1: overriding a filter</h3>
+<pre><code class="language-dax">Total Revenue = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+
+North Revenue =
+CALCULATE (
+    [Total Revenue],
+    Sales[Region] = &quot;North&quot;
+)
+</code></pre>
+<p>Put <code>North Revenue</code> in a card: <strong>135.00</strong> (50+60+25), regardless of any Region slicer on the page — CALCULATE <em>replaced</em> the slicer's Region filter with its own. Put it in the bar chart by Region: every bar shows 135.00, because each bar's own Region filter was overwritten. That is the signature behavior to internalize: <strong>a filter argument on a column that already has a filter replaces it; on a column with no filter, it adds.</strong></p>
+<h3 id="example-2-adding-a-filter-percent-of-total">Example 2: adding a filter (percent of total)</h3>
+<pre><code class="language-dax">Revenue % of Total =
+DIVIDE (
+    [Total Revenue],
+    CALCULATE ( [Total Revenue], ALL ( Sales ) )
+)
+</code></pre>
+<p><code>ALL ( Sales )</code> <strong>removes all filters</strong> from the Sales table. In the North bar: numerator = 135.00 (North filter applies), denominator = 751.00 (filters removed) → 17.98%. In a card with no filters: 751/751 = 100%. This pattern — measure divided by its own ALL-version — is the single most reused DAX idiom in existence. Memorize it.</p>
+<h3 id="example-3-multiple-filters">Example 3: multiple filters</h3>
+<pre><code class="language-dax">North Notebook Revenue =
+CALCULATE (
+    [Total Revenue],
+    Sales[Region] = &quot;North&quot;,
+    Sales[Product] = &quot;Notebook&quot;
+)
+</code></pre>
+<p>Filters are ANDed: rows 101 (50.00) and 105 (25.00) → <strong>75.00</strong>. You can also write table filters with FILTER() (Chapter 6) for complex conditions:</p>
+<pre><code class="language-dax">Big Order Revenue =
+CALCULATE (
+    [Total Revenue],
+    FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 )
+)
+</code></pre>
+<p>→ rows 104 (240.00) + 108 (120.00) = <strong>360.00</strong>.</p>
+<h3 id="how-calculate-really-works-the-four-steps">How CALCULATE really works — the four steps</h3>
+<p>When DAX evaluates <code>CALCULATE ( expr, filters )</code>, it:</p>
+<ol>
+<li><strong>Copies</strong> the current filter context.</li>
+<li><strong>Applies each filter argument</strong>: a simple <code>Table[Column] = value</code> filter <em>overwrites</em> any existing filter on that column; a table expression like <code>FILTER(...)</code> <em>intersects</em> (ANDs) with existing filters.</li>
+<li><strong>Evaluates</strong> the expression in the modified context.</li>
+<li><strong>Restores</strong> the original context.</li>
+</ol>
+<p>Step 2's overwrite-vs-intersect split is the subtle one. Watch:</p>
+<pre><code class="language-dax">-- Slicer: Region = North. Formula:
+CALCULATE ( [Total Revenue], Sales[Region] = &quot;South&quot; )
+</code></pre>
+<p>→ South filter <strong>replaces</strong> North → South revenue 136.00.</p>
+<pre><code class="language-dax">-- Same slicer. Formula:
+CALCULATE ( [Total Revenue], FILTER ( Sales, Sales[Region] = &quot;South&quot; ) )
+</code></pre>
+<p>→ FILTER iterates the <em>currently filtered</em> table (North rows only), keeps rows where Region = "South" → <strong>empty → blank</strong>. The table filter intersected instead of replacing. Beginners trip on this constantly: <strong>simple column filters overwrite; FILTER() intersects.</strong> Chapter 6 builds on this.</p>
+<h3 id="calculate-and-row-context-context-transition">CALCULATE and row context: context transition</h3>
+<p>CALCULATE does a second, magical thing: when called inside <strong>row context</strong> (e.g., in a calculated column), it converts that row context into an equivalent filter context — called <strong>context transition</strong>. This is how you write "for this row, compute something over the related table":</p>
+<pre><code class="language-dax">-- Calculated column on a Customers table (CustomerID, Region):
+Customer Revenue =
+CALCULATE ( [Total Revenue] )
+</code></pre>
+<p>For customer C01's row, row context says "this row is C01"; CALCULATE turns it into the filter <code>Sales[CustomerID] = "C01"</code> and sums: rows 101 (50.00) + 103 (100.00) = <strong>150.00</strong>. Every customer row gets its own total. This is enormously useful — and enormously confusing the first time, because the filter is invisible. Chapter 10 dissects it fully.</p>
+<h3 id="keepfilters-the-exception-you-should-know">KEEPFILTERS — the exception you should know</h3>
+<p>Sometimes you want intersection instead of overwrite with a simple filter:</p>
+<pre><code class="language-dax">CALCULATE (
+    [Total Revenue],
+    KEEPFILTERS ( Sales[Region] = &quot;North&quot; )
+)
+</code></pre>
+<p>With a slicer on Region = South, plain <code>Sales[Region] = "North"</code> would replace South with North (135.00). With KEEPFILTERS, North ∩ South = empty → blank. Rare in beginner work; essential when writing reusable measures that must respect, not bulldoze, user filters.</p>
+<h3 id="common-errors_3">Common errors</h3>
+<ul>
+<li><strong>Filter argument referencing a measure</strong>: <code>CALCULATE ( [X], [Y] &gt; 5 )</code> — filter arguments must be column/table expressions, not measures. Compute the condition with FILTER over a table instead.</li>
+<li><strong>Forgetting ALL in percent-of-total</strong> — denominator equals numerator, everything shows 100%. If your "% of total" is all 100%, you forgot to remove filters in the denominator.</li>
+<li><strong>CALCULATE with no filter arguments</strong> — <code>CALCULATE ( [Total Revenue] )</code> is legal and means only "perform context transition." In a measure with no row context it changes nothing — a classic copy-paste leftover that confuses readers.</li>
+<li><strong>Nesting CALCULATE unnecessarily</strong> — inner CALCULATE's filters win on conflicts; deep nesting is usually a sign the logic should be restructured with variables (Chapter 9).</li>
+</ul>
+<h3 id="the-five-calculate-patterns-to-memorize">The five CALCULATE patterns to memorize</h3>
+<ol>
+<li><strong>Override</strong>: <code>CALCULATE ( [M], Table[Col] = "x" )</code> — force a value.</li>
+<li><strong>Percent of total</strong>: <code>DIVIDE ( [M], CALCULATE ( [M], ALL ( Table ) ) )</code>.</li>
+<li><strong>Multi-condition</strong>: several <code>Table[Col] = value</code> arguments (AND).</li>
+<li><strong>Complex condition</strong>: <code>CALCULATE ( [M], FILTER ( Table, ... ) )</code>.</li>
+<li><strong>Context transition</strong>: bare <code>CALCULATE ( [M] )</code> inside row context.</li>
+</ol>
+<h3 id="nested-calculate-evaluation-order">Nested CALCULATE — evaluation order</h3>
+<p>CALCULATE calls nest, and the <strong>innermost filter wins</strong> on conflicts:</p>
+<pre><code class="language-dax">CALCULATE (
+    CALCULATE (
+        [Total Revenue],
+        Sales[Region] = &quot;North&quot;     -- inner
+    ),
+    Sales[Region] = &quot;South&quot;         -- outer
+)
+</code></pre>
+<p>Evaluation goes outside-in for context setup, but filter <em>application</em> resolves inside-out: the inner North overwrites the outer South → <strong>135.00</strong>. Why nest at all, then? Because inner and outer usually touch <em>different</em> columns:</p>
+<pre><code class="language-dax">-- Reusable base: revenue ignoring Region...
+Revenue Ignoring Region = CALCULATE ( [Total Revenue], ALL ( Sales[Region] ) )
+
+-- ...specialized per visual:
+North Share of Ignored =
+CALCULATE (
+    [Revenue Ignoring Region],      -- inner ALL(Region) already applied
+    Sales[Region] = &quot;North&quot;         -- outer re-adds North AFTER the ALL
+)
+</code></pre>
+<p>Wait — careful! The outer CALCULATE applies its filters <em>after</em> the inner measure's CALCULATE? No: nested CALCULATE merges filter contexts; the inner <code>ALL(Sales[Region])</code> removes Region filters, then the outer's <code>Sales[Region]="North"</code> adds North. Result: 135.00. The mental model: <strong>each CALCULATE layer transforms the context; inner layers run first, outer layers see the inner result's context.</strong> When nesting confuses you, flatten with variables (Chapter 9) — one CALCULATE with all filters is almost always clearer.</p>
+<h3 id="filter-arguments-the-complete-taxonomy">Filter arguments: the complete taxonomy</h3>
+<p>CALCULATE filter arguments come in exactly three shapes:</p>
+<ol>
+<li><strong>Boolean column filter</strong>: <code>Sales[Region] = "North"</code>, <code>Sales[Quantity] &gt; 10</code>. Overwrites existing filters on that column. Fast (uses indexes). Cannot reference measures.</li>
+<li><strong>Table expression</strong>: <code>FILTER ( Sales, ... )</code>, <code>ALL ( Sales )</code>, <code>VALUES ( Sales[Region] )</code>. Intersects with existing filters (except ALL-family, which removes). Flexible, slower.</li>
+<li><strong>KEEPFILTERS wrapper</strong>: <code>KEEPFILTERS ( Sales[Region] = "North" )</code> — turns shape 1 into intersect behavior.</li>
+</ol>
+<p>And one forbidden shape: <strong>a bare measure or scalar</strong> — <code>CALCULATE ( [X], [Y] )</code> is illegal. If your condition needs a measure, restructure: compute the threshold in a VAR, then use it inside FILTER:</p>
+<pre><code class="language-dax">High-Value Region Revenue =
+VAR AvgRev = AVERAGEX ( VALUES ( Sales[Region] ), [Total Revenue] )
+RETURN
+    CALCULATE (
+        [Total Revenue],
+        FILTER ( VALUES ( Sales[Region] ), [Total Revenue] &gt; AvgRev )
+    )
+</code></pre>
+<p>Region revenues: North 135, South 136, East 360, West 120; average = 187.75. Regions above average: East only → <strong>360.00</strong>. The VAR computes once in the outer context; FILTER iterates regions comparing each region's revenue (context transition per region row — Chapter 10) to the threshold.</p>
+<h3 id="percent-of-parent-the-hierarchy-pattern">Percent of parent — the hierarchy pattern</h3>
+<p>Beyond percent-of-total, reports need percent-of-parent (product's share of its region, month's share of its quarter):</p>
+<pre><code class="language-dax">Revenue % of Region =
+DIVIDE (
+    [Total Revenue],
+    CALCULATE ( [Total Revenue], ALL ( Sales[Product] ) )
+)
+</code></pre>
+<p>In a matrix with Region rows and Product columns, each cell divides by its region total (Product filter removed, Region kept). Swap to <code>ALL ( Sales[Region] )</code> for product's share across regions. <strong>The pattern generalizes: denominator = CALCULATE ( measure, ALL ( the level you're dividing out ) ).</strong> For three-level hierarchies (Year &gt; Quarter &gt; Month), nest: month % of quarter uses <code>ALL ( 'Date'[Month] )</code> variants — with a proper date table you'd ALL the month column but keep quarter.</p>
+<h3 id="calculate-with-inactive-relationships-preview">CALCULATE with inactive relationships (preview)</h3>
+<p>When two tables have multiple relationships (e.g., Sales has OrderDate and ShipDate, both to the Date table), only one is active. To compute on the inactive one:</p>
+<pre><code class="language-dax">Revenue by Ship Date =
+CALCULATE ( [Total Revenue], USERELATIONSHIP ( 'Date'[Date], Sales[ShipDate] ) )
+</code></pre>
+<p>USERELATIONSHIP is a CALCULATE <em>modifier</em>, not a filter — it swaps which relationship carries context for this calculation. Chapter 10 covers relationship mechanics; file this pattern for "I have two date columns."</p>
+<h3 id="bare-calculate-context-transition-as-a-feature">Bare CALCULATE — context transition as a feature</h3>
+<p><code>CALCULATE ( [Total Revenue] )</code> with no filters looks pointless in a measure — but in a <strong>calculated column or iterator</strong> it's the context-transition operator:</p>
+<pre><code class="language-dax">-- Column on Customers: each customer's total revenue
+Customer Revenue = CALCULATE ( [Total Revenue] )
+-- C01 → 150.00, C02 → 96.00, C03 → 240.00, C04 → 25.00, C05 → 120.00, C06 → 120.00
+</code></pre>
+<p>No FILTER, no ALL — just the transition turning "this customer row" into a filter. Recognize this shape on sight: <strong>bare CALCULATE in row context = "evaluate this measure for the current row's entity."</strong> It's also how you write semi-additive patterns and per-row shares:</p>
+<pre><code class="language-dax">-- Column on Sales: this order's share of its region's revenue
+Order Share of Region =
+DIVIDE (
+    Sales[Quantity] * Sales[UnitPrice],
+    CALCULATE ( [Total Revenue], ALL ( Sales[OrderID] ) )
+)
+</code></pre>
+<p>Row 101: 50.00 / North total 135.00 = <strong>37.04%</strong>. The ALL removes the row's own OrderID filter (from transition) but keeps Region — a pattern worth memorizing: <strong>transition gives you the row's filters; ALL selectively releases them.</strong></p>
+<h3 id="why-totals-misbehave-calculate-in-total-rows">Why totals misbehave — CALCULATE in total rows</h3>
+<p>A matrix total row has <em>no</em> row filters — just the slicers. So:</p>
+<pre><code class="language-dax">Revenue % of Total = DIVIDE ( [Total Revenue], CALCULATE ( [Total Revenue], ALL ( Sales ) ) )
+</code></pre>
+<p>shows 100% in the total row (751/751) while detail rows show shares. Beginners call this a bug; it's context working correctly. If stakeholders want the total row to show the <em>sum of visible percentages</em> (rarely correct, sometimes requested), write it explicitly:</p>
+<pre><code class="language-dax">Sum of Row %s = SUMX ( VALUES ( Sales[Region] ), [Revenue % of Total] )
+-- 17.98 + 18.11 + 47.94 + 15.98 = 100.01% (rounding)
+</code></pre>
+<p><strong>Every "wrong total" is a context question: what filters does the total row actually carry?</strong> Answer that, and the fix is obvious.</p>
+<p><strong>For your research:</strong> CALCULATE is how you answer "compared to what?" — the core of every results section. Treatment mean vs control mean: <code>CALCULATE ( [Avg Change], SurveyResponses[Group] = "Treatment" )</code>. Completers-only analysis: <code>CALCULATE ( [Avg Post Score], SurveyResponses[Completed] = TRUE )</code>. Percent retained: <code>DIVIDE ( CALCULATE ( COUNTROWS ( SurveyResponses ), SurveyResponses[Completed] = TRUE ), COUNTROWS ( SurveyResponses ) )</code> → 6/8 = 75%. Each is one CALCULATE away.</p>
+<p><strong>Key takeaways:</strong>
+- CALCULATE evaluates an expression in a modified filter context: it copies the context, applies filter arguments, evaluates, restores.
+- Simple <code>Column = value</code> filters <strong>overwrite</strong> existing filters on that column; <code>FILTER()</code> table expressions <strong>intersect</strong>.
+- <code>ALL()</code> inside CALCULATE removes filters — the basis of every percent-of-total.
+- Bare CALCULATE in row context performs <strong>context transition</strong> (row → filter), the engine of per-row lookups.
+- Memorize the five patterns; half of professional DAX is one of them.</p>
+<hr />
+<h2 id="chapter-6-filter-functions-filter-all-values-distinct">Chapter 6: Filter Functions — FILTER, ALL, VALUES, DISTINCT</h2>
+<p>CALCULATE changes the context; the functions in this chapter <em>describe</em> the changes. They return tables (or table-shaped values) that CALCULATE, iterators, and visuals consume. Learn what each returns, precisely — DAX debugging is mostly asking "what table did that function actually produce?"</p>
+<h3 id="filter-rows-that-meet-a-condition">FILTER — rows that meet a condition</h3>
+<pre><code class="language-dax">FILTER ( &lt;table&gt;, &lt;condition&gt; )
+</code></pre>
+<p>Returns the subset of rows where the condition is TRUE, evaluated <strong>row by row</strong> (it creates row context — Chapter 8/10). From <code>Sales</code>:</p>
+<pre><code class="language-dax">Big Orders = FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 )
+</code></pre>
+<p>→ 2-row table: orders 104, 108. Then:</p>
+<pre><code class="language-dax">Big Order Count = COUNTROWS ( FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 ) )
+</code></pre>
+<p>→ <strong>2</strong>. And inside CALCULATE:</p>
+<pre><code class="language-dax">Big Order Revenue =
+CALCULATE ( [Total Revenue], FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 ) )
+</code></pre>
+<p>→ <strong>360.00</strong>, respecting other slicers (Product, Date) because FILTER intersects — recall Chapter 5's overwrite-vs-intersect rule.</p>
+<p><strong>FILTER is an iterator</strong>: on 50M rows with a complex condition it scans row by row. Prefer simple <code>Column = value</code> filters in CALCULATE when they suffice — they use the engine's indexes and are dramatically faster.</p>
+<h3 id="all-remove-filters">ALL — remove filters</h3>
+<p><code>ALL</code> has three forms:</p>
+<pre><code class="language-dax">ALL ( Sales )                  -- remove filters from the whole table
+ALL ( Sales[Region] )          -- remove filters from one column only
+ALL ()                         -- remove filters from everything (rare)
+</code></pre>
+<p>The percent-of-total from Chapter 5 used <code>ALL ( Sales )</code>. The single-column form is subtler and more useful than it looks:</p>
+<pre><code class="language-dax">Revenue % of Region Total =
+DIVIDE (
+    [Total Revenue],
+    CALCULATE ( [Total Revenue], ALL ( Sales[Product] ) )
+)
+</code></pre>
+<p>In a matrix of Region × Product, the denominator keeps the Region filter but drops Product → each cell shows its share of its region. Variants: <code>ALLEXCEPT ( Sales, Sales[Region] )</code> removes filters from <em>all columns except</em> Region — same result, more explicit when many columns exist. <code>REMOVEFILTERS ( Sales[Product] )</code> is the modern synonym for the single-column ALL (clearer intent; use it in new code).</p>
+<h3 id="values-and-distinct-what-values-are-visible">VALUES and DISTINCT — "what values are visible?"</h3>
+<p>Both return a one-column table of the values of a column <strong>in the current filter context</strong>:</p>
+<pre><code class="language-dax">Visible Regions = VALUES ( Sales[Region] )
+</code></pre>
+<p>In the North bar of a chart: a 1-row table {"North"}. In a card with no filters: {"North","South","East","West"} — 4 rows. <code>COUNTROWS ( VALUES ( Sales[Region] ) )</code> therefore answers "how many regions are currently selected" — the standard way to detect multi-select in a slicer:</p>
+<pre><code class="language-dax">Regions Selected = COUNTROWS ( VALUES ( Sales[Region] ) )
+</code></pre>
+<p>Difference between the two: <strong>VALUES includes a blank row</strong> if the column has blanks or if invalid relationships introduce blanks; <strong>DISTINCT does not</strong>. On clean data they match. Rule: use VALUES when you want "what the user sees" (it mirrors the visual), DISTINCT when you want mathematically distinct values.</p>
+<p>A classic VALUES pattern — dynamic titles:</p>
+<pre><code class="language-dax">Report Title =
+&quot;Revenue for &quot;
+    &amp; IF (
+        COUNTROWS ( VALUES ( Sales[Region] ) ) = 1,
+        VALUES ( Sales[Region] ),   -- single value auto-converts in concatenation
+        &quot;all regions&quot;
+    )
+</code></pre>
+<p>With North selected: "Revenue for North". (In strict code you'd wrap with SELECTEDVALUE — Chapter 9 mentions it; the IF/VALUES form shows the mechanics.)</p>
+<h3 id="combining-them-a-worked-example">Combining them — a worked example</h3>
+<p>"Revenue from the selected products, ignoring the Region slicer, but only for big orders":</p>
+<pre><code class="language-dax">Big Order Revenue (Region Ignored) =
+CALCULATE (
+    [Total Revenue],
+    FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 ),
+    ALL ( Sales[Region] )
+)
+</code></pre>
+<p>Step through: CALCULATE copies context (say Region=North slicer, Product=Pen visual filter). FILTER intersects → big Pen orders in North... wait, big orders are Desks (104, 108) — Pen rows are small, so FILTER yields empty → blank. Change the visual to Product=Desk: FILTER → orders 104 (East), 108 (West) — but Region slicer says North, intersection = empty → then ALL(Region) removes the Region filter → 104 + 108 = <strong>360.00</strong>. Order of filter arguments does not matter; they combine. This is the power of the filter-function vocabulary: each argument does one job.</p>
+<h3 id="hasonevalue-selectedvalue-bonus-frequently-needed">HASONEVALUE / SELECTEDVALUE (bonus, frequently needed)</h3>
+<pre><code class="language-dax">SELECTEDVALUE ( Sales[Region] )              -- &quot;North&quot; if exactly one visible, else BLANK
+SELECTEDVALUE ( Sales[Region], &quot;Multiple&quot; )  -- default when not exactly one
+</code></pre>
+<p>Use it anywhere you need the slicer's choice as a value — titles, conditional logic, dynamic thresholds.</p>
+<h3 id="common-errors_4">Common errors</h3>
+<ul>
+<li><strong>FILTER over the wrong table granularity</strong> — <code>FILTER ( Sales, ... )</code> inside a measure on a visual grouped by a related table can produce surprising intersections. Keep the filtered table aligned with the visual's grain.</li>
+<li><strong>ALL() with no arguments in a calculated column</strong> — removes everything, often producing the grand total on every row. Usually you wanted ALLEXCEPT.</li>
+<li><strong>VALUES in a card with no selection</strong> — returns many rows; concatenating it directly errors ("a table of multiple values was supplied"). Guard with COUNTROWS or SELECTEDVALUE.</li>
+<li><strong>Using FILTER where a simple filter works</strong> — <code>CALCULATE ( [M], FILTER ( Sales, Sales[Region] = "North" ) )</code> works but scans; <code>CALCULATE ( [M], Sales[Region] = "North" )</code> uses indexes. Same result, different speed.</li>
+</ul>
+<h3 id="allexcept-in-a-matrix-worked-example">ALLEXCEPT in a matrix — worked example</h3>
+<p>Matrix: rows = Region, columns = Product, values = Total Revenue. You want each cell's share of its <strong>column</strong> (product) total — i.e., "of all Notebook revenue, what % came from North?"</p>
+<pre><code class="language-dax">Revenue % of Product =
+DIVIDE (
+    [Total Revenue],
+    CALCULATE ( [Total Revenue], ALLEXCEPT ( Sales, Sales[Product] ) )
+)
+</code></pre>
+<p>ALLEXCEPT removes every filter <em>except</em> Product: in the North×Notebook cell, denominator = all Notebook revenue across regions = 50+100+25 = 175.00; cell = 50.00 → <strong>28.57%</strong>. South×Notebook: 100/175 = 57.14%; North×Notebook + South×Notebook + East×Notebook(0) + West×Notebook(0)… check: 28.57 + 57.14 + 14.29 (North's 25/175) = 100% ✓. <strong>ALLEXCEPT shines when the table has many columns</strong> — listing five ALL() calls is error-prone; one ALLEXCEPT states intent.</p>
+<h3 id="dynamic-segmentation-values-switch">Dynamic segmentation — VALUES + SWITCH</h3>
+<p>"How many customers fall into each revenue band?" — bands computed from measures, so they can't be a column... but VALUES over a disconnected band table + iteration can:</p>
+<pre><code class="language-dax">-- Disconnected table 'Bands': BandName, MinRev, MaxRev (Enter Data)
+Customers by Band =
+SUMX (
+    Bands,
+    VAR Lo = Bands[MinRev]
+    VAR Hi = Bands[MaxRev]
+    RETURN
+        COUNTROWS (
+            FILTER (
+                VALUES ( Sales[CustomerID] ),
+                VAR Rev = CALCULATE ( [Total Revenue] )
+                RETURN Rev &gt;= Lo &amp;&amp; Rev &lt; Hi
+            )
+        )
+)
+</code></pre>
+<p>Customer revenues: C01 150, C02 96, C03 240, C04 25, C05 120, C06 120. Bands 0–100: C02, C04 → 2; 100–200: C01, C05, C06 → 3; 200+: C03 → 1. This <strong>dynamic segmentation</strong> pattern (disconnected table + SUMX + FILTER + VALUES) is a professional staple for cohort analysis — e.g., participants banded by baseline score tertiles.</p>
+<h3 id="keepfilters-vs-plain-when-it-matters">KEEPFILTERS vs plain — when it matters</h3>
+<pre><code class="language-dax">-- Slicer: Product = {Notebook, Pen}
+Plain   = CALCULATE ( [Total Revenue], Sales[Product] = &quot;Pen&quot; )            -- overwrites → Pen only: 216.00
+Kept    = CALCULATE ( [Total Revenue], KEEPFILTERS ( Sales[Product] = &quot;Pen&quot; ) )  -- intersects → Pen ∩ {Notebook,Pen} = Pen: 216.00
+</code></pre>
+<p>Same here — but change the slicer to Product = {Notebook}: Plain → 216.00 (slicer bulldozed); Kept → blank (Pen ∩ Notebook = ∅). <strong>Use KEEPFILTERS in shared/reusable measures</strong> where silently overriding the user's slicer would lie. Library measures (Chapter 9's measure branching) should almost always KEEPFILTERS their internal filters.</p>
+<h3 id="values-vs-distinct-vs-distinctcount-the-decision">VALUES vs DISTINCT vs DISTINCTCOUNT — the decision</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Count unique customers</td>
+<td><code>DISTINCTCOUNT ( Sales[CustomerID] )</code></td>
+</tr>
+<tr>
+<td>List visible products for a title</td>
+<td><code>CONCATENATEX ( VALUES ( Sales[Product] ), ... )</code></td>
+</tr>
+<tr>
+<td>"How many regions selected?"</td>
+<td><code>COUNTROWS ( VALUES ( Sales[Region] ) )</code></td>
+</tr>
+<tr>
+<td>Iterate distinct values in a calc</td>
+<td><code>SUMX ( DISTINCT ( Sales[CustomerID] ), ... )</code></td>
+</tr>
+</tbody>
+</table>
+<p>VALUES when the <em>visual's current selection</em> is the question; DISTINCT when the <em>data's</em> uniqueness is the question. They differ only with blanks — and blanks appear more than you expect (optional relationships, mismatched keys), so choose deliberately.</p>
+<h3 id="isfiltered-and-iscrossfiltered-conditional-logic-on-filters">ISFILTERED and ISCROSSFILTERED — conditional logic on filters</h3>
+<p>Sometimes a measure should behave differently depending on <em>whether</em> the user filtered something:</p>
+<pre><code class="language-dax">Revenue Label =
+IF (
+    ISFILTERED ( Sales[Region] ),
+    &quot;Filtered revenue: &quot; &amp; FORMAT ( [Total Revenue], &quot;#,##0&quot; ),
+    &quot;Total revenue (no region filter): &quot; &amp; FORMAT ( [Total Revenue], &quot;#,##0&quot; )
+)
+</code></pre>
+<p><code>ISFILTERED ( column )</code> = TRUE when that column has a direct filter (slicer, visual axis — not via relationship). <code>ISCROSSFILTERED</code> = TRUE also when filtered indirectly through relationships. Use them for dynamic titles, conditional formatting rules, and "select a region to drill in" placeholder messages:</p>
+<pre><code class="language-dax">Drill Hint =
+IF (
+    NOT ISCROSSFILTERED ( Sales[Region] ),
+    &quot;Tip: select a region to see product detail&quot;,
+    BLANK ()
+)
+</code></pre>
+<p>Show this in a card that disappears once the user filters — a small UX touch that makes dashboards feel guided.</p>
+<h3 id="crossfilter-direction-control-per-measure">CROSSFILTER — direction control per measure</h3>
+<pre><code class="language-dax">Customers Buying North =
+CALCULATE (
+    DISTINCTCOUNT ( Customers[CustomerID] ),
+    CROSSFILTER ( Customers[CustomerID], Sales[CustomerID], BOTH ),
+    Sales[Region] = &quot;North&quot;
+)
+</code></pre>
+<p>Normally the Region filter on Sales can't reach Customers (single direction). CROSSFILTER flips it to BOTH for this calculation: Region=North filters Sales rows → flows back to Customers → distinct customers = C01, C02, C04 → <strong>3</strong>. Prefer this surgical per-measure flip over making the relationship bidirectional model-wide (Chapter 10's guidance) — same answer, none of the ambiguity risk.</p>
+<h3 id="calculatetable-calculates-twin">CALCULATETABLE — CALCULATE's twin</h3>
+<p>Everything CALCULATE does to a scalar expression, CALCULATETABLE does to a table expression:</p>
+<pre><code class="language-dax">North Orders =
+CALCULATETABLE (
+    Sales,
+    Sales[Region] = &quot;North&quot;
+)
+-- 3-row table; then:
+North Order Count = COUNTROWS ( CALCULATETABLE ( Sales, Sales[Region] = &quot;North&quot; ) )  -- 3
+</code></pre>
+<p>Use it when an iterator or table function needs a pre-filtered table: <code>SUMX ( CALCULATETABLE ( Sales, Sales[Region] = "North" ), ... )</code>. Often clearer than nesting FILTER inside SUMX, because the filtering intent sits in one visible CALCULATETABLE wrapper. Rule of thumb: <strong>CALCULATE for values, CALCULATETABLE for tables</strong> — and never FILTER a table that CALCULATETABLE could filter faster.</p>
+<p><strong>For your research:</strong> "Completers in the treatment group" is <code>CALCULATE ( COUNTROWS ( SurveyResponses ), SurveyResponses[Completed] = TRUE, SurveyResponses[Group] = "Treatment" )</code> → 3 (R04, R05, R06). "How many groups are selected?" is <code>COUNTROWS ( VALUES ( SurveyResponses[Group] ) )</code> — drive your chart titles and conditional formatting from it. And <code>ALL ( SurveyResponses[Group] )</code> in a denominator gives you "share of all participants" while a group slicer is active — the backbone of CONSORT-style flow diagrams.</p>
+<p><strong>Key takeaways:</strong>
+- FILTER returns rows meeting a row-by-row condition; it intersects with existing filters and it scans — prefer simple column filters for speed.
+- ALL / ALLEXCEPT / REMOVEFILTERS remove filters (whole table, all-but, or single column) — the denominator of every "share of" calculation.
+- VALUES returns the visible values of a column in the current context (including blank); DISTINCT excludes blank.
+- SELECTEDVALUE grabs the single selected value safely — essential for dynamic titles and conditional logic.</p>
+<hr />
+<h2 id="chapter-7-time-intelligence-date-tables-datesytd-sameperiodlastyear-dateadd">Chapter 7: Time Intelligence — Date Tables, DATESYTD, SAMEPERIODLASTYEAR, DATEADD</h2>
+<p><img alt="Time intelligence: growth flowing along a timeline" src="/learn/images/book-24-ch7-time.webp" /></p>
+<p>"Revenue is up 20% year to date" and "sales vs the same month last year" are the most requested calculations in business reporting — and in longitudinal research ("scores at 6 months vs baseline"). DAX has a dedicated family of <strong>time-intelligence functions</strong> for exactly this. They have one hard requirement: a proper <strong>date table</strong>. Half of all time-intelligence debugging is a broken or missing date table, so we build that first.</p>
+<h3 id="step-1-build-a-date-table">Step 1: Build a date table</h3>
+<p>A date table is a calculated table with one row per day, covering your full data range, with a continuous sequence (no gaps) and a real Date-typed column:</p>
+<pre><code class="language-dax">Date =
+ADDCOLUMNS (
+    CALENDAR ( DATE ( 2025, 1, 1 ), DATE ( 2026, 12, 31 ) ),
+    &quot;Year&quot;, YEAR ( [Date] ),
+    &quot;Month Number&quot;, MONTH ( [Date] ),
+    &quot;Month Name&quot;, FORMAT ( [Date], &quot;mmmm&quot; ),
+    &quot;Quarter&quot;, &quot;Q&quot; &amp; FORMAT ( [Date], &quot;q&quot; ),
+    &quot;Year-Month&quot;, FORMAT ( [Date], &quot;yyyy-mm&quot; )
+)
+</code></pre>
+<p><code>CALENDAR</code> generates the day sequence; <code>ADDCOLUMNS</code> adds friendly columns for axes and slicers. Then the critical two clicks in Model view: <strong>relate</strong> <code>Date[Date]</code> → <code>Sales[Date]</code> (one-to-many, single direction), and <strong>mark it as a date table</strong> (right-click the table → <em>Mark as date table</em>, choosing the Date column). Marking tells DAX "this is the calendar — use it for time intelligence." Without it, functions like DATESYTD can silently use the wrong date column or misbehave with auto date/time hierarchies (turn <em>Auto date/time</em> off in Options — it creates hidden date tables that conflict with yours).</p>
+<p>Requirements checklist:
+- One row per day, no gaps, spanning all fact dates (plus margin).
+- A column of Date/Time type (not text).
+- Marked as the date table; related to each fact table's date column.
+- Sort <code>Month Name</code> by <code>Month Number</code> (Column tools → <em>Sort by column</em>), or January sorts after December alphabetically.</p>
+<h3 id="datesytd-year-to-date">DATESYTD — year to date</h3>
+<pre><code class="language-dax">Revenue YTD =
+CALCULATE (
+    [Total Revenue],
+    DATESYTD ( 'Date'[Date] )
+)
+</code></pre>
+<p>In an April-2026 card: DATESYTD returns all dates from 2026-01-01 to the latest visible date (context-aware: in a March bar of a monthly chart, it returns Jan–Mar). Expected on full data: Jan 110.00 (50+60) + Feb 340.00 (100+240) + Mar 61.00 (25+36) + Apr 240.00 (120+120) = <strong>751.00</strong>. DATESYTD takes an optional year-end date for fiscal years: <code>DATESYTD ( 'Date'[Date], "30 June" )</code> for a July–June fiscal year — common in universities and governments.</p>
+<p>Companions: <code>DATESMTD</code> (month to date), <code>DATESQTD</code> (quarter to date). Same shape, different grain.</p>
+<h3 id="sameperiodlastyear-the-comparison-that-matters">SAMEPERIODLASTYEAR — the comparison that matters</h3>
+<pre><code class="language-dax">Revenue Last Year =
+CALCULATE (
+    [Total Revenue],
+    SAMEPERIODLASTYEAR ( 'Date'[Date] )
+)
+</code></pre>
+<p>In the April-2026 bar: shifts the visible dates back exactly one year → April 2025 (no data in our toy set → blank, which is honest). Then the growth measure every stakeholder asks for:</p>
+<pre><code class="language-dax">Revenue YoY % =
+DIVIDE (
+    [Total Revenue] - [Revenue Last Year],
+    [Revenue Last Year]
+)
+</code></pre>
+<p>DIVIDE handles the blank/zero prior year gracefully. Note: SAMEPERIODLASTYEAR needs <strong>contiguous selections</strong> — it works on calendar periods (a month bar, a year card), not on arbitrary date lists like "Mondays only." For arbitrary shifts, use DATEADD.</p>
+<h3 id="dateadd-shift-by-any-interval">DATEADD — shift by any interval</h3>
+<pre><code class="language-dax">Revenue Previous Month =
+CALCULATE (
+    [Total Revenue],
+    DATEADD ( 'Date'[Date], -1, MONTH )
+)
+</code></pre>
+<p>In the April bar: March revenue = <strong>61.00</strong>. Third argument: DAY, MONTH, QUARTER, YEAR. DATEADD shifts the <em>dates in context</em> by the interval — more flexible than SAMEPERIODLASTYEAR (works on non-contiguous selections), but it shifts whatever is visible, so on a year card with -1 MONTH you get December of the prior year — usually not intended. Know which you need: calendar-period comparisons → SAMEPERIODLASTYEAR; rolling/offset logic → DATEADD.</p>
+<h3 id="totalytd-totalmtd-the-shortcut-form">TOTALYTD / TOTALMTD — the shortcut form</h3>
+<pre><code class="language-dax">Revenue YTD (short) = TOTALYTD ( [Total Revenue], 'Date'[Date] )
+</code></pre>
+<p>TOTALYTD = CALCULATE + DATESYTD in one call. Use whichever reads better; the long form teaches the mechanism.</p>
+<h3 id="rolling-averages-putting-it-together">Rolling averages — putting it together</h3>
+<p>"3-month rolling average revenue" (a staple in trend analysis):</p>
+<pre><code class="language-dax">Revenue 3M Rolling Avg =
+AVERAGEX (
+    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH ),
+    [Total Revenue]
+)
+</code></pre>
+<p>For April 2026: DATESINPERIOD returns Feb–Apr dates; AVERAGEX evaluates [Total Revenue] in each month's context and averages: (340 + 61 + 240)/3 = <strong>213.67</strong>. DATESINPERIOD builds the window; the iterator averages over it. (AVERAGEX is Chapter 8; DATESINPERIOD is the window-builder alongside DATESBETWEEN.)</p>
+<h3 id="common-errors_5">Common errors</h3>
+<ul>
+<li><strong>No date table / not marked</strong> — time functions return blanks or wrong numbers with no error message. Always verify: marked table, correct relationship, continuous dates.</li>
+<li><strong>Date column is text</strong> — <code>FORMAT</code> output used as the relationship key, or imported CSV dates left as text. Time intelligence silently fails. Fix the type in Power Query.</li>
+<li><strong>Gaps in the date table</strong> — CALENDAR guarantees none; a date table built from fact dates (<code>DISTINCT ( Sales[Date] )</code>) has gaps on days with no sales and breaks DATESYTD at month edges.</li>
+<li><strong>Auto date/time still on</strong> — hidden auto tables shadow your Date table in field lists. Turn it off globally.</li>
+<li><strong>SAMEPERIODLASTYEAR on non-contiguous selections</strong> — returns blank. That is by design; switch to DATEADD.</li>
+</ul>
+<h3 id="date-table-columns-worth-adding-for-research">Date table columns worth adding for research</h3>
+<p>For longitudinal studies add: <code>"Study Day", DATEDIFF ( DATE(2026,1,10), [Date], DAY )</code> (days since baseline), <code>"Wave", ...</code> (baseline/6-month/12-month buckets via SWITCH), and a <code>"Is Weekend"</code> flag. Your time-intelligence then answers "change at 6 months vs baseline" with the same functions businesses use for YoY.</p>
+<h3 id="multiple-date-roles-order-date-vs-ship-date">Multiple date roles: order date vs ship date</h3>
+<p>Real models have several dates per fact row. Suppose <code>Sales</code> gains a <code>ShipDate</code>. You have <strong>one</strong> Date table but <strong>two</strong> relationships — one active (OrderDate), one inactive (ShipDate, dotted line in Model view):</p>
+<pre><code class="language-dax">Revenue by Order Date = [Total Revenue]   -- uses active relationship automatically
+
+Revenue by Ship Date =
+CALCULATE (
+    [Total Revenue],
+    USERELATIONSHIP ( 'Date'[Date], Sales[ShipDate] )
+)
+</code></pre>
+<p>Put both in a monthly chart with <code>Date[Month Name]</code> on the axis: bars diverge wherever ship month ≠ order month. <strong>Rule: one date table, many inactive relationships, USERELATIONSHIP per measure.</strong> Never duplicate the Date table per role — that fractures slicers (a Year slicer on DateCopy1 won't filter DateCopy2 visuals).</p>
+<p>Research analogue: <code>EnrollmentDate</code> vs <code>FollowUpDate</code> on responses — same pattern for "enrolled per month" vs "followed up per month."</p>
+<h3 id="fiscal-years-and-non-standard-calendars">Fiscal years and non-standard calendars</h3>
+<p>Universities often run July–June. Two changes:</p>
+<pre><code class="language-dax">Revenue FYTD =
+CALCULATE (
+    [Total Revenue],
+    DATESYTD ( 'Date'[Date], &quot;30 June&quot; )   -- year-end date as text
+)
+</code></pre>
+<p>And add a <code>Fiscal Year</code> column to the Date table: <code>YEAR ( EDATE ( [Date], 6 ) )</code> (shifts July into next calendar year). Use Fiscal Year on axes instead of Year. For 4-4-5 retail calendars or lunar calendars, build the period columns explicitly in the Date table (a <code>Fiscal Month Index</code> integer is the robust key) — DAX's built-ins assume Gregorian month boundaries.</p>
+<h3 id="week-level-analysis">Week-level analysis</h3>
+<pre><code class="language-dax">Revenue This Week =
+CALCULATE (
+    [Total Revenue],
+    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -7, DAY )
+)
+</code></pre>
+<p>Add <code>Week Number = WEEKNUM ( [Date], 2 )</code> (Monday start) and <code>Year-Week = FORMAT ( [Date], "yyyy" ) &amp; "-W" &amp; FORMAT ( WEEKNUM ( [Date], 2 ), "00" )</code> to the Date table for axes. Note: DAX has no DATESWTD — DATESINPERIOD with -7 DAY is the idiom.</p>
+<h3 id="comparing-against-a-rolling-baseline">Comparing against a rolling baseline</h3>
+<p>"Is this month unusual vs its own recent history?" — compare to the 3-month rolling average <em>excluding</em> the current month:</p>
+<pre><code class="language-dax">Revenue vs Rolling Baseline % =
+VAR CurrentMonth = [Total Revenue]
+VAR Baseline =
+    AVERAGEX (
+        DATESINPERIOD ( 'Date'[Date], EDATE ( MAX ( 'Date'[Date] ), -1 ), -3, MONTH ),
+        [Total Revenue]
+    )
+RETURN
+    DIVIDE ( CurrentMonth - Baseline, Baseline )
+</code></pre>
+<p>For April 2026: baseline window = Jan–Mar (EDATE shifts back one month first), average = (110+340+61)/3 = 170.33; April 240 → (240−170.33)/170.33 = <strong>+40.9%</strong>. This "current vs trailing baseline" is the anomaly-detection seed in every monitoring dashboard — and in research, "this wave vs the pre-intervention trend."</p>
+<h3 id="date-table-qa-checklist">Date table QA checklist</h3>
+<p>Before trusting any time-intelligence number:
+- [ ] <code>COUNTROWS ( 'Date' )</code> = expected days; <code>COUNTROWS ( DISTINCT ( 'Date'[Date] ) )</code> equal (no duplicates)
+- [ ] MIN/MAX date covers all fact dates (check <code>MIN ( Sales[Date] )</code> vs <code>MIN ( 'Date'[Date] )</code>)
+- [ ] Marked as date table; relationship active; cross-filter single direction (Date → fact)
+- [ ] Month names sort by month number; fiscal columns present if needed
+- [ ] Auto date/time disabled (Options → Data Load)</p>
+<h3 id="hiding-incomplete-periods">Hiding incomplete periods</h3>
+<p>A "April 2026" bar containing only 18 days of data next to full months misleads. Two defenses:</p>
+<pre><code class="language-dax">-- Option A: blank out the incomplete period
+Revenue (Complete Months Only) =
+VAR LastDataDate = MAX ( Sales[Date] )
+VAR CurrentMonthEnd = EOMONTH ( MAX ( 'Date'[Date] ), 0 )
+RETURN
+    IF ( CurrentMonthEnd &gt; LastDataDate, BLANK (), [Total Revenue] )
+</code></pre>
+<p>April's month-end (30 Apr) &gt; last data date (18 Apr) → blank. The chart shows complete months only — honest by construction. Option B: keep the bar but add a "partial" flag via conditional formatting. <strong>Incomplete-period handling is a methods decision: document whichever you choose.</strong></p>
+<h3 id="comparing-non-standard-periods-13-four-week-periods">Comparing non-standard periods: 13 four-week periods</h3>
+<p>Some organizations (and some study protocols) use 13 × 28-day periods instead of months. DAX's month functions won't help — build it:</p>
+<pre><code class="language-dax">-- Date table column:
+Period28 Index = INT ( ( [Date] - DATE ( 2026, 1, 1 ) ) / 28 ) + 1
+</code></pre>
+<p>Then treat <code>Period28 Index</code> like a month: <code>CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ... )</code> won't work (not a date column), but <code>DATEADD</code>-style shifting becomes simple arithmetic on the index:</p>
+<pre><code class="language-dax">Revenue Same Period Last Year (28-day) =
+VAR CurrentPeriod = SELECTEDVALUE ( 'Date'[Period28 Index] )
+RETURN
+    CALCULATE (
+        [Total Revenue],
+        'Date'[Period28 Index] = CurrentPeriod - 13,
+        ALL ( 'Date' )
+    )
+</code></pre>
+<p>The lesson generalizes: <strong>when DAX's calendar functions don't fit your calendar, encode the calendar as integer columns and shift with arithmetic.</strong> Study waves (baseline, 3-month, 6-month) work exactly this way.</p>
+<p><strong>For your research:</strong> Replace "revenue" with "mean score" and this chapter becomes longitudinal analysis: <code>CALCULATE ( [Avg Score], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )</code> compares this year's cohort to last year's; <code>DATESYTD</code> becomes "cumulative enrollment to date" for a CONSORT flow; <code>DATEADD ( 'Date'[Date], -6, MONTH )</code> finds the 6-month follow-up window. Reviewers love "change from baseline at 6 months" — that is DATEADD plus a measure, exactly as shown.</p>
+<p><strong>Key takeaways:</strong>
+- Time intelligence requires a marked, continuous date table related to your fact tables — build it with CALENDAR + ADDCOLUMNS.
+- DATESYTD/MTD/QTD accumulate within the period; SAMEPERIODLASTYEAR shifts calendar periods back a year; DATEADD shifts any visible dates by any interval.
+- TOTALYTD is the CALCULATE+DATESYTD shortcut; DATESINPERIOD builds rolling windows.
+- Fiscal years: pass the year-end date to DATESYTD. Sort month names by month number.</p>
+<hr />
+<h2 id="chapter-8-iterator-functions-sumx-averagex-countx-maxx">Chapter 8: Iterator Functions — SUMX, AVERAGEX, COUNTX, MAXX</h2>
+<p>Iterators are the "for each row, do this" functions — the X in the name marks them. They evaluate an expression <strong>row by row</strong> over a table, then aggregate the results. You met SUMX in Chapter 3; now you learn the family, the mechanics (row context), and the performance rules.</p>
+<h3 id="the-pattern">The pattern</h3>
+<pre><code class="language-dax">SUMX ( &lt;table&gt;, &lt;expression&gt; )
+</code></pre>
+<p>Walk the table; evaluate the expression in each row's <strong>row context</strong>; sum the results. On <code>Sales</code>:</p>
+<pre><code class="language-dax">Total Revenue = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+</code></pre>
+<p>Row by row: 50.00, 60.00, 100.00, 240.00, 25.00, 36.00, 120.00, 120.00 → <strong>751.00</strong>. Inside the expression, <code>Sales[Quantity]</code> means "this row's Quantity" — the same row-context semantics as a calculated column (Chapter 3), but temporary: nothing is stored.</p>
+<h3 id="the-family">The family</h3>
+<pre><code class="language-dax">Average Line Total = AVERAGEX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+-- 751 / 8 = 93.875
+
+Big Order Count = COUNTX ( FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 ), 1 )
+-- COUNTX counts rows where the expression is non-blank: 2
+
+Max Line Total = MAXX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+-- 240.00
+
+Min Line Total = MINX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+-- 25.00
+</code></pre>
+<p>COUNTX's second argument is usually a constant or a column — it counts rows where it is not blank. <code>COUNTX ( Sales, Sales[Quantity] )</code> = 8 (no blanks). There are also PRODUCTX (multiply — rare), CONCATENATEX (join text — handy for lists), and RANKX (ranking — advanced, Chapter 11 mentions pitfalls).</p>
+<h3 id="a-research-flavored-example-weighted-scores">A research-flavored example: weighted scores</h3>
+<p>Suppose each survey item has a weight. Iterator computes the weighted mean directly:</p>
+<pre><code class="language-dax">-- Items table: QuestionID, Score, Weight
+Weighted Score = DIVIDE ( SUMX ( Items, Items[Score] * Items[Weight] ), SUM ( Items[Weight] ) )
+</code></pre>
+<p>No helper column needed. This is the iterator's killer feature: <strong>row-level math without storing a column</strong>.</p>
+<h3 id="iterators-inside-calculate-and-context-transition-again">Iterators inside CALCULATE — and context transition again</h3>
+<pre><code class="language-dax">North Big Order Revenue =
+CALCULATE (
+    SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ),
+    Sales[Region] = &quot;North&quot;
+)
+</code></pre>
+<p>CALCULATE filters to North rows first; then SUMX iterates only those: 50+60+25 = <strong>135.00</strong>. Nesting order matters: filters apply outside-in.</p>
+<p>And the reverse — a measure inside an iterator triggers <strong>context transition</strong> per row (Chapter 5's preview, Chapter 10's deep dive):</p>
+<pre><code class="language-dax">-- Calculated column on a Regions lookup table:
+Region Revenue Column = SUMX ( Sales, [Total Revenue] )
+</code></pre>
+<p>For the "North" row: SUMX iterates Sales rows in North's row context... but <code>[Total Revenue]</code> is a measure — each evaluation transitions the current row into a filter, and Total Revenue under a single-row filter = that row's revenue... summed over all rows = total of everything per region row? Actually each row's transition filters to that exact row, so [Total Revenue] = that row's Quantity, and SUMX adds Quantities = 218 per region row — almost certainly not intended. This is the classic "measure inside iterator in a column" bug. If you see identical grand totals repeated on every row of a calculated column, look for this pattern.</p>
+<h3 id="performance-iterators-vs-aggregations">Performance: iterators vs aggregations</h3>
+<p>Iterators evaluate <strong>row by row</strong> — on 100M rows, a complex SUMX expression is slow. Rules:</p>
+<ol>
+<li>Prefer plain aggregations (<code>SUM</code>, <code>AVERAGE</code>) whenever the math is on a single stored column.</li>
+<li>If you need row-level math, prefer a <strong>calculated column</strong> (computed once at refresh) + plain <code>SUM</code> over that column, when the logic is static — trading refresh time and storage for query speed.</li>
+<li>Keep iterator expressions simple; move constants out; use variables (Chapter 9) for repeated sub-expressions — VAR is evaluated once per row context, not once per reference... (careful: inside an iterator, a VAR defined <em>outside</em> the iterator is computed once; defined <em>inside</em> the row expression, per row — place it deliberately).</li>
+<li><code>SUMX ( FILTER ( ... ), ... )</code> double-iterates. Often <code>CALCULATE ( SUMX ( ... ), &lt;simple filters&gt; )</code> lets the engine filter first via indexes, then iterate the smaller set.</li>
+</ol>
+<p>At research scale (thousands of rows) none of this bites — but write as if it does; the habits transfer.</p>
+<h3 id="concatenatex-the-text-iterator-youll-actually-use">CONCATENATEX — the text iterator you'll actually use</h3>
+<pre><code class="language-dax">Product List =
+CONCATENATEX ( VALUES ( Sales[Product] ), Sales[Product], &quot;, &quot; )
+-- &quot;Notebook, Pen, Desk&quot; (order follows the column's sort)
+</code></pre>
+<p>Perfect for "which products?" tooltips and dynamic subtitles. Add an ORDER BY via its 4th/5th arguments for deterministic output.</p>
+<h3 id="common-errors_6">Common errors</h3>
+<ul>
+<li><strong>SUMX over a filtered table that is empty</strong> → returns BLANK, not 0. Wrap: <code>COALESCE ( SUMX ( ... ), 0 )</code> when the visual needs zero.</li>
+<li><strong>Forgetting the table argument can be an expression</strong>: <code>SUMX ( FILTER ( Sales, ... ), ... )</code> and <code>SUMX ( VALUES ( Sales[Region] ), ... )</code> are legal and common.</li>
+<li><strong>AVERAGEX with blank expression results</strong> — blanks are skipped in the average (like AVERAGE). If blank means "zero effort," handle explicitly.</li>
+<li><strong>Using MAXX/MINX when MAX/MIN on a column would do</strong> — <code>MAXX ( Sales, Sales[Quantity] )</code> = <code>MAX ( Sales[Quantity] )</code> but slower. X-functions are for expressions.</li>
+</ul>
+<h3 id="rankx-ranking-with-its-famous-trap">RANKX — ranking, with its famous trap</h3>
+<pre><code class="language-dax">Revenue Rank =
+RANKX ( ALL ( Sales[Region] ), [Total Revenue], , DESC, DENSE )
+</code></pre>
+<p>In the North bar: ranks North's 135 among all regions {360, 136, 135, 120} → <strong>3</strong> (dense). The trap: RANKX's second argument is evaluated per row of the first argument via context transition — and its <em>third</em> argument (the value to rank) defaults to the current context's value. In a total row or card (no region filter), the "current value" is the grand total, which may not appear in the ranked set → rank 1 or blank confusion. <strong>Always test RANKX in the total row.</strong> Ties: SKIP (default) leaves gaps (1,2,2,4); DENSE doesn't (1,2,2,3). For research league tables ("sites ranked by retention"), DENSE is usually the honest choice.</p>
+<h3 id="nested-iterators-when-rows-need-rows">Nested iterators — when rows need rows</h3>
+<p>"Average order value per customer, then averaged across customers" — an average of averages, which needs two levels:</p>
+<pre><code class="language-dax">Avg per Customer, then Avg =
+AVERAGEX (
+    VALUES ( Sales[CustomerID] ),          -- outer: each customer
+    AVERAGEX (
+        FILTER ( Sales, Sales[CustomerID] = EARLIER ( Sales[CustomerID] ) ),
+        Sales[Quantity] * Sales[UnitPrice]
+    )
+)
+</code></pre>
+<p>Hmm — inside the outer iterator there's no row context on Sales, so EARLIER is the classic (if dated) way to reach the outer row. The modern, clearer rewrite uses variables:</p>
+<pre><code class="language-dax">Avg of Customer Averages =
+AVERAGEX (
+    VALUES ( Sales[CustomerID] ),
+    VAR ThisCustomer = Sales[CustomerID]
+    RETURN
+        AVERAGEX (
+            FILTER ( Sales, Sales[CustomerID] = ThisCustomer ),
+            Sales[Quantity] * Sales[UnitPrice]
+        )
+)
+</code></pre>
+<p>Customer line-total averages: C01 (50+100)/2=75, C02 (60+36)/2=48, C03 240, C04 25, C05 120, C06 120 → mean = (75+48+240+25+120+120)/6 = <strong>104.67</strong>. Compare simple <code>AVERAGEX ( Sales, ... )</code> = 93.88 (order-level). Different questions, different answers — <strong>"average per X, then averaged" is a nested iterator; document which level you mean</strong> (papers get this wrong surprisingly often).</p>
+<h3 id="the-performance-lab-three-versions-of-one-calculation">The performance lab: three versions of one calculation</h3>
+<p>Task: revenue from North+South regions.</p>
+<pre><code class="language-dax">-- v1: FILTER + SUMX (clear, scans):
+v1 = SUMX ( FILTER ( Sales, Sales[Region] = &quot;North&quot; || Sales[Region] = &quot;South&quot; ), Sales[Quantity] * Sales[UnitPrice] )
+
+-- v2: CALCULATE + SUMX (engine filters first):
+v2 = CALCULATE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ), Sales[Region] IN { &quot;North&quot;, &quot;South&quot; } )
+
+-- v3: column + SUM (fastest at scale):
+-- Line Total = Sales[Quantity] * Sales[UnitPrice]   (calculated column, once at refresh)
+v3 = CALCULATE ( SUM ( Sales[Line Total] ), Sales[Region] IN { &quot;North&quot;, &quot;South&quot; } )
+</code></pre>
+<p>All → 135 + 136 = <strong>271.00</strong>. v1 iterates all 8 rows checking the condition; v2 seeks North/South via indexes then iterates 5 rows; v3 seeks then sums a stored column — no per-row math at query time. <strong>The optimization ladder: filter before iterating (v2), precompute static math (v3).</strong> Climb it when Performance Analyzer says a visual is slow — not before (readability first).</p>
+<h3 id="summarize-iterators-grouped-math">SUMMARIZE + iterators — grouped math</h3>
+<p>"Revenue per region-product combo, then count combos above 100":</p>
+<pre><code class="language-dax">Combos Above 100 =
+COUNTROWS (
+    FILTER (
+        SUMMARIZE ( Sales, Sales[Region], Sales[Product], &quot;@Rev&quot;, SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ) ),
+        [@Rev] &gt; 100
+    )
+)
+</code></pre>
+<p>SUMMARIZE groups by Region×Product and computes @Rev per group via context transition: North-Notebook 75, North-Pen 60, South-Notebook 100, South-Pen 36, East-Desk 240, East-Pen 120, West-Desk 120 → above 100: East-Desk, East-Pen, West-Desk = <strong>3</strong>. (Note: South-Notebook is exactly 100, not &gt; 100.) In modern DAX prefer SUMMARIZECOLUMNS for this, but SUMMARIZE shows the mechanics. Research use: "how many sites had mean change &gt; 5 points?" — same shape.</p>
+<h3 id="iterating-distinct-entities-the-values-pattern">Iterating distinct entities — the VALUES pattern</h3>
+<p>"How many customers have revenue above 100?" — iterate customers, not orders:</p>
+<pre><code class="language-dax">High Value Customers =
+COUNTROWS (
+    FILTER (
+        VALUES ( Sales[CustomerID] ),
+        CALCULATE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ) ) &gt; 100
+    )
+)
+</code></pre>
+<p>VALUES gives the 6 customers in context; FILTER keeps those whose transitioned revenue exceeds 100: C01 (150), C03 (240), C05 (120), C06 (120) → <strong>4</strong>. (C02: 96, C04: 25.) <strong>Whenever the question is "how many distinct X satisfy a measure condition," the shape is FILTER(VALUES(X), [Measure] op value).</strong> Research version: "how many participants improved by ≥ 10 points?" — same shape on ParticipantID.</p>
+<h3 id="productx-and-geometric-means">PRODUCTX and geometric means</h3>
+<pre><code class="language-dax">-- Compound growth factor across monthly growth rates:
+Compound Factor = PRODUCTX ( VALUES ( 'Date'[Year-Month] ), 1 + [Revenue Growth %] )
+</code></pre>
+<p>PRODUCTX multiplies per-row values — niche but irreplaceable for compounding. Related: there's no GEOMEANX; compute geometric mean as <code>POWER ( PRODUCTX ( t, x ), 1 / COUNTROWS ( t ) )</code>. Rare in dashboards, occasionally needed in research (geometric mean titers in immunology, for instance).</p>
+<h3 id="iterator-blank-handling-precisely">Iterator blank-handling, precisely</h3>
+<table>
+<thead>
+<tr>
+<th>Iterator</th>
+<th>Blank expression result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SUMX</td>
+<td>Skipped (treated as 0 in sum — same result)</td>
+</tr>
+<tr>
+<td>AVERAGEX</td>
+<td><strong>Excluded</strong> from numerator and denominator</td>
+</tr>
+<tr>
+<td>COUNTX</td>
+<td><strong>Excluded</strong> (not counted)</td>
+</tr>
+<tr>
+<td>MINX/MAXX</td>
+<td>Ignored unless all blank → BLANK</td>
+</tr>
+<tr>
+<td>CONCATENATEX</td>
+<td>Skipped by default</td>
+</tr>
+</tbody>
+</table>
+<p>The AVERAGEX row is the one that matters: it's why <code>AVERAGEX ( SurveyResponses, PostScore - PreScore )</code> correctly gives the completers-only mean with zero extra code. But if blank should mean zero (e.g., "days active" where missing = 0 days), wrap: <code>AVERAGEX ( t, COALESCE ( expr, 0 ) )</code>. <strong>Decide per metric what blank means, then encode it — never let the default decide silently.</strong></p>
+<p><strong>For your research:</strong> Iterators compute per-participant math without helper columns: mean change score = <code>AVERAGEX ( SurveyResponses, SurveyResponses[PostScore] - SurveyResponses[PreScore] )</code> — careful: rows with blank PostScore produce blank change, which AVERAGEX skips → completers-only mean = (3+1+19+17+12−2)/6 = 50/6 = <strong>8.33</strong>. CONCATENATEX builds "dropout IDs: P03, P07" lists for your attrition appendix. And the weighted-score pattern above is literally how you score weighted Likert scales (Chapter 12).</p>
+<p><strong>Key takeaways:</strong>
+- X-functions iterate row by row (row context), evaluate an expression per row, then aggregate — row-level math with nothing stored.
+- SUMX/AVERAGEX/COUNTX/MAXX/MINX for numbers; CONCATENATEX for text lists.
+- A measure referenced inside an iterator triggers context transition per row — the source of "same total on every row" bugs.
+- Prefer plain aggregations for single columns; keep iterator expressions simple; filter before iterating.</p>
+<hr />
+<h2 id="chapter-9-variables-var-and-code-readability">Chapter 9: Variables (VAR) and Code Readability</h2>
+<p>Professional DAX is not clever — it is <strong>readable</strong>. Variables (VAR) are the single biggest readability upgrade in the language's history, and they also improve performance. This chapter is short on new concepts and long on craft: the difference between DAX you can debug at midnight and DAX you cannot.</p>
+<h3 id="var-basics">VAR basics</h3>
+<pre><code class="language-dax">Revenue % of Total =
+VAR TotalRev = [Total Revenue]
+VAR GrandTotal = CALCULATE ( [Total Revenue], ALL ( Sales ) )
+RETURN
+    DIVIDE ( TotalRev, GrandTotal )
+</code></pre>
+<p><code>VAR name = expression</code> computes once, then <code>RETURN</code> uses it. Rules: VARs are <strong>immutable</strong> (cannot be reassigned), scoped to the measure/column (not shared between measures — for sharing, see calculation groups, beyond this book), and evaluated <strong>lazily in older engines / eagerly where referenced</strong> — in practice, treat them as "computed once when first needed."</p>
+<h3 id="why-var-matters-three-reasons">Why VAR matters — three reasons</h3>
+<p><strong>1. Readability.</strong> Compare:</p>
+<pre><code class="language-dax">-- Without VAR:
+DIVIDE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ), CALCULATE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ), ALL ( Sales ) ) )
+
+-- With VAR:
+VAR LineTotal = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+RETURN
+    DIVIDE ( LineTotal, CALCULATE ( LineTotal, ALL ( Sales ) ) )
+</code></pre>
+<p>The second says what it means. In the RETURN, <code>CALCULATE ( LineTotal, ALL ( Sales ) )</code> works because VARs are constants by the time CALCULATE runs — CALCULATE cannot change a VAR's value (a subtle point: filter context does not reach inside a variable).</p>
+<p><strong>2. Performance.</strong> Without VAR, the engine may evaluate <code>SUMX(...)</code> twice. With VAR, once. On expensive expressions over big tables this is a real saving.</p>
+<p><strong>3. Debugging.</strong> You can temporarily <code>RETURN</code> an intermediate VAR to inspect it:</p>
+<pre><code class="language-dax">-- Debugging: what does the denominator actually return?
+VAR GrandTotal = CALCULATE ( [Total Revenue], ALL ( Sales ) )
+RETURN
+    GrandTotal
+</code></pre>
+<p>Swap the RETURN line, refresh the card, see the number. This is the poor man's debugger and it works.</p>
+<h3 id="the-style-guide">The style guide</h3>
+<p>Follow this and your DAX will look professional:</p>
+<ol>
+<li><strong>One function per major clause, indented.</strong> Put each CALCULATE filter argument on its own line.</li>
+<li><strong>UPPERCASE functions, <code>Table[Column]</code> references</strong>, measure names in <code>[Brackets]</code>.</li>
+<li><strong>Comment the why, not the what</strong>: <code>// Completers only — dropouts excluded per protocol</code> beats <code>// Filter completed = true</code>.</li>
+<li><strong>Name measures as nouns</strong> (<code>Total Revenue</code>, <code>Avg Change Score</code>), boolean measures as questions (<code>Is Completer</code>).</li>
+<li><strong>Blank line between VAR block and R

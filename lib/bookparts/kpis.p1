@@ -1,0 +1,675 @@
+e "why" question becomes answerable: revenue missed by 8% → orders flat but AOV down 8% → items per order stable, average item price down → discounting was deeper than planned. The corrective action (tighten discount policy) is now obvious, and it took four levels of decomposition to find it.</p>
+<h3 id="53-additive-trees-profit-and-cost">5.3 Additive trees: profit and cost</h3>
+<p>Not all trees multiply. Profit decomposes additively:</p>
+<pre><code>Net Profit = Revenue − Cost of Goods Sold − Operating Expenses − Tax
+</code></pre>
+<p>And costs decompose further:</p>
+<pre><code>Operating Expenses = Payroll + Marketing + Rent + Utilities + Other
+</code></pre>
+<p>Additive trees are the natural home of <strong>variance analysis</strong>: for each leaf, compute actual vs budget, and the leaves with the largest unfavorable variances explain the headline miss. Finance teams have done this for a century; KPI trees bring the same discipline to non-financial KPIs.</p>
+<h3 id="54-driver-trees-across-domains">5.4 Driver trees across domains</h3>
+<p><strong>SaaS:</strong> <code>Recurring Revenue = Customers × ARPU (average revenue per user)</code>; <code>Customers = New + Retained − Churned</code>. Leaves: trial conversion rate, expansion revenue, churn rate — each owned by a different team (marketing, customer success).</p>
+<p><strong>University:</strong> <code>Graduates = Intake × Retention Rate × Pass Rate</code>; <code>Retention = f(advising contacts, financial aid coverage, first-year experience score)</code>. Leaves point at specific interventions.</p>
+<p><strong>Hospital:</strong> <code>Bed Occupancy Cost per Patient = Total Ward Cost ÷ Discharges</code>; <code>Total Ward Cost = Staff Cost + Supplies + Overhead</code>. Variance at the supplies leaf triggers procurement review, not a general "cut costs" panic.</p>
+<p><strong>Manufacturing:</strong> <code>OEE = Availability × Performance × Quality</code>; <code>Availability = (Planned Time − Downtime) ÷ Planned Time</code>. The tree separates "machines stopped" from "machines ran slowly" from "machines made scrap" — three different fixes.</p>
+<h3 id="55-how-to-build-a-tree-well-and-how-trees-go-wrong">5.5 How to build a tree well (and how trees go wrong)</h3>
+<p><strong>Rules for good trees:</strong></p>
+<ol>
+<li><strong>The math must reconcile.</strong> Parent = children combined by the stated operator, exactly. If it does not reconcile, it is a diagram, not a tree.</li>
+<li><strong>Go 3–4 levels deep.</strong> Fewer is too shallow to act on; more becomes unmaintainable.</li>
+<li><strong>Leaves must be ownable.</strong> Every leaf gets an owner who can move it. A leaf nobody owns is decoration.</li>
+<li><strong>Mix leading and lagging down the tree.</strong> Top levels lag (revenue); leaves lead (sessions, conversion) — connecting Chapters 4 and 5.</li>
+<li><strong>One tree per strategic objective.</strong> A tree that tries to explain everything explains nothing.</li>
+</ol>
+<p><strong>Common failures:</strong> trees built from available data rather than causal logic (the "we had this column" tree); trees with 9 levels that nobody maintains; trees where two branches double-count the same driver; and the most common — a beautiful tree that is never connected to the actual dashboard, so variance analysis happens in spreadsheets once a quarter instead of continuously.</p>
+<h3 id="56-dax-for-driver-analysis">5.6 DAX for driver analysis</h3>
+<p>Decomposition in DAX means writing each node as a measure, then a variance measure per node:</p>
+<pre><code class="language-dax">Number of Orders = DISTINCTCOUNT ( Sales[OrderID] )
+
+Average Order Value = DIVIDE ( [Total Revenue], [Number of Orders] )
+
+Conversion Rate =
+DIVIDE (
+    [Number of Orders],
+    DISTINCTCOUNT ( WebSessions[SessionID] )
+)
+</code></pre>
+<p>Variance against target at any node — the engine of driver analysis:</p>
+<pre><code class="language-dax">Revenue Variance vs Target = [Total Revenue] - [Target Revenue]
+
+AOV Variance vs Target = [Average Order Value] - [Target AOV]
+</code></pre>
+<p>In Power BI, the <strong>Decomposition Tree visual</strong> (built-in AI visual) automates this: drop Revenue in, add the driver fields, and users can click through levels interactively. For a governed KPI tree, though, prefer explicit measures like the above — they encode the approved definitions from the KPI spec instead of letting users invent ad-hoc splits.</p>
+<p>A contribution measure shows which child explains the parent's variance:</p>
+<pre><code class="language-dax">Orders Contribution to Revenue Variance =
+    ( [Number of Orders] - [Target Orders] ) * [Target AOV]
+</code></pre>
+<p>This is the math behind "orders explain −3% of the miss, AOV explains −5%."</p>
+<h3 id="57-bridge-waterfall-analysis-narrating-the-variance">5.7 Bridge (waterfall) analysis: narrating the variance</h3>
+<p>A KPI tree explains <em>structure</em>; a <strong>bridge chart</strong> (waterfall) explains <em>change over time</em>. It starts at last period's value, then shows each driver's positive and negative contribution as floating bars, ending at this period's value. For the e-commerce example: start at last quarter's $4.2M revenue, +$300k from more sessions, −$180k from lower conversion, +$120k from higher AOV, ending at $4.44M.</p>
+<p>The bridge is the executive's favorite variance visual because it reads like a sentence: "Revenue grew $240k, driven by traffic gains partly offset by weaker conversion." Build it in Power BI with the waterfall visual, feeding it the contribution measures from section 5.6. One caution: limit bridges to 5–7 bars — beyond that, aggregate small drivers into "other," or the story drowns in detail.</p>
+<h3 id="58-sensitivity-analysis-which-driver-deserves-attention">5.8 Sensitivity analysis: which driver deserves attention?</h3>
+<p>Not all drivers matter equally. <strong>Sensitivity analysis</strong> asks: if each driver moved by a realistic amount (±10%, or ±1 standard deviation), how much would the headline KPI move? The driver with the biggest impact per realistic move is where management attention belongs.</p>
+<p>For Revenue = Orders × AOV: a 10% move in orders moves revenue 10%; a 10% move in AOV moves revenue 10% — symmetric here. But realistic moves differ: orders might swing ±15% seasonally while AOV moves ±4%. Multiply impact by realistic range: orders dominate. Present this as a simple table or tornado-style bar chart in the design review — it justifies <em>why</em> the team manages orders weekly and AOV monthly, and it stops arguments about which driver "matters more" with arithmetic instead of opinions.</p>
+<p>Combine sensitivity with ownership: the highest-sensitivity driver should have the most senior owner and the tightest review rhythm. If your most sensitive driver has no owner, you have found your biggest organizational gap.</p>
+<h3 id="59-implementing-kpi-trees-in-power-bi-three-options">5.9 Implementing KPI trees in Power BI: three options</h3>
+<p>You have three implementation choices, with a clear recommended default:</p>
+<ol>
+<li><strong>Explicit measures per node (recommended).</strong> Each tree node is a DAX measure with the approved definition; variance and contribution measures alongside. Pros: governed, auditable, reusable across visuals, matches the KPI dictionary exactly. Cons: more upfront DAX.</li>
+<li><strong>Decomposition Tree visual.</strong> The built-in AI visual lets users expand Revenue → Region → Product interactively. Pros: fast, delightful for exploration. Cons: users can choose ad-hoc splits that violate approved definitions; AI splits can suggest misleading drivers. Use for <em>analysis</em>, not for the governed KPI page.</li>
+<li><strong>Calculation groups / field parameters.</strong> Advanced: let users switch the headline KPI while the tree structure stays constant. Powerful for "one tree, many KPIs" — but adds complexity; adopt only after option 1 is solid.</li>
+</ol>
+<p>Whichever you choose, the tree on screen must reconcile exactly like the tree on paper (Chapter 5, rule 1). Add a reconciliation check: a card showing <code>Parent − Σ(children)</code> that should read zero — if it ever doesn't, the model has a bug, and this card catches it before the executives do.</p>
+<h3 id="510-worked-numeric-example-walking-the-tree">5.10 Worked numeric example: walking the tree</h3>
+<p>Targets vs actuals for Q3, e-commerce revenue tree (Revenue = Orders × AOV; Orders = Sessions × Conversion):</p>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Target</th>
+<th>Actual</th>
+<th>Variance</th>
+<th>Variance %</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td>$4,500k</td>
+<td>$4,140k</td>
+<td>−$360k</td>
+<td>−8.0%</td>
+</tr>
+<tr>
+<td>Orders</td>
+<td>90,000</td>
+<td>90,000</td>
+<td>0</td>
+<td>0.0%</td>
+</tr>
+<tr>
+<td>AOV</td>
+<td>$50.00</td>
+<td>$46.00</td>
+<td>−$4.00</td>
+<td>−8.0%</td>
+</tr>
+<tr>
+<td>Sessions</td>
+<td>3,000k</td>
+<td>3,103k</td>
+<td>+103k</td>
+<td>+3.4%</td>
+</tr>
+<tr>
+<td>Conversion</td>
+<td>3.00%</td>
+<td>2.90%</td>
+<td>−0.10pp</td>
+<td>−3.3%</td>
+</tr>
+</tbody>
+</table>
+<p>Contribution analysis: orders variance (0) × target AOV ($50) = $0 contribution. AOV variance (−$4) × actual orders (90,000) = −$360k. <strong>The entire $360k miss is AOV.</strong> One more level: items per order held at 2.0 while average item price fell from $25.00 to $23.00 — discounting. Diagnosis complete in two drill steps: revenue missed because discounting deepened, not because traffic or conversion failed. The corrective action writes itself — and note how sessions actually <em>beat</em> target, a fact the headline −8% concealed.</p>
+<p><strong>For your research:</strong> A KPI tree is structurally identical to a <strong>conceptual framework</strong> in research — and to a regression model's decomposition of variance. When your thesis argues "X affects Y," you are asserting a driver relationship; a KPI tree forces you to name the intermediate nodes and the operators between them. Try drawing your research model as a KPI tree: top node = your dependent variable, branches = independent variables and mediators, leaves = measurable indicators. If the math does not reconcile (your indicators do not actually compose into the construct), your operationalization has a hole — better to find it now than at your defense. Several published papers in management science are essentially validated driver trees; framing yours that way is legitimate and legible to reviewers.</p>
+<p><strong>Key takeaways:</strong>
+- A KPI tree decomposes a headline KPI into drivers with explicit math (× or +/−) until it reaches ownable, actionable leaves.
+- The math must reconcile exactly; 3–4 levels is the practical depth.
+- Trees turn "revenue missed by 8%" into "discounting drove AOV down" — diagnosis, not just reporting.
+- In DAX, build each node as a measure plus variance measures; use explicit measures for governed trees.</p>
+<hr />
+<h2 id="chapter-6-targets-thresholds-and-rag-status">Chapter 6: Targets, Thresholds, and RAG Status</h2>
+<p>A KPI without a target is a weather report: interesting, but no one knows whether to carry an umbrella. This chapter is about setting targets people believe in, defining the thresholds that turn numbers into red/amber/green signals, and implementing <strong>RAG status</strong> — the simplest, most misused visual language in dashboards.</p>
+<h3 id="61-why-targets-are-hard-and-why-most-are-arbitrary">6.1 Why targets are hard (and why most are arbitrary)</h3>
+<p>In practice, most targets are set by one of three lazy methods: last year plus 10%, a round number someone liked, or whatever makes the budget balance. All three destroy credibility. Teams ignore targets they consider fictional, and once a target is ignored, the KPI attached to it dies too.</p>
+<p>Defensible target-setting methods:</p>
+<ol>
+<li><strong>Historical baseline + trend.</strong> Take the last 8–12 periods, remove one-offs, project the trend. Honest and explainable. Best for stable operations.</li>
+<li><strong>External benchmarking.</strong> Compare against peers, industry reports, or published standards (e.g., a hospital comparing its infection rate to national percentiles). Powerful because it is objective — but ensure the comparison is apples-to-apples.</li>
+<li><strong>Top-down strategic requirement.</strong> The strategy demands it: "we need 25% market share to fund the expansion." The target is derived from the plan's math, not from history. Use when the goal requires a step change.</li>
+<li><strong>Bottom-up capacity build.</strong> Aggregate what each team commits they can deliver. Realistic and owned — but tends toward sandbagging unless challenged.</li>
+<li><strong>Stretch with a safety band.</strong> Set the committed target from methods 1–4, then publish a stretch goal 10–15% beyond it, explicitly labeled as aspirational. This separates "what we promise" from "what we dream," instead of mixing them into one resented number.</li>
+</ol>
+<p>The professional move is to <strong>combine methods and document the rationale</strong> in the KPI spec: "Target 98% on-time delivery: historical 96.5%, benchmark median 97%, strategic requirement to lead the region → target 98% with stretch 99%." Anyone can audit that sentence.</p>
+<h3 id="62-thresholds-the-distance-between-target-and-panic">6.2 Thresholds: the distance between target and panic</h3>
+<p>A target is a single point; <strong>thresholds</strong> define the zones around it. The standard three zones:</p>
+<ul>
+<li><strong>Green</strong> — on track. No action needed beyond normal management.</li>
+<li><strong>Amber</strong> — at risk. Watch closely; prepare contingency; owner explains the plan.</li>
+<li><strong>Red</strong> — off track or breached. The agreed action triggers (Chapter 1's "action on red").</li>
+</ul>
+<p>Threshold design decisions:</p>
+<ul>
+<li><strong>Symmetric vs asymmetric bands.</strong> For "on-time delivery %" with target 98%: green ≥ 98, amber 95–98, red &lt; 95. For "cost per unit" with target $10: green ≤ $10, amber $10–$11, red &gt; $11. Note thresholds flip direction depending on whether higher or lower is better — document the direction in the spec.</li>
+<li><strong>How wide is amber?</strong> Too narrow and everything flickers red (alarm fatigue); too wide and red never fires (complacency). A starting rule: amber spans roughly one standard deviation of normal variation, or 2–5% around target. Calibrate from history: if the KPI was red 40% of last year, your thresholds are miscalibrated, not your operations.</li>
+<li><strong>Hysteresis for noisy KPIs.</strong> For volatile daily KPIs, require two consecutive red periods (or a 7-day average) before flagging, to avoid whiplash. State the rule in the spec.</li>
+</ul>
+<h3 id="63-rag-done-right-and-the-ways-it-goes-wrong">6.3 RAG done right — and the ways it goes wrong</h3>
+<p>RAG (Red–Amber–Green) works because it exploits pre-attentive vision: the eye finds the red dot before conscious reading begins. That power is why it is abused:</p>
+<ul>
+<li><strong>RAG without numbers.</strong> A dashboard of colored dots with no values teaches nothing — red <em>what</em>? Always pair the color with the actual value, the target, and the variance.</li>
+<li><strong>Too many reds.</strong> If half the dashboard is red, the response is not urgency but learned helplessness. Recalibrate thresholds or fix the underlying process — color cannot substitute for either.</li>
+<li><strong>Christmas-tree dashboards.</strong> Red, amber, and green scattered with no hierarchy. RAG should answer one question fast: "where do I need to look?" Then the user drills into the reds.</li>
+<li><strong>Color-only encoding.</strong> About 1 in 12 men has color-vision deficiency. Never encode status by color alone — add icons (● ▲ ■), text labels, or position. This is an accessibility requirement, not a nicety.</li>
+<li><strong>RAG on vanity metrics.</strong> Coloring a vanity metric red does not make it a KPI; it makes it a colorful distraction.</li>
+</ul>
+<h3 id="64-rag-across-domains-threshold-examples">6.4 RAG across domains: threshold examples</h3>
+<table>
+<thead>
+<tr>
+<th>KPI (direction)</th>
+<th>Green</th>
+<th>Amber</th>
+<th>Red</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>On-time delivery % (higher better), target 98%</td>
+<td>≥ 98</td>
+<td>95–&lt;98</td>
+<td>&lt; 95</td>
+</tr>
+<tr>
+<td>Defect rate % (lower better), target ≤ 1%</td>
+<td>≤ 1.0</td>
+<td>1.0–2.0</td>
+<td>&gt; 2.0</td>
+</tr>
+<tr>
+<td>Employee attrition % (lower better), target ≤ 8%</td>
+<td>≤ 8</td>
+<td>8–12</td>
+<td>&gt; 12</td>
+</tr>
+<tr>
+<td>Cash runway months (higher better), target ≥ 12</td>
+<td>≥ 12</td>
+<td>6–&lt;12</td>
+<td>&lt; 6</td>
+</tr>
+<tr>
+<td>Student pass rate % (higher better), target 85%</td>
+<td>≥ 85</td>
+<td>75–&lt;85</td>
+<td>&lt; 75</td>
+</tr>
+<tr>
+<td>Server uptime % (higher better), target 99.9%</td>
+<td>≥ 99.9</td>
+<td>99.5–&lt;99.9</td>
+<td>&lt; 99.5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="65-dax-attainment-and-rag-status-measures">6.5 DAX: attainment and RAG status measures</h3>
+<p>The core pattern — attainment against target:</p>
+<pre><code class="language-dax">Revenue Attainment % =
+DIVIDE ( [Total Revenue], [Target Revenue] )
+</code></pre>
+<p>RAG status for a higher-is-better KPI:</p>
+<pre><code class="language-dax">Revenue RAG =
+VAR Attainment = [Revenue Attainment %]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( Attainment ), &quot;No data&quot;,
+        Attainment &gt;= 1, &quot;Green&quot;,
+        Attainment &gt;= 0.95, &quot;Amber&quot;,
+        &quot;Red&quot;
+    )
+</code></pre>
+<p>For a lower-is-better KPI, flip the comparisons:</p>
+<pre><code class="language-dax">Defect Rate RAG =
+VAR Rate = [Defect Rate %]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( Rate ), &quot;No data&quot;,
+        Rate &lt;= 0.01, &quot;Green&quot;,
+        Rate &lt;= 0.02, &quot;Amber&quot;,
+        &quot;Red&quot;
+    )
+</code></pre>
+<p>In Power BI, apply conditional formatting by <strong>field value</strong>: create a companion measure returning hex colors and point the formatting at it:</p>
+<pre><code class="language-dax">Revenue RAG Color =
+SWITCH (
+    [Revenue RAG],
+    &quot;Green&quot;, &quot;#2E7D32&quot;,
+    &quot;Amber&quot;, &quot;#F9A825&quot;,
+    &quot;Red&quot;, &quot;#C62828&quot;,
+    &quot;#9E9E9E&quot;
+)
+</code></pre>
+<p>Then use "Format by → Field value" on the KPI card's background or font color. This keeps the threshold logic in one governed measure instead of scattered across visual settings — change the threshold once, and every visual updates.</p>
+<h3 id="66-the-politics-of-target-setting-and-how-to-survive-it">6.6 The politics of target-setting (and how to survive it)</h3>
+<p>Targets are negotiated, not computed — and the negotiation has predictable pathologies:</p>
+<ul>
+<li><strong>Sandbagging.</strong> Managers lowball targets to guarantee bonuses. Defense: bottom-up targets get challenged against benchmarks and historical trend (methods 1, 2, 4 combined), and part of the incentive rewards <em>forecast accuracy</em>, not just attainment.</li>
+<li><strong>Ratcheting.</strong> "Beat your target and next year's target becomes this year's actual plus 10%." This punishes success and teaches teams to hide capacity. Defense: reset targets from strategy and benchmarks, not mechanically from last actual; celebrate over-achievement instead of taxing it.</li>
+<li><strong>Top-down fantasy.</strong> Executives set targets from the plan's funding needs with no operational path. Defense: require the driver math — show which KPI-tree leaves must move, by how much, and who owns each move. A target without a driver plan is a hope with a deadline.</li>
+<li><strong>Moving goalposts.</strong> Targets revised mid-period when inconvenient. Defense: change control (Chapter 9) — revisions are logged, dated, and explained; the original target stays visible for honest variance analysis.</li>
+</ul>
+<p>The professional stance: be the analyst who brings the arithmetic — baseline, benchmark, driver plan — to every negotiation. Arithmetic does not eliminate politics, but it confines it to honest disagreements about assumptions.</p>
+<h3 id="67-statistical-thresholds-control-charts">6.7 Statistical thresholds: control charts</h3>
+<p>For stable, high-frequency operational KPIs (defect rates, call handle times, daily throughput), consider <strong>control charts</strong> from statistical process control (Shewhart's method, nearly a century old and still the right tool):</p>
+<ul>
+<li>Plot the KPI over time with three lines: the <strong>center line</strong> (historical mean), and <strong>upper/lower control limits</strong> (typically mean ± 3 standard deviations).</li>
+<li>Points inside the limits = <strong>common-cause variation</strong> (normal noise; do not react — reacting to noise is called <em>tampering</em> and makes things worse).</li>
+<li>Points outside the limits, or suspicious patterns (8 consecutive points on one side of the mean), = <strong>special-cause variation</strong> (something changed; investigate).</li>
+</ul>
+<p>This is threshold-setting with a statistical conscience: instead of arbitrary red bands, the process's own history defines "unusual." In Power BI, compute the mean and standard deviation in DAX and plot them as constant lines over the KPI trend. Use control limits for process KPIs; use target-based RAG for goal KPIs. The two answer different questions — "is the process stable?" vs "are we hitting the goal?" — and a mature operation asks both.</p>
+<h3 id="68-communicating-targets-the-target-memo">6.8 Communicating targets: the target memo</h3>
+<p>How targets are announced determines whether they motivate or demoralize. Write a one-page <strong>target memo</strong> per KPI (or per scorecard) containing:</p>
+<ul>
+<li>The target value and period, stated plainly.</li>
+<li><strong>The rationale</strong> — two or three sentences from the documented methods ("baseline 96.5%, benchmark median 97%, strategy requires regional leadership → 98%").</li>
+<li><strong>What changes</strong> — the 2–3 driver moves expected (from the KPI tree): "requires dispatch-scan compliance ≥ 99% and carrier on-time pickup ≥ 97%."</li>
+<li><strong>What support is provided</strong> — the resources attached (hiring, tools, budget). A target without resources is a wish with a deadline.</li>
+<li><strong>How it will be reviewed</strong> — rhythm, owner, and the action-on-red rule.</li>
+</ul>
+<p>Circulate before the period starts, discuss in person, invite challenge on the <em>assumptions</em> (not the ambition). Teams that helped stress-test the rationale defend the target later; teams that received it by email negotiate against it all year.</p>
+<h3 id="69-bands-vs-single-thresholds-which-to-use">6.9 Bands vs single thresholds: which to use</h3>
+<p>Not every KPI needs three zones. Use <strong>RAG bands</strong> (green/amber/red) for KPIs under active management — where amber's "prepare contingency" has real meaning (revenue, delivery, attrition). Use a <strong>single threshold</strong> (pass/fail) for compliance and constraint KPIs — SLA uptime, regulatory ratios, safety incidents — where anything below the line is simply a breach, and amber would only soften accountability. And use <strong>two-sided bands</strong> (green inside, amber/red outside either way) for KPIs where both extremes are bad: bed occupancy (Chapter 10), inventory days, meeting load. Choosing the wrong shape is a common silent error: RAG bands on a compliance KPI invite negotiation with a red line that should be absolute.</p>
+<p><strong>For your research:</strong> Targets and thresholds have a direct research analogue: <strong>hypotheses and significance thresholds</strong>. Your H1 ("X improves Y") is the target; your alpha level (p &lt; 0.05) is the threshold that turns a result red or green. The lesson of this chapter applies: arbitrary thresholds destroy credibility. Justify your alpha, your effect-size thresholds, and your "practically significant" bands the way this chapter justifies KPI targets — from prior literature (benchmarking), from the problem's requirements (top-down), or from pilot data (historical baseline). A methodology section that says "we set the minimum meaningful effect at d = 0.3 because prior studies in this domain report d = 0.2–0.4" is the research version of a documented target rationale, and reviewers reward it.</p>
+<p><strong>Key takeaways:</strong>
+- Set targets with defensible methods (baseline, benchmark, top-down, bottom-up, stretch) and document the rationale in the KPI spec.
+- Thresholds define green/amber/red zones; calibrate width from history and state the higher/lower-is-better direction explicitly.
+- RAG exploits pre-attentive vision — always pair color with the number, target, and variance, and never encode by color alone.
+- Implement RAG in DAX with <code>SWITCH(TRUE(),...)</code> plus a hex-color companion measure, formatted by field value for single-point governance.</p>
+<hr />
+<h2 id="chapter-7-dashboard-layout-for-kpis-design-patterns">Chapter 7: Dashboard Layout for KPIs (Design Patterns)</h2>
+<p>A dashboard is not a report. A report answers questions you already had; a <strong>dashboard</strong> lets you spot the questions you did not know to ask — in under five seconds. Stephen Few, the most-cited authority on dashboard design, defines a dashboard as "a visual display of the most important information needed to achieve one or more objectives, consolidated and arranged on a single screen so the information can be monitored at a glance." Every word matters: <em>most important</em> (not everything), <em>single screen</em> (no scrolling to find the reds), <em>at a glance</em> (pre-attentive, fast).</p>
+<p><img alt="Wireframe-style illustration of KPI dashboard layout patterns with KPI tiles and chart panels" src="/learn/images/media-generation-book-28-ch7-layout-0-ec2bb0c5-415b-40f6-9862-ec07ed9e7e17.webp" /></p>
+<h3 id="71-the-five-second-rule-and-reading-order">7.1 The five-second rule and reading order</h3>
+<p>Design for a viewer who gives you five seconds. In those seconds they should grasp: <strong>are we OK, and if not, where?</strong> Everything else is drill-down.</p>
+<p>Humans read screens in a predictable pattern (top-left first in left-to-right cultures, then across and down — the rough "F" or "Z" pattern). Place content accordingly:</p>
+<ol>
+<li><strong>Top-left: the headline KPIs.</strong> The 4–6 numbers the viewer is accountable for, as large KPI cards: value, target, variance, RAG dot, sparkline.</li>
+<li><strong>Top-right: time context.</strong> Trend lines for those headline KPIs — is red getting worse or recovering?</li>
+<li><strong>Middle: decomposition.</strong> The driver breakdown (Chapter 5): which component explains the variance.</li>
+<li><strong>Bottom: detail and exceptions.</strong> Tables of the worst performers, top variances, items needing action.</li>
+</ol>
+<p>Never make the viewer scroll to find bad news. If reds live below the fold, the dashboard has failed its primary job.</p>
+<h3 id="72-proven-layout-patterns-for-kpi-dashboards">7.2 Proven layout patterns for KPI dashboards</h3>
+<p><strong>Pattern 1 — KPI card strip.</strong> A row of 4–6 cards across the top. Each card: KPI name, big current value, small target, variance (absolute and %), RAG indicator, 12-period sparkline. This is the executive summary of the dashboard. Keep cards uniform in size — varying sizes imply varying importance, which confuses the five-second scan.</p>
+<p><strong>Pattern 2 — RAG heatmap matrix.</strong> Rows = business units/regions/products, columns = KPIs, cells = RAG color + value. The eye instantly finds the red intersections: "the West region's delivery KPI is red." Ideal for multi-entity monitoring (retail chains, hospital wards, university faculties).</p>
+<p><strong>Pattern 3 — Trend + variance panel.</strong> For each headline KPI: a line chart of actual vs target over 12–13 periods, with the variance shaded. Answers "is this a blip or a trend?" — the question every executive asks after seeing a red card.</p>
+<p><strong>Pattern 4 — Decomposition panel.</strong> Bar chart of variance by driver (from the KPI tree): which product lines, regions, or cost categories explain the miss. Pair with the Decomposition Tree visual for interactive drill-down.</p>
+<p><strong>Pattern 5 — Exception list.</strong> A table sorted worst-first: top 10 negative variances, overdue actions, breached thresholds. This is the "Monday morning action list." Sort by impact (variance × size), not alphabetically.</p>
+<p><strong>Pattern 6 — Gauge (use sparingly).</strong> Few's famous guidance: gauges waste space — a bullet graph or a simple card with target marker communicates the same in a fraction of the pixels. If you must show "actual vs target," prefer a <strong>bullet graph</strong>: a bar for actual, a line for target, shaded bands for thresholds. One exception: audiences who genuinely expect dials (plant-floor displays) — match your users, not the textbook.</p>
+<h3 id="73-visual-encoding-rules">7.3 Visual encoding rules</h3>
+<ul>
+<li><strong>One idea per visual.</strong> A chart showing revenue, target, prior year, forecast, and three segments is five charts fighting. Split them.</li>
+<li><strong>Consistent scales and colors.</strong> The same KPI keeps the same color everywhere; RAG colors mean the same thing on every page. Never use red for "selected" or decoration — red is reserved for alarm.</li>
+<li><strong>Declutter ruthlessly.</strong> Remove gridlines, 3D effects, background gradients, and legends that restate the title. Few's rule: maximize the <strong>data-ink ratio</strong> — ink that carries information divided by total ink.</li>
+<li><strong>Right chart for the job.</strong> Trends → lines. Comparisons across categories → bars. Part-of-whole (few parts) → stacked bar or donut, never pie with 12 slices. Variance → bars diverging from zero or waterfall. Status → RAG cards. Distribution → histogram or box plot.</li>
+<li><strong>Numbers need context.</strong> Every KPI visual shows at least: value, comparison (target or prior period), and change. A lone big number is decoration.</li>
+</ul>
+<h3 id="74-designing-for-the-audience-and-the-device">7.4 Designing for the audience and the device</h3>
+<p><strong>Executive dashboard</strong> (strategic, monthly): 5–8 headline KPIs, RAG, trends, exception summary. One page. The CEO should not need slicers to understand it.</p>
+<p><strong>Operational dashboard</strong> (weekly/daily): leading indicators, driver breakdowns, exception lists, filters by team/shift/region. More interactive — slicers and drill-through are expected because managers investigate.</p>
+<p><strong>Analytical deep-dive</strong> (ad hoc): the full KPI tree, variance tables, distributions. This is where analysts live; density is acceptable because the user is investigating, not scanning.</p>
+<p><strong>Mobile:</strong> Power BI's mobile layout view exists for a reason — a 12-column desktop dashboard is unreadable on a phone. Design a separate mobile layout: KPI cards stacked, one trend per KPI, exception list. Executives check dashboards on phones; if yours is broken there, it does not exist for them.</p>
+<h3 id="75-dax-measures-that-serve-the-layout">7.5 DAX: measures that serve the layout</h3>
+<p>KPI cards need compact measures — value, target, variance in one visual. Build a small family per KPI:</p>
+<pre><code class="language-dax">-- Card: current value
+Revenue = [Total Revenue]
+
+-- Card: target
+Revenue Target = [Target Revenue]
+
+-- Card: variance (absolute)
+Revenue Variance = [Total Revenue] - [Target Revenue]
+
+-- Card: variance %
+Revenue Variance % =
+DIVIDE (
+    [Revenue Variance],
+    [Target Revenue]
+)
+</code></pre>
+<p>For the trend panel, a target line needs a target that respects the date axis. If targets are stored monthly, ensure the relationship (or <code>TREATAS</code>) propagates the date filter:</p>
+<pre><code class="language-dax">Target Revenue (Date-aware) =
+CALCULATE (
+    SUM ( Targets[Amount] ),
+    TREATAS ( VALUES ( 'Date'[YearMonth] ), Targets[YearMonth] )
+)
+</code></pre>
+<p>And for the exception list, a measure that ranks problem areas by impact:</p>
+<pre><code class="language-dax">Region Revenue Shortfall =
+VAR Shortfall = [Target Revenue] - [Total Revenue]
+RETURN
+    IF ( Shortfall &gt; 0, Shortfall, BLANK () )
+</code></pre>
+<p>Sort the table by this measure descending — worst first, exactly as Pattern 5 demands. <code>BLANK()</code> hides regions that are on target, keeping the exception list clean.</p>
+<h3 id="76-the-anti-patterns-gallery">7.6 The anti-patterns gallery</h3>
+<p>Learn to recognize these in the wild — each is a real dashboard failure mode:</p>
+<ul>
+<li><strong>The data vomit.</strong> Fifty visuals on one page, 8-point fonts, no hierarchy. The designer was afraid to choose, so the viewer must. Cure: the five-second rule — if a visual does not serve the headline question, delete it or move it to a detail page.</li>
+<li><strong>The rainbow.</strong> Twelve colors with no meaning, red used for "Q3" and green for "selected." Cure: reserve red/amber/green for status only; use a single neutral palette for categories, one accent color for selection.</li>
+<li><strong>The lonely number.</strong> A giant "$4.2M" with no target, no prior period, no trend. Cure: context is mandatory — every KPI shows value + comparison + change.</li>
+<li><strong>The scroll of doom.</strong> Key KPIs on row 40 of a scrolling report. Cure: single-screen executive page; details behind drill-through.</li>
+<li><strong>The pie explosion.</strong> A pie chart with 14 slices, 3D, exploded. Cure: bars for comparisons; pies only for 2–4 part-of-whole snapshots, or better, a stacked bar.</li>
+<li><strong>The dual-axis deception.</strong> Two lines on different scales engineered to correlate visually. Cure: index both series to 100 at a base period, or small multiples with a shared scale.</li>
+<li><strong>The filter maze.</strong> Twelve slicers, none labeled, interacting in undocumented ways. Cure: 3–5 global slicers max, grouped in one filter pane, with "filters affect this page" made explicit.</li>
+</ul>
+<h3 id="77-the-wireframing-workflow">7.7 The wireframing workflow</h3>
+<p>Never build the final dashboard first. The professional workflow:</p>
+<ol>
+<li><strong>Sketch on paper</strong> (15 min): boxes for cards, charts, tables. Show the owner. Paper is cheap; rebuilding a DAX model is not.</li>
+<li><strong>Grey-box in Power BI</strong> (1 hour): rectangles with placeholder titles, real layout, no data. Validate the five-second scan with two users: "what is red?" If they cannot answer, re-layout.</li>
+<li><strong>Wire real measures</strong> (the DAX from Chapter 8), keeping the grey aesthetic until layout is approved.</li>
+<li><strong>Apply formatting last</strong>: colors, fonts, RAG rules. Formatting is the final 10% — teams that start there build beautiful dashboards nobody uses.</li>
+</ol>
+<h3 id="78-accessibility-designing-for-color-vision-deficiency">7.8 Accessibility: designing for color-vision deficiency</h3>
+<p>Chapter 6 said never to encode status by color alone; here is how to do it properly:</p>
+<ul>
+<li><strong>Use a colorblind-safe palette.</strong> The Okabe–Ito palette (widely adopted in data visualization) replaces pure red/green with vermillion (#D55E00) and bluish-green (#009E73), distinguishable under the most common deficiencies. Reserve these two strictly for bad/good status.</li>
+<li><strong>Redundant encoding, always.</strong> Every RAG cell carries color + icon + text: "🔴 Red — 93.2% (target 98%)". Screen readers get the text; colorblind users get the icon and label; everyone gets the number.</li>
+<li><strong>Don't rely on lightness alone</strong> for sequential scales — vary hue or add labels at key breakpoints.</li>
+<li><strong>Contrast minimums.</strong> Body text at 4.5:1 contrast against backgrounds; large KPI numerals at 3:1. Power BI's built-in themes mostly comply — custom themes need checking.</li>
+<li><strong>Test it.</strong> View your dashboard in grayscale (a phone accessibility setting does this in seconds). If the reds and greens become indistinguishable and no icon or label saves them, the design fails.</li>
+</ul>
+<p>Accessibility is not extra credit on a KPI dashboard — the executive who cannot distinguish your red from your green will make the wrong call, and that is a design failure with business consequences.</p>
+<h3 id="79-the-60-second-dashboard-critique">7.9 The 60-second dashboard critique</h3>
+<p>Use this checklist to review any dashboard — yours or someone else's — in a minute:</p>
+<ol>
+<li><strong>5 seconds:</strong> Can I tell if we're OK and where the problems are?</li>
+<li><strong>Reds above the fold?</strong> Any scrolling required to find bad news?</li>
+<li><strong>Every number has context?</strong> (target/prior/trend — no lonely numbers)</li>
+<li><strong>One idea per visual?</strong> Any chart doing double duty?</li>
+<li><strong>Color discipline?</strong> Red/amber/green reserved for status; colorblind-safe; labels present?</li>
+<li><strong>Right chart types?</strong> (lines for trends, bars for comparisons, no pie explosions)</li>
+<li><strong>Slicers sane?</strong> ≤ 5, labeled, behavior obvious?</li>
+<li><strong>Data freshness shown?</strong> "Data as of" visible?</li>
+<li><strong>Mobile usable?</strong> Open it on a phone — does it survive?</li>
+<li><strong>So what?</strong> Does the page suggest any action, or just display?</li>
+</ol>
+<p>Score 1 point per yes. Anything below 7 goes back to the wireframe stage. Run this critique on your own capstone dashboard (Chapter 12) before presenting it.</p>
+<p><strong>For your research:</strong> Dashboard layout principles are <strong>figure-design principles</strong> for your papers. The five-second rule applies to every figure a reviewer sees: can they grasp the message before reading the caption? One idea per visual, declutter, consistent encoding, numbers with context (always show the baseline alongside your result) — these are the same rules that separate published figures from rejected ones. When you design your results section, lay it out like a dashboard: headline findings first (your "KPI cards" — the key result tables), then trends and comparisons, then detailed breakdowns in the appendix. Reviewers scan; make the scan rewarding.</p>
+<p><strong>Key takeaways:</strong>
+- Design for the five-second scan: headline KPI cards top-left, trends top-right, decomposition middle, exceptions bottom. Bad news never below the fold.
+- Use proven patterns: KPI card strip, RAG heatmap, trend+target panel, decomposition panel, exception list — and bullet graphs instead of gauges.
+- One idea per visual; consistent colors; declutter; every number shown with its comparison.
+- Build separate layouts for executives (monthly, simple), operators (weekly, interactive), analysts (dense), and mobile.</p>
+<hr />
+<h2 id="chapter-8-dax-for-kpis-ytd-variance-attainment">Chapter 8: DAX for KPIs (YTD, Variance, Attainment %)</h2>
+<p>This is the chapter where KPIs become real. Everything so far — definitions, design, RAG — lives in Power BI as <strong>DAX measures</strong>. This chapter builds your complete KPI measure toolkit: the patterns professionals reuse in every model, with explanations of <em>why</em> each pattern works, not just the code. Copy them, adapt the table and column names, and understand each line before you use it.</p>
+<p><strong>Prerequisite:</strong> all time-intelligence patterns in this chapter require a proper <strong>date table</strong> — a continuous calendar table marked as a date table, related to your fact tables. Without it, <code>DATESYTD</code>, <code>SAMEPERIODLASTYEAR</code>, and <code>DATEADD</code> produce wrong or blank results. Build the date table first; it is the foundation every KPI measure stands on.</p>
+<h3 id="81-the-base-measure-and-the-target-measure">8.1 The base measure and the target measure</h3>
+<p>Every KPI family starts with two measures: the actual and the target.</p>
+<pre><code class="language-dax">Total Revenue = SUM ( Sales[Amount] )
+</code></pre>
+<p>Targets usually live in a separate table (one row per period per entity — e.g., per month per region). If <code>Targets</code> is related to the date table:</p>
+<pre><code class="language-dax">Target Revenue = SUM ( Targets[TargetAmount] )
+</code></pre>
+<p>If it is not related (common with Excel-based target files), bridge it with <code>TREATAS</code>:</p>
+<pre><code class="language-dax">Target Revenue =
+CALCULATE (
+    SUM ( Targets[TargetAmount] ),
+    TREATAS ( VALUES ( 'Date'[YearMonthNumber] ), Targets[YearMonthNumber] )
+)
+</code></pre>
+<p>Keep target logic in <strong>one measure per KPI</strong>. Every card, chart, and RAG rule in the model should reference <code>[Target Revenue]</code>, never re-sum the targets table directly. Single point of truth.</p>
+<h3 id="82-year-to-date-month-to-date-quarter-to-date">8.2 Year-to-date, month-to-date, quarter-to-date</h3>
+<pre><code class="language-dax">Revenue YTD =
+CALCULATE (
+    [Total Revenue],
+    DATESYTD ( 'Date'[Date] )
+)
+
+Revenue MTD =
+CALCULATE (
+    [Total Revenue],
+    DATESMTD ( 'Date'[Date] )
+)
+
+Revenue QTD =
+CALCULATE (
+    [Total Revenue],
+    DATESQTD ( 'Date'[Date] )
+)
+</code></pre>
+<p>How it works: <code>CALCULATE</code> takes the base measure and re-evaluates it under a modified filter — here, the filter is "all dates from the start of the year/month/quarter through the latest date in the current filter context." That last phrase matters: YTD respects slicers, so selecting March shows Jan–Mar. For fiscal years starting in a month other than January, pass the year-end date: <code>DATESYTD ( 'Date'[Date], "30/06" )</code> for a June year-end.</p>
+<p>The same pattern gives YTD targets — essential for fair attainment:</p>
+<pre><code class="language-dax">Target Revenue YTD =
+CALCULATE (
+    [Target Revenue],
+    DATESYTD ( 'Date'[Date] )
+)
+
+Revenue YTD Attainment % =
+DIVIDE ( [Revenue YTD], [Target Revenue YTD] )
+</code></pre>
+<p>Never compare YTD actual against the <em>full-year</em> target — that classic error makes every KPI red until December.</p>
+<h3 id="83-prior-period-comparisons">8.3 Prior-period comparisons</h3>
+<pre><code class="language-dax">Revenue PY =          -- same period last year
+CALCULATE (
+    [Total Revenue],
+    SAMEPERIODLASTYEAR ( 'Date'[Date] )
+)
+
+Revenue Last Month =
+CALCULATE (
+    [Total Revenue],
+    DATEADD ( 'Date'[Date], -1, MONTH )
+)
+
+Revenue Last Quarter =
+CALCULATE (
+    [Total Revenue],
+    DATEADD ( 'Date'[Date], -1, QUARTER )
+)
+</code></pre>
+<p><code>SAMEPERIODLASTYEAR</code> shifts the current filter context back exactly one year (handles leap years and partial periods correctly). <code>DATEADD</code> shifts by any interval — the workhorse for month-over-month and rolling analyses.</p>
+<p>Growth measures built on these:</p>
+<pre><code class="language-dax">Revenue YoY % =
+DIVIDE (
+    [Total Revenue] - [Revenue PY],
+    [Revenue PY]
+)
+
+Revenue MoM % =
+DIVIDE (
+    [Total Revenue] - [Revenue Last Month],
+    [Revenue Last Month]
+)
+</code></pre>
+<p>Always use <code>DIVIDE</code> — in real data, prior periods are sometimes zero or blank (new products, new regions), and <code>DIVIDE</code> returns blank instead of an error that breaks the visual.</p>
+<h3 id="84-variance-analysis-the-kpi-tree-in-dax">8.4 Variance analysis: the KPI tree in DAX</h3>
+<p>Variance (actual vs target) and variance %:</p>
+<pre><code class="language-dax">Revenue Variance = [Total Revenue] - [Target Revenue]
+
+Revenue Variance % =
+DIVIDE ( [Revenue Variance], [Target Revenue] )
+</code></pre>
+<p>For driver analysis (Chapter 5), write variances at each tree node and a contribution measure:</p>
+<pre><code class="language-dax">Orders Variance = [Number of Orders] - [Target Orders]
+
+AOV Variance = [Average Order Value] - [Target AOV]
+
+-- How much of the revenue variance comes from orders?
+Orders Contribution =
+    [Orders Variance] * [Target AOV]
+
+-- ...and how much from average order value?
+AOV Contribution =
+    [AOV Variance] * [Number of Orders]
+</code></pre>
+<p>(These are first-order approximations that attribute the interaction term to AOV — document the choice in the measure description.)</p>
+<h3 id="85-rolling-averages-and-moving-targets">8.5 Rolling averages and moving targets</h3>
+<p>Rolling 12-month revenue smooths seasonality — the number executives actually want for trend judgment:</p>
+<pre><code class="language-dax">Revenue Rolling 12M =
+CALCULATE (
+    [Total Revenue],
+    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -12, MONTH )
+)
+</code></pre>
+<p>A 3-month moving average for noisy operational KPIs (hysteresis from Chapter 6, in code):</p>
+<pre><code class="language-dax">Defect Rate 3M Avg =
+AVERAGEX (
+    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH ),
+    [Defect Rate %]
+)
+</code></pre>
+<p><code>AVERAGEX</code> iterates the 3-month date set and averages the defect-rate measure in each month's context — correctly weighting by the measure's own logic rather than averaging raw rows.</p>
+<h3 id="86-dynamic-rag-and-status-measures">8.6 Dynamic RAG and status measures</h3>
+<p>Combine attainment with <code>SWITCH(TRUE(),...)</code> (Chapter 6 pattern), plus a numeric status for sorting:</p>
+<pre><code class="language-dax">KPI Status Score =
+VAR Attainment = [Revenue YTD Attainment %]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( Attainment ), 0,
+        Attainment &gt;= 1, 3,
+        Attainment &gt;= 0.95, 2,
+        1
+    )
+</code></pre>
+<p>The numeric score (3/2/1/0) lets you sort exception tables worst-first and lets conditional formatting use a numeric gradient — while the text RAG measure from Chapter 6 provides the human label.</p>
+<h3 id="87-handling-targets-at-different-grains">8.7 Handling targets at different grains</h3>
+<p>Targets often exist at a coarser grain than actuals — annual targets but daily sales. Allocate carefully:</p>
+<pre><code class="language-dax">-- Annual target spread evenly across the year's days (simple allocation)
+Daily Allocated Target =
+DIVIDE (
+    CALCULATE (
+        SUM ( Targets[AnnualTarget] ),
+        ALL ( 'Date' )
+    ),
+    365
+)
+
+Target To Date =
+    [Daily Allocated Target]
+        * COUNTROWS (
+            DATESYTD ( 'Date'[Date] )
+        )
+</code></pre>
+<p>Better: store targets at monthly grain and allocate by working days, or use a seasonality profile table. The principle: <strong>the allocation method is a design decision — document it in the KPI spec</strong>, because "target to date" changes with the method.</p>
+<h3 id="88-measure-hygiene-naming-folders-and-descriptions">8.8 Measure hygiene: naming, folders, and descriptions</h3>
+<p>A KPI model with 200 measures named <code>Measure 1</code>…<code>Measure 47</code> is unmaintainable. Professional habits:</p>
+<ul>
+<li><strong>Naming:</strong> <code>[Total Revenue]</code>, <code>[Revenue YTD]</code>, <code>[Revenue Attainment %]</code> — KPI name first, then the calculation. Suffixes (<code>%</code>, <code>YTD</code>, <code>vs Target</code>) sort related measures together.</li>
+<li><strong>Display folders:</strong> group measures into folders — "Base," "Time Intelligence," "Targets &amp; Variance," "RAG &amp; Status." In Power BI Desktop: Model view → select measures → set Display Folder.</li>
+<li><strong>Descriptions:</strong> every measure gets a one-line description (definition + owner). It surfaces as a tooltip and is the cheapest documentation you will ever write.</li>
+<li><strong>Format strings:</strong> set once in the model (percentage, currency, whole number). Never format in visuals — formatting belongs to the measure.</li>
+</ul>
+<h3 id="89-semi-additive-measures-headcount-inventory-balances">8.9 Semi-additive measures: headcount, inventory, balances</h3>
+<p>Most KPI measures are <strong>fully additive</strong> — summing daily revenue gives monthly revenue. But some of the most important KPIs are <strong>semi-additive</strong>: they sum across every dimension <em>except</em> time. Headcount, inventory levels, and account balances must not be summed across dates (adding January's headcount to February's is nonsense); you want the <em>last</em> value in the period.</p>
+<pre><code class="language-dax">Headcount =
+CALCULATE (
+    SUM ( HeadcountSnapshot[Employees] ),
+    LASTDATE ( 'Date'[Date] )
+)
+</code></pre>
+<p><code>LASTDATE</code> returns the final date in the current filter context, so the measure picks up the headcount snapshot at period-end — correct for months, quarters, and years alike. The same pattern serves inventory and bank balances. Mark these measures clearly (a "Semi-additive" display folder) because every new analyst will try to sum them.</p>
+<p>A related trap: <strong>averages of averages.</strong> "Average monthly headcount for the year" is not the average of twelve monthly averages unless every month has equal weight — compute it from the grain instead:</p>
+<pre><code class="language-dax">Avg Headcount (Year) =
+AVERAGEX (
+    VALUES ( 'Date'[Month] ),
+    [Headcount]
+)
+</code></pre>
+<h3 id="810-correctness-and-performance-pitfalls">8.10 Correctness and performance pitfalls</h3>
+<p>Five traps that catch even experienced DAX authors:</p>
+<ol>
+<li><strong>Filter context surprises.</strong> A KPI card showing the wrong number is almost always a filter-context issue: an unexpected slicer, a bidirectional relationship, or a <code>CALCULATE</code> that removed a needed filter. Debug by rebuilding the visual's filter context mentally — or with DAX Studio's query plans when serious.</li>
+<li><strong><code>FILTER</code> over full tables.</strong> <code>CALCULATE ( [M], FILTER ( Sales, ... ) )</code> iterates every row of Sales. Prefer filtering small dimension tables and letting relationships propagate: <code>CALCULATE ( [M], 'Product'[Category] = "X" )</code> — the engine does far less work.</li>
+<li><strong>Variables for readability and speed.</strong> Compute once, reuse:
+   <code>dax
+   Revenue YoY % =
+   VAR CurrentRevenue = [Total Revenue]
+   VAR PriorRevenue = [Revenue PY]
+   RETURN
+       DIVIDE ( CurrentRevenue - PriorRevenue, PriorRevenue )</code>
+   Variables are evaluated once in their context — cleaner and often faster than repeating measures.</li>
+<li><strong>Blank handling.</strong> Decide what blank means for each KPI: missing data (show "No data") vs true zero (show 0). <code>COALESCE ( [M], 0 )</code> forces zero; leaving blank keeps the visual honest about gaps. Document the choice — it changes RAG behavior.</li>
+<li><strong>Circular dependencies.</strong> Two measures referencing each other, or a calculated column referencing a measure that references the column. Power BI refuses with an error; the fix is restructuring — usually by pushing logic into the right layer (columns for row-level facts, measures for aggregations).</li>
+</ol>
+<p>Rule of thumb: <strong>correct first, fast second, clever never.</strong> A KPI measure must be auditable by the finance team — if only you understand it, it is a liability.</p>
+<h3 id="811-fiscal-calendars-and-non-standard-time-intelligence">8.11 Fiscal calendars and non-standard time intelligence</h3>
+<p>Not every organization runs on January–December. Retailers use 4-4-5 calendars; many firms start the fiscal year in July or October. Two techniques keep your KPIs correct:</p>
+<p><strong>Fiscal YTD with a custom year-end.</strong> Pass the year-end date to the time-intelligence functions:</p>
+<pre><code class="language-dax">Revenue FYTD =
+CALCULATE (
+    [Total Revenue],
+    DATESYTD ( 'Date'[Date], &quot;30/06&quot; )   -- fiscal year ends 30 June
+)
+</code></pre>
+<p>Every function in this chapter (<code>DATESMTD</code>, <code>SAMEPERIODLASTYEAR</code>, <code>DATEADD</code>) respects the date table's continuity — but <em>you</em> must keep the fiscal logic consistent: if FYTD uses June year-end, the target table's "YTD target" must too, or attainment compares mismatched periods.</p>
+<p><strong>Week-based analysis.</strong> Retail weeks (Sun–Sat or Mon–Sun) need a <code>WeekNumber</code> and <code>YearWeek</code> in the date table. A week-over-week measure:</p>
+<pre><code class="language-dax">Revenue WoW % =
+VAR CurrentWeek =
+    CALCULATE ( [Total Revenue], DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -7, DAY ) )
+VAR PriorWeek =
+    CALCULATE (
+        [Total Revenue],
+        DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ) - 7, -7, DAY )
+    )
+RETURN
+    DIVIDE ( CurrentWeek - PriorWeek, PriorWeek )
+</code></pre>
+<p>Caution: partial weeks at period edges distort WoW — either compare complete weeks only or flag partial weeks in the visual. Document the week definition in the KPI spec; "week" is one of the most ambiguous words in business.</p>
+<p><strong>For your research:</strong> DAX measures are <strong>operational definitions in executable form</strong> — and that makes them a research artifact worth describing. If your thesis uses a Power BI dashboard (for example, to monitor an intervention, a survey rollout, or experimental data collection), your methodology chapter can present the key DAX measures exactly as this chapter does: definition, formula, and the design decision behind each (why YTD vs full-year target, why a 3-month average for noisy signals). Examiners in applied fields increasingly accept — and respect — computational appendices. Even without Power BI, the habit transfers: define every derived variable in your analysis with the same precision as a DAX measure, including how you handled edge cases (division by zero, missing periods). That is what separates reproducible research from "we computed the rates."</p>
+<p><strong>Key takeaways:</strong>
+- Build KPI measures in families: base → target → YTD/MTD/QTD → prior period → variance → attainment → RAG. One measure per concept, referenced everywhere.
+- Time intelligence needs a proper date table; <code>CALCULATE</code> + <code>DATESYTD</code>/<code>SAMEPERIODLASTYEAR</code>/<code>DATEADD</code> is the core pattern.
+- Always compare YTD actual to YTD target; use <code>DIVIDE</code> to survive zero/blank denominators.
+- Document allocation methods for coarse-grain targets, and keep measure hygiene: naming, folders, descriptions, format strings.</p>
+<hr />
+<h2 id="chapter-9-alerts-subscriptions-and-governance">Chapter 9: Alerts, Subscriptions, and Governance</h2>
+<p>A dashboard nobody opens is a very expensive painting. KPIs create value only when the right person sees the right signal at the right time — and when everyone trusts the numbers enough to act on them. This chapter covers the two delivery mechanisms (alerts and subscriptions) and the unglamorous discipline that keeps the whole system honest: <strong>governance</strong>.</p>
+<h3 id="91-alerts-let-the-kpi-come-to-you">9.1 Alerts: let the KPI come to you</h3>
+<p><strong>Data alerts</strong> (called "alerts" in the Power BI service) watch a KPI and notify you when it crosses a threshold you set — e.g., "alert me if daily revenue drops below $50,000." Key properties:</p>
+<ul>
+<li>Alerts fire on <strong>dashboard tiles</strong> (KPI cards and gauges) in the Power BI service — set them from the tile's "..." menu.</li>
+<li>They evaluate on <strong>data refresh</strong>: each refresh re-checks the condition. A daily-refresh dataset gives you daily alert checks.</li>
+<li>You set the <strong>condition</strong> (above/below a value) and the <strong>frequency</strong> (at most once per day, or every time it triggers).</li>
+<li>Alerts go to the <strong>notification center and email</strong>; with Power Automate, an alert can trigger a flow — post to Teams, create a planner task, open a ticket.</li>
+</ul>
+<p>Best practices: alert on <strong>exceptions, not on everything</strong> — ten daily alerts become ten ignored emails. Alert on KPIs with a named owner and a defined response (Chapter 1's "action on red" field is the alert's runbook). Prefer <strong>rate-of-change or threshold-breach alerts</strong> over absolute values where seasons shift the baseline (alert on "attainment &lt; 95%" rather than "revenue &lt; $X" in December vs January).</p>
+<p>The DAX side: build the alert condition as a measure so the logic is governed, then pin a card showing it:</p>
+<pre><code class="language-dax">Revenue Alert Trigger =
+IF ( [Revenue YTD Attainment %] &lt; 0.95, 1, 0 )
+</code></pre>
+<p>Pin this to a dashboard, set the alert to fire when the tile exceeds 0 — and the threshold logic lives in the model, versioned and documented, not in someone's alert settings.</p>
+<h3 id="92-subscriptions-push-the-dashboard-on-a-rhythm">9.2 Subscriptions: push the dashboard on a rhythm</h3>
+<p><strong>Subscriptions</strong> email (or push) a snapshot of a report or dashboard on a schedule — daily at 7 AM, every Monday, first of the month. They serve a different need than alerts: alerts say "something is wrong <em>now</em>"; subscriptions say "here is the state of the world, <em>routinely</em>."</p>
+<p>Design guidance:</p>
+<ul>
+<li><strong>Match rhythm to decision rhythm.</strong> The Monday operations pack (leading indicators, exception lists) goes out Monday 7 AM. The monthly board pack goes out on the 2nd working day. A daily subscription nobody reads is spam — check open behavior and prune.</li>
+<li><strong>One page, one message.</strong> Subscribe people to the specific report page they need, not the whole 20-page report. Executives get the KPI summary page; regional managers get their region's page (with filters applied per subscription).</li>
+<li><strong>Include the "so what."</strong> The subscription email shows the snapshot; the report page itself must carry the interpretation layer — RAG, variance callouts, the exception list. A snapshot of raw charts without status is just prettier spam.</li>
+</ul>
+<h3 id="93-governance-the-kpi-dictionary-and-ownership">9.3 Governance: the KPI dictionary and ownership</h3>
+<p>Governance is everything that keeps KPIs <strong>defined once, computed once, trusted always</strong>. Its centerpiece is the <strong>KPI dictionary</strong> (also called a metric catalog or KPI registry): a single governed list of every approved KPI with its full specification (Chapter 1's ten fields), its DAX measure name, its owner, its refresh cadence, and its certification status.</p>
+<p>Minimum viable governance for a small organization:</p>
+<ol>
+<li><strong>One dictionary.</strong> A shared document or (better) a certified dataset's measure descriptions. If a KPI is not in the dictionary, it is not official — no decisions on unofficial numbers.</li>
+<li><strong>Named owners.</strong> Every KPI has an owner accountable for the target and the response to red. Owners approve definition changes.</li>
+<li><strong>Certification.</strong> Datasets and reports get marked as certified/promoted only after validation against source systems. Uncertified content is exploration, not evidence.</li>
+<li><strong>Change control.</strong> Changing a KPI's definition, target, or threshold is a logged decision with a date — so that "why did the trend jump in March?" has an answer ("definition v2 took effect").</li>
+<li><strong>Refresh and quality SLAs.</strong> Each KPI states its refresh cadence and its data-quality checks (completeness, reconciliation to source). A KPI card should show "data as of" — stale data presented as fresh is a trust-killer.</li>
+</ol>
+<h3 id="94-data-quality-the-trust-beneath-the-kpi">9.4 Data quality: the trust beneath the KPI</h3>
+<p>KPIs amplify data problems: a wrong number with a red background triggers real, costly actions. Build quality checks into the model:</p>
+<pre><code class="language-dax">-- Reconciliation: does the model agree with the source system?
+Sales Row Count Check =
+COUNTROWS ( Sales )
+
+-- Freshness: when was data last loaded?
+Data As Of =
+MAX ( Sales[LoadDate] )
+
+-- Completeness: are we missing recent days?
+Missing Days (Last 30) =
+VAR ExpectedDates =
+    DATESINPERIOD ( 'Date'[Date], TODAY (), -30, DAY )
+RETURN
+    COUNTROWS ( EXCEPT ( ExpectedDates, VALUES ( Sales[OrderDate] ) ) )
+</code></pre>
+<p>Surface these on an admin page or in the report footer: "Data as of 7 Oct 2026 · 0 missing days." When a KPI looks wrong, the first question is always "is the data fresh and complete?" — answer it before the meeting starts.</p>
+<p><strong>Row-level security (RLS)</strong> is governance too: regional managers see only their region's KPIs. Define RLS roles on the dataset so one dashboard serves everyone without leaking other regions' numbers. Test RLS with "view as role" before publishing — a KPI system that shows the wrong person's data loses trust instantly and permanently.</p>
+<h3 id="95-the-kpi-review-cadence-governance-in-motion">9.5 The KPI review cadence (governance in motion)</h3>
+<p>Governance is not a document; i

@@ -1,0 +1,602 @@
+ong> The convolutional stages hold only about 15M. The three fully connected layers (25088→4096→4096→1000) hold roughly 123M — nearly 90% of the model sits in the classifier head. This is why modern networks replaced the FC stack with global average pooling (Chapter 3): VGG's convolutions were the valuable part; its classifier was parameter bloat. When you use VGG as a feature extractor today, you keep the 15M parameters that matter and discard the 123M that don't — a vivid illustration of transfer learning's selectivity, and a good answer to "why not just use the whole pretrained model."</p>
+<p><strong>Loading the classics today.</strong></p>
+<pre><code class="language-python">from torchvision import models
+vgg = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
+alex = models.alexnet(weights=models.AlexNet_Weights.IMAGENET1K_V1)
+print(vgg.features[0])  # Conv2d(3, 64, kernel_size=(3, 3), padding=(1, 1))
+# Feature extraction: drop the classifier, keep the conv stages
+features = vgg.features  # -&gt; (B, 512, 7, 7) for 224px input
+</code></pre>
+<p>Note the weights enums carry version information (IMAGENET1K_V1 vs V2) — V2 weights are retrained with a modern recipe and score several points higher on the same architecture. "VGG-16, torchvision IMAGENET1K_V1" is a complete, reproducible specification; "we used VGG" is not. Record the version.</p>
+<p><strong>What the classics get wrong by modern standards.</strong> No batch normalization (training is twitchier and slower), heavy FC heads (parameter bloat, as shown above), and large first-layer kernels (AlexNet's 11×11 stride-4 stem discards fine detail before the network ever sees it — VGG's stacked 3×3s were already the fix). Study these networks for their patterns, not their hyperparameters. And a terminology note for your writing: "AlexNet" denotes the specific 2012 architecture; "AlexNet-style" in a paper usually just means "a shallow convnet with ReLUs and dropout" — be precise about which you mean, because a reviewer will hold you to the specific one.</p>
+<h3 id="what-survived-the-pattern-inventory-from-lenet-to-vgg">What survived: the pattern inventory from LeNet to VGG</h3>
+<p>It's worth making explicit which ideas from these three networks are still alive in 2026, because "we use a VGG-style backbone" is a claim about <em>which</em> patterns you kept:</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Source</th>
+<th>Still standard?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Conv→pool alternation building a hierarchy</td>
+<td>LeNet</td>
+<td>Yes — every CNN</td>
+</tr>
+<tr>
+<td>End-to-end learned features beating hand-designed ones</td>
+<td>LeNet</td>
+<td>Yes — the field's founding result</td>
+</tr>
+<tr>
+<td>ReLU as default nonlinearity</td>
+<td>AlexNet</td>
+<td>Yes (variants: GELU, SiLU in newer nets)</td>
+</tr>
+<tr>
+<td>Dropout in classifier heads</td>
+<td>AlexNet</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Data augmentation as standard practice</td>
+<td>AlexNet</td>
+<td>Yes — non-negotiable</td>
+</tr>
+<tr>
+<td>GPU training</td>
+<td>AlexNet</td>
+<td>Yes — now table stakes</td>
+</tr>
+<tr>
+<td>Stacked 3×3 instead of large kernels</td>
+<td>VGG</td>
+<td>Yes — the default kernel</td>
+</tr>
+<tr>
+<td>Channel doubling when halving spatial size (64→128→256→512)</td>
+<td>VGG</td>
+<td>Yes — near-universal</td>
+</tr>
+<tr>
+<td>Giant FC classifier heads</td>
+<td>VGG/AlexNet</td>
+<td>No — replaced by GAP</td>
+</tr>
+<tr>
+<td>LRN, split-GPU training</td>
+<td>AlexNet</td>
+<td>No — historical curiosities</td>
+</tr>
+</tbody>
+</table>
+<p>Two networks <em>between</em> the classics deserve one paragraph each, because reviewers may ask why you skipped them. <strong>Network-in-Network</strong> (Lin et al., 2014) introduced the 1×1 convolution and global average pooling — both now ubiquitous (Chapters 2–3). <strong>GoogLeNet/Inception</strong> (Szegedy et al., 2015) ran multiple kernel sizes (1×1, 3×3, 5×5) in parallel inside each module, arguing that optimal local structure varies by scale; it won ImageNet 2014 with far fewer parameters than VGG. Its legacy: multi-scale processing (see ASPP, Chapter 3) and the 1×1 bottleneck-before-expensive-conv pattern. You don't need to use Inception today, but "multi-scale features" as a phrase descends from it.</p>
+<p><strong>Reading old papers productively.</strong> When you read Krizhevsky et al. (2012), skip the LRN sections and focus on the training recipe (augmentation, dropout, SGD schedule) — the recipe outlived the architecture. When you read Simonyan &amp; Zisserman (2014), focus on the 3×3-stacking argument and the depth study (their Table 3, showing accuracy vs. depth, is the direct ancestor of every ablation table you'll write). Old papers are mines: extract the patterns, leave the hyperparameters.</p>
+<h3 id="timeline-the-decade-that-built-modern-vision">Timeline: the decade that built modern vision</h3>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Milestone</th>
+<th>What it established</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1989</td>
+<td>LeNet precursor (LeCun et al.)</td>
+<td>Backprop through conv layers works</td>
+</tr>
+<tr>
+<td>1998</td>
+<td>LeNet-5</td>
+<td>Conv–pool hierarchy; end-to-end learning</td>
+</tr>
+<tr>
+<td>2012</td>
+<td>AlexNet</td>
+<td>ReLU, GPU, dropout, augmentation — deep learning goes mainstream</td>
+</tr>
+<tr>
+<td>2013</td>
+<td>ZFNet (Zeiler &amp; Fergus)</td>
+<td>Visualization as debugging; smaller stride-2 first layer</td>
+</tr>
+<tr>
+<td>2014</td>
+<td>VGG</td>
+<td>Stacked 3×3; modular depth</td>
+</tr>
+<tr>
+<td>2014</td>
+<td>GoogLeNet/Inception</td>
+<td>Multi-scale modules; 1×1 bottlenecks</td>
+</tr>
+<tr>
+<td>2014</td>
+<td>Network-in-Network</td>
+<td>1×1 convs; global average pooling</td>
+</tr>
+<tr>
+<td>2015</td>
+<td>ResNet</td>
+<td>Skip connections; 100+ layers trainable</td>
+</tr>
+<tr>
+<td>2015</td>
+<td>BatchNorm (Ioffe &amp; Szegedy)</td>
+<td>The quiet enabler of all deep training</td>
+</tr>
+<tr>
+<td>2016</td>
+<td>Wide ResNet, ResNeXt, pre-activation</td>
+<td>Width/cardinality as scaling axes</td>
+</tr>
+<tr>
+<td>2017</td>
+<td>MobileNetV1, DenseNet</td>
+<td>Efficiency; dense feature reuse</td>
+</tr>
+<tr>
+<td>2018</td>
+<td>MobileNetV2, SE blocks</td>
+<td>Inverted residuals; channel attention</td>
+</tr>
+<tr>
+<td>2019</td>
+<td>EfficientNet</td>
+<td>Compound scaling; the B0–B7 ladder</td>
+</tr>
+</tbody>
+</table>
+<p>Read down the "what it established" column: that is the entire design vocabulary of modern CNNs. Every architecture since 2019 is a recombination of these rows. When a new paper claims novelty, locate its row-combination — "it's ResNet blocks + SE + compound scaling" — and you'll understand the contribution in one sentence. This is also how you write related work (Chapter 12): position by idea-lineage, not by year.</p>
+<p><strong>Key takeaways</strong>
+- LeNet: conv-pool alternation + end-to-end learning. The template.
+- AlexNet: ReLU, GPUs, dropout, augmentation. The big bang — scale + recipe beat hand-designed features.
+- VGG: stacked 3×3 kernels (same RF as 5×5/7×7, fewer params, more nonlinearities); modular blocks; channel doubling after pooling.
+- Each architecture is a bundle of reusable patterns. Learn the patterns, not the parameter counts.</p>
+<hr />
+<h2 id="chapter-5-resnet-and-skip-connections">Chapter 5 — ResNet and Skip Connections</h2>
+<h3 id="the-degradation-problem">The degradation problem</h3>
+<p>By 2015, the field knew depth helped — but only to a point. Researchers observed something strange: a 56-layer plain network had <strong>higher training error</strong> than a 20-layer one. Not test error — <em>training</em> error. This wasn't overfitting (overfitting is low training error, high test error). The deeper network was failing to even fit the training data. Adding layers made optimization harder, not just generalization.</p>
+<p>He et al.'s key insight: suppose a shallow network reaches some good solution. A deeper network <em>contains</em> the shallow one as a special case — it could just learn identity mappings in the extra layers and match the shallow performance. The fact that it can't, in practice, means the optimizer struggles to learn identity mappings through stacked nonlinear layers. So: <strong>make identity the default, and learn only the deviation from it</strong>.</p>
+<h3 id="the-residual-trick">The residual trick</h3>
+<p>Instead of asking a stack of layers to learn the desired mapping H(x) directly, ask it to learn the <strong>residual</strong> F(x) = H(x) − x, and add the input back:</p>
+<p><strong>y = F(x) + x</strong></p>
+<p>That "+" is the <strong>skip connection</strong> (or shortcut): the input bypasses the layer stack and is added to its output. If the optimal mapping is close to identity, the layers just drive F(x) toward zero — pushing weights to zero is easy for an optimizer (weight decay does it by default). If the optimal mapping is far from identity, the network still learns the full transformation through F.</p>
+<p>Why does this fix the vanishing gradient? Look at the backward pass. The gradient of the loss with respect to x flows through two paths: through F (the long way, through all the layer weights) and directly through the skip connection (gradient = 1, untouched). Even if the long path's gradients vanish to nothing, the skip path delivers a clean gradient of 1 to every earlier layer. <strong>Skip connections are gradient highways.</strong> Information — and, crucially, gradient signal — can travel the full depth of the network without passing through a single weight matrix if needed.</p>
+<p>A residual block in its simplest form:</p>
+<pre><code class="language-python">class BasicBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        identity = x
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out = out + identity   # the skip connection
+        return self.relu(out)
+</code></pre>
+<p>ResNet-152 (152 layers!) trained successfully with this pattern and won ImageNet 2015 at 3.57% top-5 error — below the commonly cited ~5% human error rate. The degradation problem was gone: ResNet-152 had <em>lower</em> training error than ResNet-34.</p>
+<h3 id="when-dimensions-dont-match">When dimensions don't match</h3>
+<p>The skip connection needs x and F(x) to have the same shape. When a block changes spatial size (stride 2) or channel count, ResNet uses a <strong>projection shortcut</strong>: a 1×1 convolution with matching stride on the skip path:</p>
+<pre><code class="language-python"># downsampling block: stride-2 conv + 1x1 projection on the shortcut
+self.shortcut = nn.Sequential(
+    nn.Conv2d(in_ch, out_ch, kernel_size=1, stride=2, bias=False),
+    nn.BatchNorm2d(out_ch))
+</code></pre>
+<p>The 1×1 convolution here does no spatial work — it just remaps channels and matches the stride so the addition lines up. (This is the same "1×1 as channel mixer" idea from Chapter 2.)</p>
+<h3 id="batch-normalization-the-quiet-partner">Batch normalization: the quiet partner</h3>
+<p>Every ResNet block pairs convolutions with <strong>batch normalization</strong>: normalize each channel to zero mean, unit variance across the batch, then scale and shift with learned parameters. BN stabilizes the distribution of layer inputs during training (reducing "internal covariate shift," in the original paper's framing), which lets you use higher learning rates and makes deep stacks trainable at all. Practical notes:</p>
+<ul>
+<li>BN behaves differently in train vs. eval mode (it uses batch statistics when training, running averages at inference). <strong>Always call <code>model.eval()</code> before inference</strong>, or your predictions will be wrong in a subtle, batch-dependent way. This is the single most common ResNet bug in student code.</li>
+<li>With very small batch sizes (&lt; 8–16), batch statistics are noisy and BN hurts; use GroupNorm or LayerNorm instead — common in medical imaging where GPU memory forces tiny batches.</li>
+</ul>
+<h3 id="resnet-variants-youll-meet">ResNet variants you'll meet</h3>
+<ul>
+<li><strong>ResNet-18/34</strong> use BasicBlocks (two 3×3 convs). <strong>ResNet-50/101/152</strong> use bottleneck blocks (1×1 → 3×3 → 1×1), which cut computation: the 1×1s shrink then restore channel counts around the expensive 3×3.</li>
+<li><strong>Pre-activation ResNet</strong> (He et al., 2016): move BN+ReLU before the convolution. Slightly better gradient flow; some codebases use it by default.</li>
+<li><strong>ResNeXt</strong>: grouped convolutions in the block ("cardinality" as a new dimension). <strong>Wide ResNet</strong>: fewer, wider layers — often better than deeper-thinner for the same budget.</li>
+</ul>
+<p>For new work, ResNet-50 is the default backbone: 25.6M parameters, ~4 GFLOPs, pretrained weights available everywhere, and every reviewer knows what it means.</p>
+<h3 id="worked-example-gradient-through-the-skip">Worked example: gradient through the skip</h3>
+<p>Consider y = F(x) + x with a scalar loss L. By the chain rule:</p>
+<p>dL/dx = dL/dy × (dF/dx + 1)</p>
+<p>Even if dF/dx → 0 (vanished through the block's weights), dL/dx = dL/dy × 1 = dL/dy. The gradient passes through unchanged. Stack 50 such blocks: the gradient to the first layer is dL/dy_50 × Π(1 + dF_i/dx_i) — a product of terms each near 1, instead of a product of small numbers. That's the whole mathematical story of why 152 layers train.</p>
+<p><img alt="CNN architecture stack" src="media-generation-book-12-fig2-0-546ebea2-d712-47ea-8a3f-c45419143d98.webp" /></p>
+<blockquote>
+<p><strong>For your research.</strong> ResNet-50 pretrained on ImageNet is your default starting point for almost any image task (Chapter 7 explains how to adapt it). When you report results, "ResNet-50 backbone" is unambiguous — but specify the weight source (torchvision, timm) because pretrained weights differ slightly across implementations and affect reproducibility. If your images are very different from natural photos (grayscale X-rays, multispectral satellite), say so explicitly and consider whether the early-layer filters transfer (they usually do — edges are edges) while the later layers need more adaptation. The skip-connection gradient argument above is worth understanding deeply: it's the same mechanism behind DenseNet, U-Net's long skips, and transformer residual streams. Learn it once, reuse it everywhere.</p>
+</blockquote>
+<h3 id="the-bottleneck-math-and-the-resnet-family-tree">The bottleneck math, and the ResNet family tree</h3>
+<p><strong>Worked: why bottlenecks save compute.</strong> A BasicBlock operating on 256 channels uses two 3×3×256×256 convolutions: 2 × 9 × 256 × 256 ≈ 1.18M parameters. A bottleneck block instead does: 1×1 (256→64) + 3×3 (64→64) + 1×1 (64→256) = 16,384 + 36,864 + 16,384 ≈ 69K parameters — <strong>17× fewer</strong> for the same input/output width, with the expensive 3×3 operating in the cheap 64-channel space. ResNet-50's 25.6M parameters would exceed 200M with basic blocks at that depth; bottlenecks are what make 50+ layers affordable. The general principle: <strong>do expensive spatial work in low-dimensional spaces, and use cheap 1×1 convolutions to move between widths.</strong> You'll meet this pattern again in MobileNetV2 (Chapter 6) and in transformer feedforward layers — it's universal enough to be worth memorizing.</p>
+<p><strong>The family tree — patterns to steal.</strong>
+- <strong>Pre-activation ResNet</strong> (He et al., 2016): reorder each block to BN→ReLU→Conv, so the skip path is a <em>pure</em> identity unobstructed by ReLU. Slightly better optimization; some codebases (e.g., <code>timm</code>'s ResNet-V2 variants) default to it.
+- <strong>Wide ResNet</strong> (Zagoruyko &amp; Komodakis, 2016): widen channels (×2 to ×10) instead of deepening. A 28-layer wide ResNet often beats a 100-layer thin one at the same parameter budget — depth has diminishing returns once skip connections fix the optimization problem. Lesson: when a deeper model stalls, try wider before trying deeper.
+- <strong>ResNeXt</strong> (Xie et al., 2017): split the 3×3 convolution into 32 parallel groups ("cardinality" as a new scaling dimension). Same FLOPs, more representational paths. The grouped convolution here descends from AlexNet's split-GPU accident (Chapter 4) — an engineering constraint become a design principle, again.
+- <strong>Stochastic Depth</strong> (Huang et al., 2016): during training, randomly drop entire residual blocks — the skip connection carries the signal past them. This regularizes very deep networks and shortens the effective depth early in training. One line in <code>timm</code>; worth trying on any 100+ layer model.</p>
+<pre><code class="language-python">class Bottleneck(nn.Module):
+    expansion = 4
+    def __init__(self, in_ch, mid_ch, stride=1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_ch, mid_ch, 1, bias=False)
+        self.conv2 = nn.Conv2d(mid_ch, mid_ch, 3, stride=stride, padding=1, bias=False)
+        self.conv3 = nn.Conv2d(mid_ch, mid_ch * self.expansion, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(mid_ch)
+        self.bn2 = nn.BatchNorm2d(mid_ch)
+        self.bn3 = nn.BatchNorm2d(mid_ch * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_ch != mid_ch * self.expansion:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_ch, mid_ch * self.expansion, 1, stride=stride, bias=False),
+                nn.BatchNorm2d(mid_ch * self.expansion))
+    def forward(self, x):
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        return self.relu(out + self.shortcut(x))
+</code></pre>
+<p><strong>ResNet beyond classification.</strong> The same backbone-with-skips serves as the encoder in U-Net-style segmentation (Chapter 11), the feature extractor in Faster R-CNN detection, and the image tower in CLIP. Learning ResNet deeply pays rent across every vision task — which is why this book keeps recommending it as your default backbone. Time spent understanding skip connections is never wasted: the identical mechanism reappears in DenseNet's dense skips, U-Net's long skips, and transformer residual streams.</p>
+<h3 id="densenet-and-the-vanishing-gradient-in-equations">DenseNet, and the vanishing gradient in equations</h3>
+<p><strong>DenseNet: skips taken to the extreme.</strong> If ResNet adds the input to the output (y = F(x) + x), DenseNet (Huang et al., 2017) <em>concatenates</em> all previous feature maps as input to each layer: layer l receives [x_0, x_1, ..., x_{l−1}]. Every layer talks directly to every later layer — maximum gradient flow, maximum feature reuse. Parameter-efficient (narrow layers suffice since features are reused, not relearned), but memory-hungry (all those concatenated maps live on GPU). DenseNet-121 remains a strong, well-understood backbone, especially loved in medical imaging. The design lesson: ResNet reuses via addition (cheap, fixed width), DenseNet via concatenation (richer, memory-costly). When choosing, ask whether your GPU budget favors parameters (DenseNet) or activations memory (ResNet).</p>
+<p><strong>The vanishing gradient, in one equation.</strong> In a plain deep stack, the gradient to an early layer is a product of many Jacobians: ∂L/∂x_1 = ∂L/∂x_n × Π_{i} ∂x_{i+1}/∂x_i. If each Jacobian's singular values are mostly &lt; 1 (typical with saturating nonlinearities and small weights), the product shrinks exponentially with depth — 0.9^50 ≈ 0.005. The signal dies. BatchNorm and ReLU mitigate this (ReLU's derivative is 0 or 1, never a shrinking fraction), but the structural fix is the skip: with y = F(x) + x, each factor becomes (∂F/∂x + I), whose eigenvalues cluster near 1 rather than near 0. Products of numbers near 1 don't vanish. That single "+ I" is worth more than any initialization trick — which is why ResNet enabled 152 layers while careful initialization alone stalled around 20–30.</p>
+<p><strong>How deep is too deep?</strong> Empirically: ResNet-152 beats ResNet-101 by ~0.5% on ImageNet at 2× the cost; ResNet-1001 (yes, it was tried) barely beats 152. Depth's returns diminish because representational capacity stops being the bottleneck — data and optimization are. For your thesis: ResNet-50 is the sweet spot for most tasks; reach for 101/152 only when you have the data (100K+ images) and the ablations show depth actually helping. "We used ResNet-152 because deeper is better" without evidence is a sentence reviewers underline.</p>
+<h3 id="the-original-resnet-training-recipe-and-what-to-keep">The original ResNet training recipe (and what to keep)</h3>
+<p>He et al. trained with <strong>SGD, momentum 0.9, weight decay 1e-4, batch size 256, initial LR 0.1, divided by 10 at epochs 30/60</strong> (for the 90-epoch schedule), with scale/aspect-ratio augmentation and per-pixel mean subtraction. No Adam, no cosine, no warmup, no label smoothing — and it hit 3.57% top-5. Two lessons. First, the recipe's <em>structure</em> (long training, step decay, strong augmentation, weight decay) matters more than the specific optimizer — modern recipes are refinements, not replacements. Second, note what they <em>didn't</em> need: the architecture did the heavy lifting. When your training is unstable, the debugging order is: architecture sanity (shapes, RF) → data pipeline → LR/schedule → optimizer choice — roughly in that order of likelihood.</p>
+<p><strong>BatchNorm placement, settled.</strong> ResNet V1: Conv→BN→ReLU, with the skip added before the final ReLU. Pre-activation V2: BN→ReLU→Conv with a clean identity skip. If you implement ResNet yourself, use V2 — the pure skip path gives marginally better gradient flow and it's what <code>timm</code>'s resnetv2 variants use. If you use torchvision's, you get V1 — fine, just know which you have when comparing numbers across libraries. "ResNet-50 (torchvision V1 weights)" vs "ResNet-50-V2 (timm)" can differ by ~1%, and that difference is not yours to claim.</p>
+<p><strong>Key takeaways</strong>
+- Deep plain networks suffer <em>degradation</em>: higher training error than shallow ones — an optimization failure, not overfitting.
+- Residual learning: fit F(x) = H(x) − x, output y = F(x) + x. Identity becomes the easy default.
+- Skip connections are gradient highways: dL/dx keeps a clean path of gradient 1 through every block.
+- BatchNorm is ResNet's quiet partner; remember <code>model.eval()</code> and the small-batch caveat.
+- ResNet-50 is the default research backbone. Bottleneck blocks (1×1–3×3–1×1) make depth affordable.</p>
+<hr />
+<h2 id="chapter-6-efficient-modern-cnns-mobilenet-and-efficientnet">Chapter 6 — Efficient Modern CNNs: MobileNet and EfficientNet</h2>
+<p>ResNet-50 is a fine backbone — until you need to run on a phone, a drone, a field-deployed Raspberry Pi, or a hospital workstation without a GPU. Or until your thesis budget gives you one GPU and your architecture search needs to finish before graduation. This chapter is about getting the most accuracy per unit of compute.</p>
+<h3 id="the-cost-anatomy-of-a-convolution">The cost anatomy of a convolution</h3>
+<p>Recall the MAC count: H × W × C_out × K² × C_in. The K² term is the lever. A 3×3 kernel costs 9× a 1×1. And a standard convolution mixes <em>spatial</em> filtering and <em>channel</em> mixing in one dense operation. MobileNet's insight: <strong>factorize them</strong>.</p>
+<h3 id="mobilenet-depthwise-separable-convolutions">MobileNet: depthwise separable convolutions</h3>
+<p>A <strong>depthwise separable convolution</strong> splits the standard convolution into two steps:</p>
+<ol>
+<li><strong>Depthwise convolution</strong>: each input channel gets its own single K×K filter — no cross-channel mixing. Cost: H × W × C_in × K².</li>
+<li><strong>Pointwise convolution</strong>: a 1×1 convolution mixing channels. Cost: H × W × C_in × C_out.</li>
+</ol>
+<p>Total: HWC_in(K² + C_out) versus HWC_in·K²·C_out for the standard version — a reduction factor of roughly <strong>1/C_out + 1/K²</strong>. For K=3 and C_out=512, that's about <strong>8–9× fewer MACs</strong>.</p>
+<pre><code class="language-python">class DepthwiseSeparableConv(nn.Module):
+    def __init__(self, in_ch, out_ch, stride=1):
+        super().__init__()
+        self.depthwise = nn.Conv2d(in_ch, in_ch, kernel_size=3,
+                                   stride=stride, padding=1,
+                                   groups=in_ch, bias=False)  # groups=in_ch: one filter per channel
+        self.pointwise = nn.Conv2d(in_ch, out_ch, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_ch)
+        self.bn2 = nn.BatchNorm2d(out_ch)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        x = self.relu(self.bn1(self.depthwise(x)))
+        return self.relu(self.bn2(self.pointwise(x)))
+
+# Compare costs for 56x56x64 -&gt; 128 channels:
+std = nn.Conv2d(64, 128, 3, padding=1)
+sep = DepthwiseSeparableConv(64, 128)
+print(sum(p.numel() for p in std.parameters()))  # 73,856
+print(sum(p.numel() for p in sep.parameters()))  # 8,896  (~8.3x fewer)
+</code></pre>
+<p>MobileNetV1 (2017) used this throughout and reached ~70% ImageNet top-1 with 4.2M parameters — near-VGG accuracy at a fraction of the cost. <strong>MobileNetV2</strong> (2018) added the <strong>inverted residual block</strong>: expand channels with 1×1, depthwise-filter in the wide space, project back with 1×1 (linear, no ReLU — because ReLU destroys information in low-dimensional bottlenecks, a subtle and important detail). <strong>MobileNetV3</strong> added squeeze-and-excitation and neural-architecture-search-derived tweaks.</p>
+<h3 id="efficientnet-scaling-with-a-formula">EfficientNet: scaling with a formula</h3>
+<p>Practitioners knew three ways to make a network better: make it <strong>deeper</strong> (more layers), <strong>wider</strong> (more channels), or feed <strong>higher-resolution</strong> inputs. Everyone scaled one dimension by gut feeling. Tan and Le's EfficientNet (2019) showed the dimensions interact and should be scaled <strong>together</strong>, with a compound coefficient φ:</p>
+<ul>
+<li>depth × α^φ, width × β^φ, resolution × γ^φ, with α·β²·γ² ≈ 2 (so each φ step ≈ 2× FLOPs).</li>
+</ul>
+<p>They found α=1.2, β=1.1, γ=1.15 by small grid search on a baseline (EfficientNet-B0, itself found by neural architecture search with mobile inverted bottleneck blocks), then scaled φ from 0 (B0) to 7 (B7). EfficientNet-B7 reached 84.3% top-1 — state of the art at the time — with 66M parameters, versus prior SOTA needing far more. More importantly for researchers: <strong>EfficientNet-B0 through B4 give you a clean accuracy-vs-compute ladder</strong>. Need a stronger baseline? Move one rung up the ladder instead of hand-tuning.</p>
+<h3 id="the-efficiency-landscape-what-to-pick-when">The efficiency landscape (what to pick when)</h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Params</th>
+<th>FLOPs</th>
+<th>ImageNet top-1</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MobileNetV3-Small</td>
+<td>2.5M</td>
+<td>0.06G</td>
+<td>67.4%</td>
+<td>Phone/edge, real-time</td>
+</tr>
+<tr>
+<td>MobileNetV3-Large</td>
+<td>5.4M</td>
+<td>0.22G</td>
+<td>75.2%</td>
+<td>Edge with headroom</td>
+</tr>
+<tr>
+<td>EfficientNet-B0</td>
+<td>5.3M</td>
+<td>0.39G</td>
+<td>77.1%</td>
+<td>Strong tiny baseline</td>
+</tr>
+<tr>
+<td>EfficientNet-B4</td>
+<td>19M</td>
+<td>4.2G</td>
+<td>82.9%</td>
+<td>Accuracy on 1 GPU</td>
+</tr>
+<tr>
+<td>ResNet-50</td>
+<td>25.6M</td>
+<td>4.1G</td>
+<td>76.1%*</td>
+<td>Default research backbone</td>
+</tr>
+<tr>
+<td>EfficientNet-B7</td>
+<td>66M</td>
+<td>37G</td>
+<td>84.3%</td>
+<td>Max accuracy, big compute</td>
+</tr>
+</tbody>
+</table>
+<p>(*torchvision v2 weights reach ~80%; weight version matters — always report it.)</p>
+<p>Note the punchline: EfficientNet-B4 roughly matches ResNet-50's FLOPs with ~7 points more accuracy. Architecture design is not dead; it compounds.</p>
+<h3 id="practical-guidance-for-limited-compute">Practical guidance for limited compute</h3>
+<ol>
+<li><strong>Start from pretrained efficient weights</strong> (<code>timm</code> library: <code>timm.create_model('efficientnet_b0', pretrained=True)</code>). Training these from scratch on small data wastes your budget.</li>
+<li><strong>Match input resolution to the model</strong>: EfficientNets were scaled with resolution (B0: 224, B4: 380, B7: 600). Feeding 600px images to B0 wastes compute; feeding 224px to B7 wastes the model's capacity.</li>
+<li><strong>For deployment</strong>, benchmark latency on the actual device, not FLOPs — depthwise convolutions are FLOP-efficient but can be memory-bandwidth-bound on some hardware. Measure, don't assume.</li>
+<li><strong>Knowledge distillation</strong> (train a small net to mimic a big net's outputs) pairs naturally with efficient architectures and is a legitimate paper contribution when done carefully.</li>
+</ol>
+<blockquote>
+<p><strong>For your research.</strong> "We used EfficientNet-B0 due to compute constraints" is a respectable sentence — reviewers understand budgets. What's not respectable is using an inefficient backbone and apologizing for weak results. Pick the strongest model your compute allows, and report params/FLOPs alongside accuracy (the Learning Dashboard in this book has a table template). If your deployment target is a phone or field device, MobileNetV3-Small with quantization is the standard answer, and "runs at X ms on device Y" is a result in itself — systems-minded reviewers value it.</p>
+</blockquote>
+<h3 id="squeeze-and-excitation-inverted-residuals-by-hand-deployment-reality">Squeeze-and-Excitation, inverted residuals by hand, deployment reality</h3>
+<p><strong>Squeeze-and-Excitation (SE).</strong> Hu et al. (2018) added a tiny channel-attention module to any block: <em>squeeze</em> each channel to a single number via global average pooling, pass through a two-layer MLP (bottleneck, ReLU, sigmoid), and <em>excite</em> — multiply each channel by its learned weight. Cost: a few thousand parameters. Effect: the network learns "which channels matter for this particular image" — consistently around +1% on ImageNet for almost any backbone. MobileNetV3 and EfficientNet both include SE blocks. Ten lines:</p>
+<pre><code class="language-python">class SEBlock(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, channels // reduction),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels // reduction, channels),
+            nn.Sigmoid())
+    def forward(self, x):
+        w = self.fc(self.pool(x).flatten(1)).view(x.size(0), -1, 1, 1)
+        return x * w
+</code></pre>
+<p><strong>Inverted residual, worked numerically.</strong> MobileNetV2 block: input 24 channels, expansion factor 6, stride 1. (1) Expand 1×1: 24→144 (3,456 params). (2) Depthwise 3×3 over 144 channels (1,296 params). (3) Project 1×1, <em>linear</em> (no ReLU): 144→24 (3,456 params). (4) Add the input via skip. Total ≈ 8.2K parameters. A standard 3×3 residual block at 24 channels would cost 2×(9×24×24) ≈ 10.4K — comparable, but the inverted block does its spatial filtering in the <em>wide</em> 144-channel space (more expressive) while the projections stay cheap. The "inverted" name: classic residuals go wide→narrow→wide; these go narrow→wide→narrow. And the final projection is deliberately linear, because ReLU destroys information in low-dimensional bottlenecks — a detail confirmed by ablation in the MobileNetV2 paper, and a good example of the principle that every nonlinearity placement is a claim you can test.</p>
+<p><strong>Deployment reality check.</strong> FLOPs don't equal latency: depthwise convolutions are memory-bandwidth-bound on many chips, so a "0.06 GFLOP" model can be slower than the arithmetic suggests on a CPU without optimized depthwise kernels. Always benchmark on the target device with the actual inference stack (ONNX Runtime, TensorFlow Lite, Core ML). Then <strong>quantize</strong>: post-training INT8 quantization typically shrinks models 4× with under 1% accuracy loss on MobileNets and EfficientNets; quantization-aware training recovers most of the remainder. "Quantized to INT8 with 0.4% accuracy drop and 3.2× speedup on device X" is a complete, respectable systems result — and for field deployments (Chapter 11) it may matter more than the last point of accuracy.</p>
+<p><strong>Neural architecture search in one paragraph.</strong> EfficientNet-B0's baseline wasn't hand-designed — a search algorithm explored block types, depths, and widths to maximize accuracy per FLOP. The lesson for researchers isn't "run NAS" (it's expensive) but "the search space matters more than the search": B0's space was built from mobile inverted bottleneck blocks with SE — good primitives, composed well. When you design a custom architecture, spend effort on the primitive block and the scaling rule, not on hand-placing fifty layers.</p>
+<h3 id="compound-scaling-worked-and-efficientnetv2">Compound scaling, worked — and EfficientNetV2</h3>
+<p><strong>The scaling math, concretely.</strong> EfficientNet's rule: depth = α^φ, width = β^φ, resolution = γ^φ, with α·β²·γ² ≈ 2 so each φ step doubles FLOPs. With α=1.2, β=1.1, γ=1.15: check 1.2 × 1.1² × 1.15² = 1.2 × 1.21 × 1.3225 ≈ 1.92 ≈ 2 ✓. Now scale from B0 (φ=0) to B4 (φ=4): depth ×1.2⁴ ≈ ×2.07, width ×1.1⁴ ≈ ×1.46, resolution 224×1.15⁴ ≈ 224×1.75 ≈ 392 (actual B4 uses 380 — rounded to a friendly number). FLOPs: 0.39G × 2⁴ ≈ 6.2G (actual 4.2G — the rounding and operator realities shave it down). The point isn't the exact arithmetic; it's that <em>one knob</em> (φ) replaces three-dimensional guesswork, and the resulting family dominates the accuracy–FLOPs frontier. When your paper says "we scaled with φ=2," every reader knows exactly what you did.</p>
+<p><strong>EfficientNetV2 (2022): faster training, same idea.</strong> Tan &amp; Le's follow-up fixed V2's pain points: training was slow (large images + depthwise convs are memory-inefficient early on) and the scaling sometimes hurt at small sizes. V2 mixes MBConv and Fused-MBConv blocks (fusing the depthwise+pointwise into a regular conv in early stages where it's actually faster), uses a better training recipe, and scales more conservatively. Practical upshot: EfficientNetV2-S trains ~2× faster than B4 at similar accuracy. If you're training from scratch or fine-tuning heavily on one GPU, V2-S/M are the current sweet spots — <code>timm</code> has them all.</p>
+<p><strong>Picking your rung: a decision procedure.</strong> (1) Measure your compute budget in GPU-hours for the whole project, including ablations (multiply one run's time by ~10). (2) Pick the largest EfficientNet whose single run fits in ~1/10 of that budget. (3) If deploying to edge, instead pick the largest MobileNetV3 that meets your latency target on the device. (4) Validate the choice with a 2-rung comparison (e.g., B0 vs B2) early — if the bigger rung gains &lt;0.5%, stay small and spend the budget on data and augmentation. Architecture rungs are cheap to test and the result ("B2 gave +0.3% over B0 at 2.8× cost, so we report B0") is a respectable methods sentence that shows engineering judgment.</p>
+<h3 id="reading-a-model-card-and-listing-the-zoo">Reading a model card, and listing the zoo</h3>
+<p>Every serious model release has a <strong>model card</strong>: architecture, training data, weight version, input size, normalization, license, and benchmark numbers. Before using any pretrained backbone, read its card and record: (1) exact model name, (2) weight identifier, (3) training dataset (ImageNet-1K vs 21K pretraining changes transfer behavior), (4) input resolution and normalization. Your methods section's reproducibility lives in these four fields.</p>
+<pre><code class="language-python">import timm
+# Survey what's available for your constraint:
+names = timm.list_models('efficientnet*', pretrained=True)
+print(len(names), names[:5])
+model = timm.create_model('efficientnet_b2', pretrained=True, num_classes=8)
+print(model.default_cfg['input_size'])  # (3, 260, 260) -- use this resolution
+</code></pre>
+<p><code>timm</code>'s <code>default_cfg</code> tells you the input size and normalization the weights expect — <em>use them</em>, don't guess. A common silent bug: feeding 224px images to a model trained at 380px (or vice versa) and losing 2–3% without knowing why. The model card — or <code>default_cfg</code> — is the contract; honor it.</p>
+<h3 id="edge-deployment-a-worked-sizing-example">Edge deployment: a worked sizing example</h3>
+<p><strong>Sizing a model for a real device.</strong> Say your target is a mid-range Android phone running a crop-disease app, budget 100 ms/image on CPU via TensorFlow Lite. Candidate: MobileNetV3-Large at 224px — 0.22 GFLOPs, ~5.4M params (~21 MB FP32, ~5.4 MB INT8). Estimate: a phone CPU sustains roughly 5–15 GFLOPs effective on depthwise-heavy models (memory-bound, not compute-bound), so 0.22 GFLOPs ÷ 10 GFLOPs ≈ 22 ms — comfortably inside budget even with preprocessing overhead. EfficientNet-B0 (0.39 GFLOPs, denser ops, better utilization) lands around 30–40 ms. Both fit; pick B0 for accuracy unless the profiler disagrees. The method: estimate from FLOPs, then <em>measure on device</em> — the estimate tells you which two models to benchmark, the benchmark tells you which ships. Report both numbers in the paper; "estimated then measured" reads as engineering, not luck.</p>
+<p><strong>Key takeaways</strong>
+- Depthwise separable convolution factorizes spatial filtering from channel mixing: ~8–9× cheaper than standard 3×3 conv.
+- MobileNetV2's inverted residual: expand → depthwise → project (linear bottleneck, no ReLU in the narrow layer).
+- EfficientNet scales depth, width, and resolution together with a compound coefficient — a ladder (B0→B7) instead of guesswork.
+- Report params, FLOPs, <em>and</em> measured latency; FLOPs alone don't predict speed on real hardware.
+- For limited compute: pretrained efficient backbones + matched input resolution + distillation beats training big models from scratch.</p>
+<hr />
+<h2 id="chapter-7-transfer-learning-in-practice">Chapter 7 — Transfer Learning in Practice</h2>
+<h3 id="why-it-works">Why it works</h3>
+<p>The hierarchy from Chapter 1 is the reason transfer learning works: early CNN layers learn Gabor-like edge and color detectors that are useful for <em>any</em> image task, and mid layers learn textures and parts that transfer surprisingly far — from ImageNet photos to X-rays to satellite tiles. Only the last layers are truly task-specific. So instead of training from random initialization on your 5,000 images (which will overfit), you start from a network trained on 1.2M ImageNet images and adapt it.</p>
+<p>Two regimes:</p>
+<ol>
+<li><strong>Feature extraction</strong>: freeze the backbone, train only a new classifier head. Fast, stable, works with tiny datasets (hundreds of images). The backbone becomes a fixed feature extractor.</li>
+<li><strong>Full fine-tuning</strong>: train everything, usually with a small learning rate. Better final accuracy when you have enough data (thousands+), but riskier.</li>
+</ol>
+<p>In practice, the winning recipe is usually <strong>staged</strong>: feature-extract first (cheap, gives a baseline), then unfreeze and fine-tune with discriminative learning rates.</p>
+<h3 id="regime-1-feature-extraction-code">Regime 1: feature extraction (code)</h3>
+<pre><code class="language-python">import torch.nn as nn
+from torchvision import models
+
+model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+
+# Freeze everything
+for param in model.parameters():
+    param.requires_grad = False
+
+# Replace the classifier head: 2048 features -&gt; your classes
+num_classes = 10  # e.g., 10 crop-disease categories
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+# Only the head's parameters will update
+optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3)
+</code></pre>
+<p>Note <code>model.fc.in_features</code> — always read the head's input dimension from the model rather than hardcoding 2048. Different backbones differ, and hardcoding is how shape bugs happen at 2 a.m.</p>
+<h3 id="regime-2-full-fine-tuning-with-discriminative-learning-rates">Regime 2: full fine-tuning with discriminative learning rates</h3>
+<p>Early layers need tiny updates (their features are already good); later layers and the head need larger ones. <strong>Discriminative learning rates</strong> encode this:</p>
+<pre><code class="language-python">model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+# Unfreeze all
+for param in model.parameters():
+    param.requires_grad = True
+
+# Layer groups: backbone gets 1e-5, head gets 1e-3
+optimizer = torch.optim.Adam([
+    {'params': model.layer4.parameters(), 'lr': 1e-4},
+    {'params': model.fc.parameters(), 'lr': 1e-3},
+    # layer1-3 get the default lr below
+], lr=1e-5, weight_decay=1e-4)
+</code></pre>
+<p>Practical rules that prevent the classic failures:</p>
+<ul>
+<li><strong>Warm up the head first.</strong> Train the randomly initialized head alone for a few epochs before unfreezing the backbone. Otherwise the head's garbage gradients thrash the good pretrained weights in the first steps — the main cause of "fine-tuning made it worse."</li>
+<li><strong>Use a learning rate ~10× smaller than from-scratch training.</strong> 1e-4 to 1e-5 for the backbone is typical with Adam; with SGD, 1e-3 to 1e-2 with momentum.</li>
+<li><strong>Keep augmentation on</strong> (Chapter 8) — fine-tuning without augmentation on small data just memorizes.</li>
+</ul>
+<h3 id="handling-the-channel-mismatch">Handling the channel mismatch</h3>
+<p>Pretrained backbones expect 3-channel RGB. Your data might be grayscale (X-ray) or multispectral (satellite, N channels). Options:</p>
+<pre><code class="language-python"># Option A: replicate grayscale to 3 channels (simplest, usually fine)
+# x_gray: (B, 1, H, W) -&gt; x: (B, 3, H, W)
+x = x_gray.repeat(1, 3, 1, 1)
+
+# Option B: adapt the first conv layer for N channels.
+# Initialize new-channel weights from the mean of RGB weights (a standard trick):
+conv1 = model.conv1  # (64, 3, 7, 7)
+new_conv = nn.Conv2d(5, 64, kernel_size=7, stride=2, padding=3, bias=False)
+with torch.no_grad():
+    new_conv.weight[:, :3] = conv1.weight  # keep RGB filters
+    mean_w = conv1.weight.mean(dim=1, keepdim=True)
+    new_conv.weight[:, 3:] = mean_w.repeat(1, 2, 1, 1)  # new bands start as average filter
+model.conv1 = new_conv
+</code></pre>
+<p>Option A is embarrassingly effective — try it first. Option B is for when you have real extra spectral information and enough data.</p>
+<h3 id="when-transfer-learning-fails-negative-transfer">When transfer learning fails: negative transfer</h3>
+<p>Transfer isn't magic. Watch for:</p>
+<ul>
+<li><strong>Domain gap too large</strong>: ImageNet features help less for, say, seismic cross-sections than for photos of plant leaves. If feature extraction barely beats random init, the gap is large — consider domain-specific pretraining (e.g., RadImageNet for radiology) or self-supervised pretraining on your own unlabeled data.</li>
+<li><strong>Tiny datasets + full fine-tuning</strong>: with &lt; 1,000 images, full fine-tuning often overfits. Prefer feature extraction or freeze early stages.</li>
+<li><strong>Label leakage through the head</strong>: when classes are fine-grained (e.g., 200 bird species), the pretrained head's structure is useless — replace it and don't over-interpret early results.</li>
+</ul>
+<h3 id="self-supervised-pretraining-the-modern-alternative">Self-supervised pretraining: the modern alternative</h3>
+<p>When you have abundant <em>unlabeled</em> domain images but few labels, pretrain the backbone yourself with a self-supervised objective (SimCLR, MoCo, DINO, masked autoencoders) on your own data, then fine-tune on labels. This routinely beats ImageNet transfer for specialized domains (medical, satellite) and is very publishable: "in-domain self-supervised pretraining improves over ImageNet transfer by X" is a clean, honest contribution. Libraries like <code>lightly</code> make SimCLR a few lines of code.</p>
+<blockquote>
+<p><strong>For your research.</strong> Your paper's methods section should state: backbone architecture, weight source and version (e.g., "torchvision ResNet-50 IMAGENET1K_V2"), which layers were frozen/unfrozen and when, learning rates per group, and input preprocessing (resize, normalization values — use ImageNet mean/std <code>[0.485, 0.456, 0.406]</code>, <code>[0.229, 0.224, 0.225]</code> when using ImageNet weights, since the filters were learned on normalized inputs). This is reproducibility basics, and missing it is the most common methods-section complaint from reviewers. If you compare "from scratch" vs "fine-tuned," train both with tuned hyperparameters — an untuned from-scratch baseline is a strawman, and reviewers can tell.</p>
+</blockquote>
+<h3 id="fine-tuning-craft-lp-ft-batchnorm-freezing-layer-wise-decay">Fine-tuning craft: LP-FT, BatchNorm freezing, layer-wise decay</h3>
+<p><strong>Linear probe then fine-tune (LP-FT).</strong> Kumar et al. (2022) showed a two-stage protocol beats naive fine-tuning on out-of-distribution robustness: first train <em>only</em> the head (linear probing) to convergence, <em>then</em> fine-tune everything with a small learning rate. Why it works: the probing stage finds a good head without distorting pretrained features; fine-tuning then adapts gently from a good starting point instead of thrashing good features with a random head's early gradients. It's the principled version of this chapter's "warm up the head first" rule. Cost: one extra training stage. Worth it whenever distribution shift matters — medical, satellite, anything far from ImageNet.</p>
+<p><strong>Freezing BatchNorm — the subtle failure mode.</strong> You unfreeze the backbone for fine-tuning, but your batches are small (say 8 images). BatchNorm recomputes statistics from 8 samples — noisy — and performance degrades versus keeping ImageNet's running statistics. The standard fix: keep BN layers in eval mode (frozen statistics) while training everything else:</p>
+<pre><code class="language-python">def freeze_bn(model):
+    for m in model.modules():
+        if isinstance(m, nn.BatchNorm2d):
+            m.eval()  # use running stats; call after model.train()
+</code></pre>
+<p>This is the default in most detection and segmentation fine-tuning codebases, for good reason. (Alternatively, replace BN with GroupNorm when training from scratch on small batches — Chapter 5.)</p>
+<p><strong>Layer-wise learning-rate decay (LLRD).</strong> Instead of hand-picking per-group learning rates, decay geometrically from head to stem: lr_l = base_lr × decay^(depth − l). With decay 0.9 across 4 ResNet stages, the stem trains at about 0.66× the head rate. One hyperparameter instead of four:</p>
+<pre><code class="language-python">decay = 0.9
+param_groups = []
+stages = [model.layer1, model.layer2, model.layer3, model.layer4]
+for depth, layer in enumerate(stages):
+    param_groups.append({'params': layer.parameters(),
+                         'lr': 1e-4 * (decay ** (3 - depth))})
+param_groups.append({'params': model.fc.parameters(), 'lr': 1e-3})
+optimizer = torch.optim.AdamW(param_groups)
+</code></pre>
+<p><strong>The <code>timm</code> library.</strong> Ross Wightman's <code>timm</code> (PyTorch Image Models) is the researcher's model zoo: over a thousand architectures with pretrained weights behind one API. <code>timm.create_model('efficientnet_b3', pretrained=True, num_classes=10)</code> builds and adapts in a single call. Prefer it over torchvision when you need architecture variety — but record the exact model name and weight provenance in your paper, since <code>timm</code> updates weights over time and "efficientnet_b3" today may not equal "efficientnet_b3" next year.</p>
+<p><strong>Catastrophic forgetting, concretely.</strong> Fine-tune too aggressively — high learning rate, many epochs on tiny data — and the network forgets its ImageNet features: validation accuracy on your task rises, then falls as features collapse into dataset-specific memorization. Symptoms: training loss goes to zero while validation degrades, and first-layer filters (Chapter 10) lose their Gabor structure. Cure: lower backbone LR, fewer epochs, stronger augmentation, or LP-FT. If you observe it, you've learned something real about your data regime — note it down. "Aggressive fine-tuning destroyed pretrained features on our 800-image dataset" is a legitimate ablation row, and it warns the next researcher.</p>
+<h3 id="transfer-learning-under-class-imbalance-and-progressive-resizing">Transfer learning under class imbalance, and progressive resizing</h3>
+<p><strong>Imbalance meets transfer: a protocol.</strong> Real domain datasets are imbalanced (95% healthy leaves, 5% diseased). The pretrained backbone doesn't fix this — it just gives you better features for the majority class too. Combine transfer with imbalance handling: (a) <strong>weighted sampling</strong> — oversample minority classes so each batch is balanced (<code>WeightedRandomSampler</code>); (b) <strong>class-weighted loss</strong> (Chapter 9's snippet); or (c) <strong>focal loss</strong>, which down-weights easy well-classified examples and focuses learning on hard minority cases. Start with weighted sampling — simplest, and it interacts cleanly with augmentation. Then report metrics that respect imbalance: per-class F1, balanced accuracy, AUC — and show the confusion matrix (Chapter 12). A transfer-learning paper on imbalanced data that reports only top-line accuracy is hiding the result that matters.</p>
+<pre><code class="language-python">from torch.utils.data import WeightedRandomSampler
+counts = torch.tensor([9500., 300., 200.])       # images per class
+weights = 1.0 / counts
+sampler = WeightedRandomSampler(weights[targets], num_samples=len(targets), replacement=True)
+loader = torch.utils.data.DataLoader(ds, batch_size=32, sampler=sampler)
+</code></pre>
+<p><strong>Progressive resizing.</strong> Train first at low resolution (e.g., 128px), then fine-tune at full resolution (224/380px). Early epochs run ~3× faster (quarter the pixels), and the network learns coarse structure first — a curriculum the pretrained weights accommodate gracefully since early filters are scale-tolerant. Practical recipe: 70% of epochs at small size, 30% at full size, dropping the LR when switching. Particularly valuable for EfficientNets at high resolution (B4's 380px is expensive). One caution: BatchNorm statistics shift with resolution — run a few "calibration" epochs at the new size before judging, or the first full-resolution validation will look spuriously bad.</p>
+<p><strong>A fine-tuning case study in numbers.</strong> Typical leaf-disease task, 8,000 images, 12 classes, EfficientNet-B0: (a) from scratch, 100 epochs: 84.2 ± 0.6%; (b) frozen backbone + head, 15 epochs: 88.7 ± 0.3%; (c) staged fine-tuning (head 5 epochs, then all layers LR 1e-4, 25 epochs): 91.3 ± 0.4%; (d) same as (c) + LP-FT + RandAugment: 92.1 ± 0.3%. Each stage's gain is modest; the compound gain is 8 points. This is the normal shape of transfer-learning results — no single trick dominates, and the paper writes itself as a protocol ablation (Chapter 12's table format). Run this ladder once on your data before committing to a final configuration.</p>
+<h3 id="adapting-a-new-backbone-the-12-step-checklist">Adapting a new backbone: the 12-step checklist</h3>
+<p>When you pick up an unfamiliar backbone (ConvNeXt, a new <code>timm</code> release, a domain-specific model), run this checklist before any training:</p>
+<ol>
+<li>Read the model card: input size, normalization, weight version, license.</li>
+<li>Print the stem: <code>model.conv1</code> / <code>model.stem</code> — know the first layer's channels and stride.</li>
+<li>Print stage output shapes with a dummy input (Chapter 3's shape tracing).</li>
+<li>Identify the classifier head attribute (<code>fc</code>, <code>classifier</code>, <code>head</code>) and its <code>in_features</code>.</li>
+<li>Check the norm layers: BatchNorm (needs eval-mode care, frozen-stats option) vs LayerNorm/GroupNorm.</li>
+<li>Confirm the forward returns logits (some models return tuples or dicts).</li>
+<li>Verify preprocessing matches the card (resize, crop, mean/std).</li>
+<li>Run a frozen-backbone linear probe for 3 epochs — establishes the floor and shakes out pipeline bugs.</li>
+<li>Overfit one batch (Chapter 9, check 4) — confirms loss, labels, and optimizer all work.</li>
+<li>Unfreeze with discriminative LRs; watch the first-epoch validation for catastrophic forgetting.</li>
+<li>Compare against your previous backbone with identical protocol — one variable at a time.</li>
+<li>Record everything in the paper ledger (Chapter 12) before moving on.</li>
+</ol>
+<p>Ninety percent of "the new backbone didn't help" stories are steps 1–9 failures, not architecture failures. The checklist turns backbone-swapping from alchemy into procedure.</p>
+<p><strong>Key takeaways</strong>
+- Transfer works because early/mid-layer features (edges, textures) are universal; only late layers are task-specific.
+- Feature extraction (frozen backbone) for tiny data; staged fine-tuning with discriminative LRs for more data.
+- Always warm up the new head before unfreezing the backbone.
+- Grayscale → repeat to 3 channels; multispectral → adapt conv1, init new bands from the RGB mean.
+- Report backbone, weight version, freeze schedule, and normalization — reproducibility lives in these details.</p>
+<hr />
+<h3 id="a-final-note-on-trust">A final note on trust</h3>
+<p>Transfer learning is the closest thing our field has to a free lunch — but free lunches get taken for granted. The researchers who benefit most are the ones who treat pretrained weights as a <em>starting hypothesis</em> ("these features probably help") rather than a fixture: probe them, visualize them, ablate them, and report where they failed. That skeptical habit — applied to backbones, augmentations, and your own results — is what turns a competent practitioner into a researcher reviewers trust.</p>
+<h2 id="chapter-8-data-augmentation-for-images">Chapter 8 — Data Augmentation for Images</h2>
+<h3 id="the-idea-in-one-paragraph">The idea in one paragraph</h3>
+<p>Your network should classify a cat as a cat whether the photo is slightly rotated, cropped tighter, or taken under warmer light. Since you can't photograph every variation, you <strong>synthesize</strong> them: each training epoch, every image gets randomly transformed — flipped, cropped, color-jittered — so the network never sees the same exact pixels twice. Augmentation is the cheapest way to multiply a dataset, and on small datasets it's often worth more than a fancier architecture.</p>
+<h3 id="what-works-the-standard-toolkit">What works: the standard toolkit</h3>
+<p><strong>Geometric transforms</strong> (change where pixels are):</p>
+<ul>
+<li><strong>Random horizontal flip</strong> (p=0.5): the single highest-value augmentation for natural images. A cat facing left is still a cat.</li>
+<li><strong>Random resized crop</strong>: crop a random region (scale 0.08–1.0 of the area) and resize to input size. Forces the network to recognize objects at multiple scales and positions. The workhorse of ImageNet training.</li>
+<li><strong>Small rotations</strong> (±15°): useful when orientation varies naturally (aerial imagery, microscopy).</li>
+</ul>
+<p><strong>Photometric transforms</strong> (change pixel values):</p>
+<ul>
+<li><strong>Color jitter</strong>: random brightness, contrast, saturation, hue shifts. Simulates lighting/camera variation.</li>
+<li><strong>Grayscale conversion</strong> (occasional, p=0.1): discourages over-reliance on color.</li>
+</ul>
+<p><strong>Advanced (use deliberately):</strong></p>
+<ul>
+<li><strong>MixUp</strong>: blend two images and their labels (x = λx₁ + (1−λ)x₂, y likewise). Smooths decision boundaries; strong regularizer.</li>
+<li><strong>CutMix</strong>: paste a rectangular patch from one image onto another, mixing labels by area proportion. Like MixUp but preserves local structure — often better for CNNs.</li>
+<li><strong>RandAugment / TrivialAugment</strong>: automatically search/apply a random sequence of transforms. Excellent defaults when you don't want to hand-tune a policy.</li>
+</ul>
+<pre><code class="language-python">from torchvision import transforms
+
+train_tf = transforms.Compose([
+    transforms.RandomResizedCrop(224, scale=(0.08, 1.0)),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomRotation(15),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
+
+val_tf = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
+</code></pre>
+<p>Note the discipline: <strong>validation/test transforms are deterministic</strong> (resize + center crop, no randomness). Augmenting the test set leaks randomness into your evaluation and makes results unreproducible. This mistake appears in student code constantly.</p>
+<h3 id="what-to-avoid-augmentations-that-lie">What to avoid: augmentations that lie</h3>
+<p>Every augmentation encodes an assumption: "this transform preserves the label." Violate it and you train the network on lies.</p>
+<ul>
+<li><strong>Horizontal flip on text, digits, or asymmetric anatomy</strong>: a flipped "3" is not a digit; a flipped chest X-ray puts the heart on the wrong side. Medical images: never flip unless the anatomy is truly symmetric for your task.</li>
+<li><strong>Rotation on orientation-sensitive tasks</strong>: rotating a satellite image is fine (north isn't special for most tasks); rotating a photo of a building 90° creates images that never occur naturally.</li>
+<li><strong>Color jitter on color-critical tasks</strong>: if you're classifying ripeness by hue, jittering hue destroys the signal. Stain normalization in histopathology exists precisely because color <em>is</em> the signal there.</li>
+<li><strong>Aggressive cropping on small objects</strong>: RandomResizedCrop with scale 0.08 can crop the object out entirely, leaving a background patch labeled "tumor." For detection/segmentation or small objects, constrain the crop scale (e.g., 0.5–1.0) or use object-aware cropping.</li>
+<li><strong>MixUp/CutMix with rare classes</strong>: blending a rare-class image with a common one can drown the rare signal. Use with class balancing, or skip for heavily imbalanced data.</li>
+</ul>
+<p>Rule of thumb: <strong>look at augmented samples</strong>. Save a grid of 64 augmented images and inspect them before any training run. If a human can't recognize the label, the network is learning noise. Five minutes of looking saves days of confused training curves.</p>
+<h3 id="test-time-augmentation-tta">Test-time augmentation (TTA)</h3>
+<p>At inference, average predictions over several augmented versions (flips, crops) of each test image. Typically worth +0.5–1% accuracy for free — no retraining. It's standard in competitions and legitimate in papers, but report it explicitly ("results use 5-crop TTA") since it multiplies inference cost.</p>
+<blockquote>
+<p><strong>For your research.</strong> Your augmentation policy is a methods-section item: list every transform with parameters, and justify domain-sensitive choices ("we excluded vertical flips because crop rows have a consistent orientation in our field imagery"). Reviewers in applied domains (medical, agriculture, remote sensing) actively look for augmentation mistakes — a flipped X-ray or hue-jittered ripeness classifier will get your paper flagged. Conversely, a well-reasoned policy ("rotations ±180° because satellite tiles have no canonical orientation") signals domain competence. Ablate it: a one-row table showing accuracy with/without augmentation quantifies its contribution and costs you one extra training run.</p>
+</blockquote>
+<h3 id="tooling-segmentation-augmentation-and-tta-in-code">Tooling, segmentation augmentation, and TTA in code</h3>
+<p><strong>Al

@@ -1,0 +1,94 @@
+and the data fits in memory.</p>
+<hr />
+<h2 id="chapter-12-reporting-optimization-details-in-papers-reproducibility-what-reviewers-expect">Chapter 12: Reporting Optimization Details in Papers — Reproducibility: What Reviewers Expect</h2>
+<h3 id="reproducibility-is-a-feature-of-your-paper-not-an-afterthought">Reproducibility is a feature of your paper, not an afterthought</h3>
+<p>A research result that cannot be reproduced is a rumor. In machine learning, the optimizer configuration is one of the largest sources of irreproducibility: two researchers running "the same model" with different learning rates, batch sizes, or seeds can get meaningfully different results — and then argue about whose method is better when the difference was really the tuning. Reviewers know this. A precise optimization section preempts skepticism, lets others build on your work, and — practically — is often the difference between "accept" and "revise."</p>
+<h3 id="the-reproducibility-checklist">The reproducibility checklist</h3>
+<p>Every paper that trains a model should report, at minimum:</p>
+<ol>
+<li><strong>Optimizer name and version</strong> — "Adam" is not enough; "Adam (PyTorch 2.1 implementation)" is. If you modified it, say how.</li>
+<li><strong>All hyperparameters</strong> — learning rate (initial value), β₁, β₂, ε for Adam; momentum β for SGD; weight decay value and whether it is decoupled (AdamW) or L2.</li>
+<li><strong>Learning rate schedule</strong> — formula, milestones, decay factor, warmup length. "Cosine annealing, 0.01 → 0 over 100 epochs, 5-epoch linear warmup."</li>
+<li><strong>Batch size</strong> — per-device and effective (if using gradient accumulation across devices or steps).</li>
+<li><strong>Epochs / total steps</strong> — how long you trained, and the stopping rule (fixed budget vs. early stopping with patience value).</li>
+<li><strong>Initialization</strong> — scheme (e.g., He, Xavier, pretrained checkpoint with identifier) — because starting point affects the trajectory.</li>
+<li><strong>Random seeds</strong> — the seeds used, and how many runs: report mean ± standard deviation across ≥3 seeds, not a single best run.</li>
+<li><strong>Data splits</strong> — exactly which data was train/validation/test (fold indices, split ratios, or dataset version identifiers).</li>
+<li><strong>Hardware and software</strong> — GPU model, framework version, and anything affecting numerics (mixed precision, deterministic flags).</li>
+<li><strong>Code and data availability</strong> — a link to the repository (or "available on request" with a real plan to honor requests).</li>
+</ol>
+<p>Items 1–6 cost you nothing if you log them during experiments (Chapter 9 advised collecting them from day one). Items 7–10 are where most student papers fall short — and where yours can stand out.</p>
+<h3 id="worked-example-a-completed-reproducibility-box">Worked example: a completed reproducibility box</h3>
+<p>Imagine your paper trains a small CNN for crop-leaf disease classification. Here is the optimization paragraph, fully written:</p>
+<blockquote>
+<p><em>Optimization.</em> We minimize the cross-entropy loss with label smoothing (0.1) using AdamW [1] (β₁ = 0.9, β₂ = 0.999, ε = 10⁻⁸, weight decay 0.01, decoupled). Initial learning rate 3×10⁻⁴ with 5 epochs of linear warmup followed by cosine annealing to 0 over 100 epochs. Batch size 64 (single GPU). We train for a fixed 100 epochs without early stopping. Weights are initialized with He initialization; the data split is 70/15/15 stratified by class (split indices in the released code). Results are means ± std over 5 seeds (42–46). Experiments ran on one NVIDIA RTX 3090 (PyTorch 2.1, CUDA 12.1, mixed precision). Code and splits: [repository link].</p>
+</blockquote>
+<p>Every number a reader needs to replicate the run is present. Contrast the common student version — "We trained the model using Adam optimizer with learning rate 0.001 for 100 epochs" — which omits the schedule, batch size, seeds, splits, hardware, and code. A reviewer reading the second version cannot tell whether your 2% improvement over the baseline came from your method or from your tuning, and will say so.</p>
+<h3 id="seeds-variance-and-honest-reporting">Seeds, variance, and honest reporting</h3>
+<p>Neural network training is stochastic: initialization, shuffling, and (sometimes) data augmentation differ by seed. On small datasets, test accuracy can vary by several percentage points across seeds. Reporting only the best seed is cherry-picking — it is the most common quiet dishonesty in student papers, and experienced reviewers detect it by the suspicious absence of error bars. The fix is cheap: run 3–5 seeds, report mean ± std. If your method beats the baseline by 1% but the std is 2%, say so honestly and discuss it — a small, uncertain improvement with a clear ablation is more publishable than a large, unreplicated one.</p>
+<h3 id="what-reviewers-actually-check">What reviewers actually check</h3>
+<p>From the reviewer's chair, the optimization section is scanned for red flags: missing learning rate ("how can I trust these numbers?"), single-seed results ("lucky run?"), test-set tuning ("invalid comparison"), baseline trained with less care than the proposed method ("unfair fight"). The strongest signal of a careful paper is <em>symmetric effort</em>: baselines tuned with the same workflow (Chapter 9), same budget, same seeds as your method. State this explicitly: "Baselines were tuned with the same learning-rate search and seed protocol." One sentence, and the fairness objection evaporates.</p>
+<h3 id="a-final-word-on-the-whole-book">A final word on the whole book</h3>
+<p>You now understand the engine room of machine learning. Training is optimization; the gradient is the compass; the learning rate is the throttle; momentum, adaptivity, and schedules are the engineering that makes the ride fast and stable; and honest reporting is what turns a training run into a scientific result. The next time a training curve misbehaves, you will not guess — you will diagnose: read the curve's shape, check the gradient norms, question the learning rate, and apply the fix from the matching chapter. That diagnostic habit is the real skill this book tried to teach. The formulas will fade; the habit of asking "what is the optimizer actually doing right now?" will stay with you through your whole research career.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before submitting any paper, run through the 10-item checklist above and fill every gap. Keep a single "experiment log" file per project — hyperparameters, seeds, git commit hash, dataset version, hardware — updated with every run. When the reviewer asks for a missing detail (and they will), you will answer from the log in minutes instead of re-running experiments in panic. Reproducibility is not extra work on top of research; it is the part of research that makes the rest count.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Report: optimizer (+version), all hyperparameters, schedule, batch size, epochs/stopping rule, initialization, seeds, splits, hardware/software, code link.
+- Write schedules and settings numerically — "cosine 0.01 → 0 over 100 epochs, 5-epoch warmup," not "we decayed the rate."
+- Run 3–5 seeds; report mean ± std; never report only the best seed.
+- Tune on validation, evaluate on test once; give baselines the same tuning effort and say so.
+- Keep a per-project experiment log from day one — it turns reviewer questions into five-minute answers.</p>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in Proc. Int. Conf. Learn. Representations, 2015.
+[2] I. Goodfellow, Y. Bengio, and A. Courville, Deep Learning. Cambridge, MA, USA: MIT Press, 2016.
+[3] T. Hastie, R. Tibshirani, and J. Friedman, The Elements of Statistical Learning, 2nd ed. New York, NY, USA: Springer, 2009.
+[4] C. M. Bishop, Pattern Recognition and Machine Learning. New York, NY, USA: Springer, 2006.
+[5] A. Géron, Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow, 2nd ed. Sebastopol, CA, USA: O'Reilly Media, 2019.
+[6] F. Chollet, Deep Learning with Python, 2nd ed. Shelter Island, NY, USA: Manning, 2021.
+[7] S. Russell and P. Norvig, Artificial Intelligence: A Modern Approach, 4th ed. Hoboken, NJ, USA: Pearson, 2020.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Backpropagation</strong> — The algorithm that computes gradients of the loss with respect to every parameter by applying the chain rule through the model's computation graph.</li>
+<li><strong>Batch gradient descent</strong> — Optimization that computes the gradient over the entire training set before each parameter update; exact but expensive per step.</li>
+<li><strong>Batch size</strong> — The number of training examples used in one mini-batch update; affects gradient noise, speed, and memory use.</li>
+<li><strong>Convergence</strong> — The state where parameters have settled and the loss no longer decreases meaningfully; the practical end of training.</li>
+<li><strong>Divergence</strong> — Training failure in which the loss grows without bound (often to NaN), usually caused by too large a learning rate.</li>
+<li><strong>Epoch</strong> — One complete pass over the entire training dataset.</li>
+<li><strong>Gradient</strong> — The vector of partial derivatives of the loss with respect to the parameters; points in the direction of steepest increase.</li>
+<li><strong>Gradient clipping</strong> — Capping the gradient's magnitude before the update to prevent exploding steps, common in recurrent networks.</li>
+<li><strong>Hessian</strong> — The matrix of second derivatives of the loss; describes the curvature of the loss surface in every direction.</li>
+<li><strong>Hyperparameter</strong> — A setting chosen before training (learning rate, batch size, momentum) rather than learned by the optimizer.</li>
+<li><strong>Iteration (step)</strong> — A single parameter update of the optimizer.</li>
+<li><strong>Learning rate</strong> — The scalar η multiplying the (negative) gradient or update direction; controls step size.</li>
+<li><strong>Learning rate schedule</strong> — A rule that changes the learning rate during training, e.g., step decay or cosine annealing.</li>
+<li><strong>Local minimum</strong> — A point with lower loss than all nearby points, but not necessarily the lowest loss overall.</li>
+<li><strong>Loss function</strong> — A differentiable scalar measuring model error on the training data; the quantity the optimizer minimizes.</li>
+<li><strong>Mini-batch gradient descent</strong> — Optimization using a small random subset of examples per update; the standard compromise between batch and stochastic methods.</li>
+<li><strong>Momentum</strong> — A velocity term accumulating past gradients to accelerate consistent directions and damp oscillations.</li>
+<li><strong>Objective function</strong> — The function being optimized; in training, usually the (regularized) training loss.</li>
+<li><strong>Overfitting</strong> — Memorizing training data at the expense of generalization; countered by early stopping, regularization, and validation monitoring.</li>
+<li><strong>Plateau</strong> — A flat region of the loss surface with near-zero gradients far from a minimum; training appears to stall.</li>
+<li><strong>Saddle point</strong> — A point with zero gradient that is a minimum in some directions and a maximum in others; common in high-dimensional landscapes.</li>
+<li><strong>Stochastic gradient descent (SGD)</strong> — Optimization using one randomly chosen example (or mini-batch) per update; noisy but cheap steps.</li>
+<li><strong>Warmup</strong> — Starting training with a near-zero learning rate that ramps up over early epochs to stabilize initial updates.</li>
+<li><strong>Weight decay</strong> — A regularization term penalizing large weights; in AdamW it is decoupled from the adaptive gradient update.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Evaluate a loss by hand.</strong> For L(w) = (w − 5)², compute L at w = 0, 3, 5, 7. Which is the minimum? Explain in one sentence why brute-force evaluation cannot scale to a neural network with a million parameters.</li>
+<li><strong>Read a gradient.</strong> For f(x) = x², compute the gradient at x = −6 and x = 2. For each, state whether gradient descent should increase or decrease x, and why.</li>
+<li><strong>One gradient step.</strong> For f(x) = (x − 3)² starting at x₀ = 0 with η = 0.2: compute the gradient, take one step, and verify the loss decreased. (Gradient: 2(x − 3) = −6; x₁ = 0 − 0.2×(−6) = 1.2; loss falls from 9 to 3.24.)</li>
+<li><strong>Batch GD on a line.</strong> Data: (1, 2), (2, 4), (3, 6); model y = wx; MSE loss. Derive dL/dw, then starting from w₀ = 0 with η = 0.05, compute two full batch steps and the loss after each. (You should find the gradient is (56/3)(w − 2); w₁ ≈ 0.933, w₂ ≈ 1.246, converging toward w = 2.)</li>
+<li><strong>SGD vs. batch on the same problem.</strong> Using the data from Exercise 4, take one SGD step from w₀ = 0 using only the example (2, 4) with η = 0.05. Compare your w₁ with the batch w₁ from Exercise 4 and explain the difference in one or two sentences.</li>
+<li><strong>Learning rate regimes.</strong> For f(x) = x² starting at x₀ = 8, compute two steps with (a) η = 0.05, (b) η = 1.0, (c) η = 1.2. Classify each as converging smoothly, oscillating, or diverging, and state the loss after two steps in each case.</li>
+<li><strong>Momentum by hand.</strong> For f(x) = x², x₀ = 6, v₀ = 0, η = 0.1, β = 0.9: compute two momentum updates (v ← βv + g; x ← x − ηv). Compare with two plain GD steps from the same start and explain which is faster and why.</li>
+<li><strong>Adam's bias correction.</strong> With gradients g₁ = 4, g₂ = 4 and defaults (β₁ = 0.9, β₂ = 0.999, α = 0.001): compute m, v, m̂, v̂ after step 1, and the resulting parameter change. Then compute what the change would be <em>without</em> bias correction, and explain why the correction matters most early in training.</li>
+<li><strong>Design a schedule.</strong> You will train for 60 epochs with a maximum learning rate of 0.02. Write out (a) a step-decay schedule that drops by 10× at epochs 20 and 40, and (b) the cosine-annealing learning rate at epochs 0, 15, 30, 45, 60 (η_min = 0). Which would you choose for best final accuracy, and why?</li>
+<li><strong>Write the reproducibility paragraph.</strong> Pick a model you have trained (or imagine one: a small CNN on 5,000 images). Write a 6–8 sentence optimization paragraph covering all 10 checklist items from Chapter 12. Then re-read it as a skeptical reviewer and list two details you would still ask for.</li>
+</ol>
+<hr />
+<p><em>End of Book 8. Next: Book 9 — AI Project Workflow: From Idea to Deployment.</em></p>

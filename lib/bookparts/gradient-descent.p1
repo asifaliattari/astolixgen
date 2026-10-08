@@ -1,0 +1,345 @@
+</p>
+<p><strong>Momentum, step 1:</strong> gradient = 8. v₁ = 0.9×0 + 8 = 8. x₁ = 4 − 0.1×8 = 3.2. (Identical to plain GD so far — no history yet.)</p>
+<p><strong>Step 2:</strong> gradient = 2×3.2 = 6.4. v₂ = 0.9×8 + 6.4 = 7.2 + 6.4 = 13.6. x₂ = 3.2 − 0.1×13.6 = 3.2 − 1.36 = 1.84. Plain GD would be at 2.56 — momentum is already ahead because the velocity (13.6) exceeds the current gradient (6.4).</p>
+<p><strong>Step 3:</strong> gradient = 2×1.84 = 3.68. v₃ = 0.9×13.6 + 3.68 = 12.24 + 3.68 = 15.92. x₃ = 1.84 − 1.592 = 0.248. Plain GD would be at 2.048. Momentum has nearly arrived (f = 0.06) while plain GD is still at f = 4.19.</p>
+<p>Trajectory comparison: plain GD: 4 → 3.2 → 2.56 → 2.048. Momentum: 4 → 3.2 → 1.84 → 0.248. The consistent downhill direction compounded — exactly the "ball gaining speed" intuition. (Watch the next steps though: the built-up velocity will carry x slightly past 0 before the gradient reverses it — momentum overshoots, then corrects. That overshoot is the price of speed, and it is why Nesterov was invented.)</p>
+<h3 id="nesterov-accelerated-gradient-look-before-you-leap">Nesterov accelerated gradient: look before you leap</h3>
+<p>Momentum's flaw: it charges ahead using <em>yesterday's</em> direction, then discovers the slope changed. Nesterov accelerated gradient (NAG) fixes this with a simple trick — <em>peek ahead first</em>. Compute the gradient not at your current position, but at the position your momentum is about to carry you to:</p>
+<p>v ← β·v + ∇L(θ − η·β·v)     (gradient evaluated at the lookahead position)
+θ ← θ − η·v</p>
+<p>Intuition: plain momentum is a ball rolling blindly; Nesterov is a ball that looks where it is heading and brakes before overshooting. On the valley floor it behaves like momentum (fast); near the minimum, the lookahead gradient points back uphill, so it slows down in time and overshoots less.</p>
+<p><strong>One Nesterov step on our example</strong> (continuing from x₂ = 1.84, v₂ = 13.6, η = 0.1, β = 0.9):
+Lookahead position: x − η·β·v = 1.84 − 0.1×0.9×13.6 = 1.84 − 1.224 = 0.616.
+Gradient there: 2×0.616 = 1.232 (much smaller than the gradient at 1.84, which was 3.68 — the lookahead already sees the flattening near the bottom).
+v₃ = 0.9×13.6 + 1.232 = 12.24 + 1.232 = 13.472. x₃ = 1.84 − 1.3472 = 0.4928.
+Compare plain momentum's x₃ = 0.248 (about to overshoot past 0) with Nesterov's 0.4928 (braking earlier). The lookahead gradient acted as an early warning.</p>
+<p>In theory, Nesterov converges faster than plain momentum on smooth convex problems (O(1/k²) vs O(1/k) — see [3]), and in practice it is a popular choice for training convolutional networks, often slightly outperforming plain momentum.</p>
+<h3 id="when-momentum-hurts">When momentum hurts</h3>
+<p>Momentum is not always helpful. On very noisy gradients (tiny batches), the velocity averages noise usefully — good. But with a too-large learning rate, momentum <em>amplifies</em> divergence: the velocity builds up in the exploding direction and launches the parameters into NaN faster than plain GD would. If your loss explodes and you are using momentum, reduce the learning rate first. Also, near sharp minima, heavy momentum can repeatedly overshoot; lowering β to 0.8 or switching to Nesterov calms it.</p>
+<h3 id="momentums-hidden-learning-rate-boost">Momentum's hidden learning-rate boost</h3>
+<p>Momentum does not just smooth the path — it secretly multiplies your learning rate. Suppose the gradient is a constant g step after step (a long steady slope). The velocity accumulates: v = g + βg + β²g + β³g + … . This geometric series converges to v = g/(1 − β). With β = 0.9, the terminal velocity is g/0.1 = 10g — ten times the raw gradient. Each step then moves η·10g instead of η·g: momentum with learning rate η behaves like plain gradient descent with learning rate 10η on steady slopes.</p>
+<p>Make it concrete with our running example's numbers: constant gradient g = 8, η = 0.1. Plain GD steps 0.8 per step. Momentum's velocity builds 8 → 15.2 → 21.68 → … → 80, so late steps move 0.1 × 80 = 8.0 per step — ten times larger. (In the real example the gradient shrinks as we descend, so the velocity never quite reaches 80 — but the amplification is real, which is why momentum converged so much faster in the worked example.)</p>
+<p>The practical prescription: <strong>when you add momentum to an already-tuned plain-SGD setup, lower the learning rate.</strong> A common rule of thumb is to divide η by roughly (1 − β)⁻¹ — i.e., try η/10 when switching from plain SGD to β = 0.9 momentum — then tune from there. Skip this step and the amplified steps can overshoot into oscillation or divergence, which looks like "momentum broke my training" but is really "momentum amplified my too-large learning rate." Conversely, if momentum training is sluggish, you may have room to <em>raise</em> η beyond what plain GD tolerated.</p>
+<h3 id="nesterov-vs-momentum-when-the-lookahead-matters-most">Nesterov vs. momentum: when the lookahead matters most</h3>
+<p>When should you bother with Nesterov instead of plain momentum? The lookahead helps most where plain momentum's blindness hurts most: <strong>ill-conditioned problems</strong> — landscapes with ravines, sharp turns near the minimum, or rapidly changing curvature. There, plain momentum's habit of charging ahead on stale information causes repeated overshooting, while Nesterov's peek-ahead gradient applies the brakes in time. On gentle, well-conditioned problems the two perform nearly identically, and plain momentum's simplicity wins.</p>
+<p>In practice the switch costs one flag: PyTorch's SGD takes <code>nesterov=True</code>, TensorFlow/Keras exposes it as a separate optimizer or parameter. A useful diagnostic rule: if your momentum training shows persistent oscillation <em>near</em> convergence — the loss wiggles around its final value instead of settling — try Nesterov before lowering the learning rate. Often the oscillation is overshoot, not instability, and the lookahead cures it without sacrificing speed. If instead the loss oscillates wildly from the start, that is a too-large learning rate (Chapter 5), and no momentum variant will save it — reduce η first.</p>
+<h3 id="nadam-nesterov-meets-adam">Nadam: Nesterov meets Adam</h3>
+<p>The lookahead idea is not limited to SGD — it can be grafted onto Adam too, producing <strong>Nadam</strong> (Nesterov-accelerated Adam). Where Adam steps with the bias-corrected momentum m̂ computed from past gradients, Nadam replaces it with a Nesterov-style lookahead momentum that anticipates the next position. In practice Nadam behaves much like Adam: slightly faster early convergence on some problems, nearly identical on others. It is worth knowing the name because it appears in papers and framework optimizer lists, but it is rarely the deciding factor in an experiment — if Adam works, Nadam seldom changes the story, and if Adam fails, the learning rate or the data pipeline is the likelier culprit. Treat it as a minor variant to try during optimizer ablations, not as a rescue device.</p>
+<blockquote>
+<p><strong>For your research:</strong> "SGD with momentum (β = 0.9)" remains one of the most respected optimizer choices in published work, especially in computer vision. If you use it, report three things: that it is SGD <em>with momentum</em> (not plain SGD), the β value, and whether it is standard or Nesterov momentum — these are different algorithms and reviewers distinguish them. A common strong baseline in your experiments section: "We compare against SGD with Nesterov momentum (β = 0.9), tuned learning rate." That sentence alone signals competence.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Momentum adds velocity = decaying average of past gradients: accelerates consistent directions, damps oscillations.
+- β = 0.9 (≈10-step memory, ~10× speedup on steady slopes) is the reliable default.
+- Nesterov evaluates the gradient at the lookahead position: brakes before overshooting, often converges faster.
+- Momentum amplifies divergence if the learning rate is too large — reduce η first when loss explodes.
+- Report "SGD with momentum" precisely: β value and standard vs. Nesterov variant.</p>
+<hr />
+<h2 id="chapter-7-adaptive-methods-adagrad-rmsprop-adam">Chapter 7: Adaptive Methods — AdaGrad, RMSprop, Adam</h2>
+<h3 id="one-learning-rate-for-all-parameters-is-unfair">One learning rate for all parameters is unfair</h3>
+<p>So far, every parameter shared a single global learning rate η. But parameters live very different lives. In a text model, the weight for a rare word gets a gradient once in a thousand steps; the weight for a common word gets one every step. Giving both the same step size is like giving the same shoes to a sprinter and a mountaineer. <em>Adaptive</em> methods give each parameter its own effective learning rate, adjusted automatically based on that parameter's gradient history. This chapter covers the three landmarks: AdaGrad (the pioneer), RMSprop (the fix), and Adam (the standard).</p>
+<h3 id="adagrad-the-pioneer-with-a-fading-memory-problem">AdaGrad: the pioneer with a fading memory problem</h3>
+<p>AdaGrad (Adaptive Gradient, 2011) keeps a running sum of squared gradients <em>per parameter</em> and divides the learning rate by the square root of that sum:</p>
+<p>G ← G + g²                      (accumulate squared gradient, per parameter)
+θ ← θ − η · g / (√G + ε)</p>
+<p>A parameter with historically large gradients gets a small effective rate (it has already moved a lot); a parameter with tiny historical gradients gets a large effective rate (it needs encouragement). For sparse data — like word features that appear rarely — this is brilliant: rare features automatically get bigger steps.</p>
+<p>The flaw: G only grows. On long training runs the denominator keeps increasing, the effective learning rate decays toward zero, and training grinds to a halt before converging. AdaGrad works well for short, sparse problems and poorly for deep networks trained over many epochs.</p>
+<p><strong>Mini worked example</strong> (single parameter, η = 0.1, gradient g = 8 every step):
+- Step 1: G = 64. Update = 0.1 × 8/8 = 0.1.
+- Step 2: G = 128. Update = 0.1 × 8/11.31 = 0.0707.
+- Step 10: G = 640. Update = 0.1 × 8/25.3 = 0.0316.
+- Step 100: G = 6400. Update = 0.1 × 8/80 = 0.01.
+Same gradient, shrinking steps — the decay-to-zero problem, visible in four lines.</p>
+<h3 id="rmsprop-adagrad-with-a-forgetting-factor">RMSprop: AdaGrad with a forgetting factor</h3>
+<p>RMSprop (Hinton, 2012, unpublished lecture — widely used despite never being formally published) replaces AdaGrad's ever-growing sum with an <em>exponentially decaying</em> average of squared gradients:</p>
+<p>E[g²] ← ρ·E[g²] + (1 − ρ)·g²        (ρ typically 0.9)
+θ ← θ − η · g / (√E[g²] + ε)</p>
+<p>Old squared gradients fade away, so the denominator reflects <em>recent</em> gradient magnitudes, not all of history. The learning rate stops decaying to zero and instead adapts to the local terrain: big steps where gradients have been small lately, small steps where they have been large. RMSprop became a go-to optimizer for recurrent neural networks, where gradients vary wildly over time.</p>
+<p><strong>Mini worked example</strong> (η = 0.1, ρ = 0.9, gradients alternate 8, 2, 8, 2):
+- Step 1: E = 0.1×64 = 6.4. Update = 0.1 × 8/2.53 = 0.316.
+- Step 2: E = 0.9×6.4 + 0.1×4 = 6.16. Update = 0.1 × 2/2.48 = 0.0806.
+- Step 3: E = 0.9×6.16 + 0.1×64 = 11.94. Update = 0.1 × 8/3.456 = 0.2315.
+The effective rate breathes with recent history instead of dying monotonically — RMSprop's whole point.</p>
+<h3 id="adam-the-best-of-both-worlds-with-bias-correction">Adam: the best of both worlds, with bias correction</h3>
+<p>Adam (Adaptive Moment Estimation), introduced by Kingma and Ba [1], is the most widely used optimizer in deep learning research today. It combines the two ideas you have met:</p>
+<ol>
+<li><strong>Momentum</strong> (Chapter 6): keep a decaying average of gradients, m (the "first moment").</li>
+<li><strong>Adaptive rates</strong> (RMSprop): keep a decaying average of squared gradients, v (the "second moment").</li>
+</ol>
+<p>Plus one clever addition: <strong>bias correction</strong>. Both averages start at zero, so early in training they underestimate the true moments (imagine averaging "0, 8" and getting 4 when the real typical value is 8). Adam divides by (1 − βᵗ) to correct this startup bias, which matters most in the first few dozen steps — exactly when a bad step could derail training.</p>
+<p>The full Adam update (defaults β₁ = 0.9, β₂ = 0.999, ε = 10⁻⁸, learning rate α):</p>
+<p>m ← β₁·m + (1 − β₁)·g              (first moment: momentum)
+v ← β₂·v + (1 − β₂)·g²             (second moment: adaptive scale)
+m̂ = m / (1 − β₁ᵗ)                   (bias-corrected first moment)
+v̂ = v / (1 − β₂ᵗ)                   (bias-corrected second moment)
+θ ← θ − α · m̂ / (√v̂ + ε)</p>
+<p>A beautiful property falls out of this math: when gradients are consistent in direction and scale, m̂/√v̂ ≈ ±1, so each parameter moves about α per step <em>regardless of gradient magnitude</em>. Adam is therefore far less sensitive to the choice of α than SGD is to η — the reason "Adam with α = 0.001 just works" became folk wisdom. The learning rate still matters (Chapter 9), but the acceptable window is wider.</p>
+<h3 id="worked-example-three-adam-steps-by-hand">Worked example: three Adam steps by hand</h3>
+<p>Single parameter, start θ₀ = 4. Suppose the observed gradients are g₁ = 8, g₂ = 7, g₃ = 6 (decreasing as we descend, like f(x) = x² would give). Defaults: β₁ = 0.9, β₂ = 0.999, α = 0.001, ε = 10⁻⁸ (negligible here).</p>
+<p><strong>Step 1 (t = 1):</strong>
+- m = 0.9×0 + 0.1×8 = 0.8
+- v = 0.999×0 + 0.001×64 = 0.064
+- m̂ = 0.8/(1 − 0.9) = 0.8/0.1 = 8
+- v̂ = 0.064/(1 − 0.999) = 0.064/0.001 = 64
+- θ₁ = 4 − 0.001 × 8/8 = 4 − 0.001 = 3.999
+Note: without bias correction we would have stepped 0.001 × 0.8/0.253 = 0.00316 — the correction properly scaled the startup. Step size ≈ α, as theory predicts.</p>
+<p><strong>Step 2 (t = 2):</strong>
+- m = 0.9×0.8 + 0.1×7 = 0.72 + 0.7 = 1.42
+- v = 0.999×0.064 + 0.001×49 = 0.063936 + 0.049 = 0.112936
+- m̂ = 1.42/(1 − 0.81) = 1.42/0.19 = 7.474
+- v̂ = 0.112936/(1 − 0.999²) = 0.112936/0.001999 ≈ 56.50
+- θ₂ = 3.999 − 0.001 × 7.474/√56.50 = 3.999 − 0.001 × 7.474/7.517 = 3.999 − 0.000994 = 3.998006</p>
+<p><strong>Step 3 (t = 3):</strong>
+- m = 0.9×1.42 + 0.1×6 = 1.278 + 0.6 = 1.878
+- v = 0.999×0.112936 + 0.001×36 = 0.112823 + 0.036 = 0.148823
+- m̂ = 1.878/(1 − 0.729) = 1.878/0.271 = 6.930
+- v̂ = 0.148823/(1 − 0.999³) = 0.148823/0.002997 ≈ 49.66
+- θ₃ = 3.998006 − 0.001 × 6.930/7.047 = 3.998006 − 0.000983 = 3.997023</p>
+<p>Each step moves roughly α = 0.001 — steady, controlled, scale-free. On a real problem with thousands of steps, these α-sized steps accumulate into fast, stable convergence. That is why Adam is the default: it just walks downhill at a sensible pace without demanding precise α tuning.</p>
+<h3 id="adam-vs-sgd-with-momentum-the-honest-comparison">Adam vs. SGD-with-momentum: the honest comparison</h3>
+<p>Adam usually trains <em>faster</em> (lower training loss in fewer steps) and is easier to tune. But a persistent finding in the literature is that well-tuned SGD with momentum sometimes <em>generalizes</em> slightly better — reaching higher test accuracy even at higher training loss — particularly in computer vision. The practical advice: start with Adam for speed of experimentation; before publishing, try SGD with momentum as a challenger, especially if your test metrics plateau. Report both. Reviewers respect an optimizer ablation more than a single lucky run.</p>
+<p>Variants you will meet in papers: <strong>AdamW</strong> (decouples weight decay from the adaptive update — the correct way to regularize with Adam, and the standard for transformers), <strong>Nadam</strong> (Adam + Nesterov), <strong>AMSGrad</strong> (fixes a rare non-convergence edge case of Adam). For your first papers, Adam or AdamW with defaults is entirely respectable.</p>
+<h3 id="a-note-on-and-numerical-stability">A note on ε and numerical stability</h3>
+<p>Adam's ε (default 10⁻⁸) looks like a rounding detail, but it has a real job: preventing division by zero when the second-moment estimate v̂ is tiny, which happens for parameters whose gradients have been near zero. Without ε, the update m̂/√v̂ could explode to infinity on a flat stretch — exactly the wrong moment for a giant step.</p>
+<p>Two practical notes. First, if you train in half precision (float16) to save memory and speed up GPUs, gradients can underflow to zero more easily, making the default ε relatively large compared to the representable gradient scale; practitioners commonly raise ε to 10⁻⁴ or switch to a more stable Adam variant when they see NaNs in mixed-precision training. Second, ε also acts as a mild damper on adaptivity: a larger ε makes the denominator less sensitive to small v̂, so the effective learning rates become more uniform across parameters. If Adam's adaptivity ever seems <em>too</em> aggressive on your problem, nudging ε up is a legitimate, underused knob — but change one thing at a time and record it (Chapter 12).</p>
+<blockquote>
+<p><strong>For your research:</strong> When you write "we used Adam," a careful reviewer mentally asks: which β₁, β₂, ε, and learning rate? The original paper [1] sets β₁ = 0.9, β₂ = 0.999, ε = 10⁻⁸ — if you used defaults, say "Adam with default hyperparameters (β₁ = 0.9, β₂ = 0.999) [1]" and cite the paper. That citation costs you nothing and signals that you know what the defaults are and where they came from. If you used AdamW, cite it as a distinct optimizer and state the weight decay value separately — conflating AdamW with "Adam + weight decay" is a known reporting error.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Adaptive methods give each parameter its own effective learning rate from its gradient history.
+- AdaGrad: per-parameter rates from accumulated squared gradients; decays to zero on long runs — good for sparse, short problems.
+- RMSprop: decaying average of squared gradients; adapts to local terrain without dying out.
+- Adam [1]: momentum + RMSprop-style scaling + bias correction; step ≈ α per update; the default choice.
+- Cite the Adam paper [1] and report β₁, β₂, ε — "Adam" alone is incomplete reporting.</p>
+<hr />
+<h2 id="chapter-8-learning-rate-schedules-and-warmup">Chapter 8: Learning Rate Schedules and Warmup</h2>
+<h3 id="why-a-constant-learning-rate-is-a-compromise">Why a constant learning rate is a compromise</h3>
+<p>A fixed learning rate forces a tradeoff: large enough to make fast progress early, small enough to settle precisely into the minimum late. No single value does both well. The solution is a <em>schedule</em>: start with a relatively large rate for rapid progress, then reduce it so the optimizer can converge cleanly instead of bouncing around the minimum. Almost every state-of-the-art training run uses some schedule, and reporting it is part of reproducibility (Chapter 12).</p>
+<h3 id="the-classic-schedules">The classic schedules</h3>
+<p><strong>Step decay.</strong> Drop the learning rate by a factor (often 0.1 or 0.5) at fixed milestones — e.g., "divide by 10 at epochs 30 and 60 of a 90-epoch run." Simple, interpretable, and historically the winner behind many image-classification results. The downside: the milestones are arbitrary and need tuning.</p>
+<p><strong>Exponential decay.</strong> η_t = η₀ · γᵗ with γ slightly below 1 (e.g., 0.96 per epoch). Smooth and has one knob, but it decays from the very first step, which can slow early progress.</p>
+<p><strong>Cosine annealing.</strong> The learning rate follows half a cosine curve from η_max down to η_min over T steps:</p>
+<p>η_t = η_min + (η_max − η_min)/2 · (1 + cos(πt/T))</p>
+<p>It decreases slowly at first, faster in the middle, and gently flattens near zero at the end — a shape that empirically works very well, especially for training vision transformers and large models. Often used with <em>restarts</em> (cosine cycles that periodically jump back up, called SGDR) to escape local minima.</p>
+<p><strong>Reduce on plateau.</strong> Watch the validation loss; when it stops improving for a few epochs ("patience"), cut the learning rate by a factor. This adapts to the actual training dynamics rather than a preset calendar. It is the laziest effective schedule — good when you do not want to tune milestones.</p>
+<h3 id="worked-example-computing-three-schedules-by-hand">Worked example: computing three schedules by hand</h3>
+<p>Setup: η_max = 0.1, training for 30 epochs (step decay), or T = 100 steps (cosine).</p>
+<p><strong>Step decay</strong> (halve every 10 epochs): epochs 1–10 → 0.1; epochs 11–20 → 0.05; epochs 21–30 → 0.025. Three lines, fully specified.</p>
+<p><strong>Cosine annealing</strong> (η_max = 0.1, η_min = 0, T = 100):
+- t = 0: 0.05 × (1 + cos 0) = 0.05 × 2 = 0.1
+- t = 25: 0.05 × (1 + cos(π/4)) = 0.05 × 1.7071 = 0.0854
+- t = 50: 0.05 × (1 + cos(π/2)) = 0.05 × 1 = 0.05
+- t = 75: 0.05 × (1 + cos(3π/4)) = 0.05 × 0.2929 = 0.0146
+- t = 100: 0.05 × (1 + cos π) = 0.05 × 0 = 0
+Notice the shape: barely decreased at t = 25 (0.0854), halved by t = 50, nearly gone by t = 75. Slow start, fast middle, gentle landing.</p>
+<p><strong>Warmup</strong> (linear, 0 → 0.1 over the first 5 epochs): 0.02, 0.04, 0.06, 0.08, 0.10 — then the main schedule takes over.</p>
+<h3 id="warmup-dont-sprint-out-of-the-starting-blocks">Warmup: don't sprint out of the starting blocks</h3>
+<p>At initialization, weights are random and gradients can be large and chaotic. Taking a full-size step immediately can throw the model into a bad region from which it never recovers — especially with large batches and deep networks like transformers. <em>Warmup</em> starts the learning rate near zero and ramps it linearly (or smoothly) to the target value over the first few epochs (or few thousand steps). It is cheap insurance: the model takes small, careful steps while the gradients stabilize, then runs at full speed. If you train transformers or use batch sizes above ~512, warmup is close to mandatory; for small models it rarely hurts. As a rule of thumb, make the warmup phase about 1–5% of total training steps — a few epochs for a 100-epoch run, or a few thousand steps for a million-step run. Shorter than that and the chaotic early gradients never get tamed; much longer and you waste the high-learning-rate budget where the model learns fastest.</p>
+<p>A common full recipe for large models: linear warmup for the first 5% of training, then cosine decay to near zero. This two-line description covers a huge fraction of modern published training runs.</p>
+<h3 id="choosing-a-schedule-practical-guidance">Choosing a schedule: practical guidance</h3>
+<ul>
+<li><strong>Baseline / quick experiments:</strong> constant learning rate. Fine for ablations and debugging.</li>
+<li><strong>Best final accuracy on a fixed budget:</strong> cosine annealing (with or without warmup). The current default in much of the literature.</li>
+<li><strong>You want interpretability:</strong> step decay with 2–3 milestones. Easy to describe in a paper.</li>
+<li><strong>You don't want to tune milestones:</strong> reduce-on-plateau with patience 3–5 epochs.</li>
+<li><strong>Large batch or transformer:</strong> always add warmup.</li>
+</ul>
+<p>One caution: the schedule interacts with early stopping (Chapter 9). If you stop training early based on validation loss, a schedule that was <em>about</em> to decay may never get the chance — so compare schedules at equal epoch budgets, or let each run finish.</p>
+<h3 id="cosine-restarts-and-cyclical-learning-rates">Cosine restarts and cyclical learning rates</h3>
+<p>Cosine annealing decays the rate to zero and stays there — but what if the minimum it settles into is mediocre? <strong>Cosine restarts</strong> (also called SGDR) run the cosine schedule in cycles: decay to near zero, then jump back up to η_max and decay again. Each restart kicks the optimizer out of its current minimum and lets it explore a neighboring one. The schedule is controlled by the first cycle length T₀ and a multiplier T_mult: with T₀ = 10 epochs and T_mult = 2, cycles last 10, 20, 40, 80 epochs….</p>
+<p>Compute the first cycle with η_max = 0.1, η_min = 0, T₀ = 10: at epoch 0 the rate is 0.1; at epoch 5 it is 0.05 × (1 + cos(π/2)) = 0.05; at epoch 10 it reaches 0. Then the restart: epoch 10 (start of cycle 2) jumps back to 0.1, and the 20-epoch cycle begins. The sawtooth pattern — smooth decay, sudden jump — is unmistakable in a learning-rate plot.</p>
+<p>Restarts serve two purposes. First, exploration: the jump can escape sharp or poor minima. Second, ensembling for free: save a model snapshot at the end of each cycle (each is a different, good minimum) and average their predictions — these "snapshot ensembles" often beat any single model at no extra training cost. A related idea, <strong>cyclical learning rates</strong>, bounces η between fixed bounds in a triangle wave instead of decaying to zero; it is simpler to configure (just set min and max) and suits situations where you want perpetual exploration rather than convergence to a single point.</p>
+<p>When to use restarts: when training longer is cheap but you suspect the optimizer settles too early, or when you want an ensemble without training N separate models. When to skip them: when you need one clean converged model and a simple decay already reaches good validation metrics — restarts add a hyperparameter (cycle length) and complicate early stopping, since the validation loss jumps at each restart.</p>
+<h3 id="a-complete-recipe-worked-end-to-end">A complete recipe, worked end to end</h3>
+<p>Let us assemble the most common modern recipe — linear warmup followed by cosine annealing — with concrete numbers: warmup from 0 to 0.1 over the first 5 epochs, then cosine decay from 0.1 to 0 over the remaining 95 epochs (T = 95).</p>
+<ul>
+<li><strong>Epoch 0:</strong> 0.0 (training starts stationary — no chaotic first step)</li>
+<li><strong>Epoch 5:</strong> 0.1 (warmup complete, full speed)</li>
+<li><strong>Epoch 25:</strong> t = 20 into the cosine phase, fraction 20/95 ≈ 0.21; η = 0.05 × (1 + cos(0.21π)) = 0.05 × 1.79 ≈ 0.0895</li>
+<li><strong>Epoch 50:</strong> t = 45, fraction ≈ 0.47; η = 0.05 × (1 + cos(0.47π)) = 0.05 × 1.08 ≈ 0.0541</li>
+<li><strong>Epoch 75:</strong> t = 70, fraction ≈ 0.74; η = 0.05 × (1 + cos(0.74π)) = 0.05 × 0.32 ≈ 0.0161</li>
+<li><strong>Epoch 100:</strong> 0 (gentle landing exactly at the end of training)</li>
+</ul>
+<p>Notice the shape of the whole run: careful ramp-up, long confident middle, slow precise descent into the minimum. You can implement this in any framework in a few lines, and describing it takes one sentence in a paper: "linear warmup 0 → 0.1 over 5 epochs, then cosine annealing to 0 over 95 epochs." A reader can reproduce that exactly — which is the entire point of Chapter 12's reporting standards.</p>
+<blockquote>
+<p><strong>For your research:</strong> Describe your schedule with numbers, not adjectives. "We used a cosine annealing schedule from 0.01 to 0 over 100 epochs with 5 epochs of linear warmup" is reproducible; "we decayed the learning rate during training" is not. If you used a framework's built-in scheduler, name it (e.g., PyTorch's <code>CosineAnnealingLR</code>) and give its parameters — a reader with the same framework can then replicate you exactly. Reviewers at ML venues increasingly treat the schedule as part of the method, not an incidental detail.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Schedules resolve the speed-vs-precision tradeoff of a constant learning rate: fast early, precise late.
+- Step decay, exponential decay, cosine annealing, reduce-on-plateau — know all four; cosine is the modern default.
+- Warmup (ramp 0 → target over early epochs) prevents chaotic early steps; near-mandatory for large batches and transformers.
+- Report schedules numerically: formula, milestones, warmup length — never just "we decayed the rate."
+- Compare schedules at equal budgets; early stopping can confound schedule comparisons.</p>
+<hr />
+<h2 id="chapter-9-practical-tuning-guide-a-workflow-that-works">Chapter 9: Practical Tuning Guide — A Workflow That Works</h2>
+<h3 id="tuning-without-superstition">Tuning without superstition</h3>
+<p>Hyperparameter tuning has a reputation as black magic, but it is mostly disciplined search plus knowing what matters. The order of importance, roughly: <strong>learning rate</strong> first, then <strong>batch size</strong>, then <strong>optimizer choice</strong>, then <strong>schedule</strong>, then everything else (momentum β, Adam's β₂, weight decay). Most beginners tune in the reverse order — fiddling with exotic optimizers while the learning rate is off by 10×. This chapter gives you a workflow that puts effort where the returns are.</p>
+<h3 id="the-workflow-step-by-step">The workflow, step by step</h3>
+<p><strong>Step 0: Fix the plumbing.</strong> Before tuning anything, overfit a tiny subset (e.g., 100 examples) with a high learning rate. If the model cannot drive training loss to near zero on 100 examples, you have a bug — in the data pipeline, the loss, or the model — and no hyperparameter will save you. This five-minute test saves days.</p>
+<p><strong>Step 1: Set sane defaults.</strong> Optimizer: Adam, α = 0.001 (or SGD with momentum 0.9, η = 0.01, if you prefer the classic). Batch size: the largest power of two that fits your GPU (32, 64, 128…). Epochs: enough that the loss clearly plateaus. Seed: fix it (e.g., 42) so runs are comparable.</p>
+<p><strong>Step 2: Find the learning rate with a range test.</strong> Start η tiny (10⁻⁷) and increase it multiplicatively every mini-batch (×1.5 or so) while recording the loss. Plot loss vs. learning rate: the loss will be flat, then fall steeply, then explode. Pick a learning rate about 10× below the explosion point, in the middle of the steep fall. One short run replaces a dozen blind guesses.</p>
+<p><strong>Step 3: Tune coarsely, then finely.</strong> Search learning rates on a logarithmic grid: {10⁻⁴, 3×10⁻⁴, 10⁻³, 3×10⁻³, 10⁻²}. Train each for a few epochs (not to convergence — relative ranking stabilizes early) and compare <em>validation</em> performance, never test. Take the best, then try 3× above and below it. Two rounds is usually enough.</p>
+<p><strong>Step 4: Add the schedule and warmup.</strong> Once the base learning rate is set, add cosine decay or step decay (Chapter 8) and measure the improvement at full training length.</p>
+<p><strong>Step 5: Early stopping.</strong> Monitor validation loss; stop when it has not improved for a fixed patience (e.g., 10 epochs), and keep the best checkpoint. This is your main defense against overfitting and wasted compute.</p>
+<p><strong>Step 6: Final run with fresh seeds.</strong> Train the winning configuration 3–5 times with different random seeds and report mean ± standard deviation. A result that holds across seeds is a result; a result from one lucky seed is an anecdote. (Chapter 12 explains how to report this.)</p>
+<h3 id="random-search-beats-grid-search">Random search beats grid search</h3>
+<p>If you tune several hyperparameters at once, prefer <em>random search</em> over grid search: sample each hyperparameter randomly from a sensible range (log-uniform for learning rates). Grid search wastes runs on irrelevant dimensions — if only the learning rate matters, a 5×5 grid tests 5 learning rates; random search with 25 runs tests 25 distinct learning rates. For serious tuning, Bayesian optimization tools build on this idea, but random search is the honest baseline every paper should beat before claiming a fancy tuner helped.</p>
+<h3 id="worked-example-a-hand-computed-learning-rate-range-test">Worked example: a hand-computed learning rate range test</h3>
+<p>Problem: minimize f(w) = (w − 3)², start w₀ = 0, run exactly 3 gradient steps for each candidate η, and compare final losses. (A real range test uses more steps and real data; the arithmetic here shows the decision logic.)</p>
+<p>Recall the update: w_{k+1} = w_k − η·2(w_k − 3).</p>
+<p><strong>η = 0.01:</strong> w₁ = 0 + 0.06 = 0.06; w₂ = 0.06 + 0.01×2×2.94 = 0.1188; w₃ = 0.1188 + 0.01×2×2.8812 = 0.1764. Final loss: (0.1764 − 3)² = 7.97. Barely moved — too small.</p>
+<p><strong>η = 0.1:</strong> w₁ = 0.6; w₂ = 0.6 + 0.2×2.4 = 1.08; w₃ = 1.08 + 0.2×1.92 = 1.464. Final loss: (1.464 − 3)² = 2.36. Solid progress — the promising region.</p>
+<p><strong>η = 0.9:</strong> w₁ = 0 + 1.8×3 = 5.4 (overshot past 3!); w₂ = 5.4 − 1.8×2.4 = 1.08; w₃ = 1.08 + 1.8×1.92 = 4.536. Final loss: (4.536 − 3)² = 2.36. Same final loss as η = 0.1 but achieved by wild bouncing — unstable and untrustworthy on a real problem.</p>
+<p>Decision: η = 0.1 wins — best stable progress. In a real range test you would now try {0.03, 0.3} around it. Notice the method: logarithmic candidates, fixed budget per candidate, decide by validation metric. That discipline transfers directly to real experiments.</p>
+<h3 id="what-to-do-when-nothing-works">What to do when nothing works</h3>
+<p>If no learning rate trains well: (1) re-run the tiny-subset overfit test — the bug is usually in the data or loss; (2) check input normalization — unnormalized inputs (e.g., pixel values 0–255 mixed with features 0–1) create pathological curvature no learning rate can fix; (3) simplify the model — if a small model trains and a big one does not, the issue is optimization dynamics (try warmup, gradient clipping, smaller η), not the data.</p>
+<h3 id="budget-aware-tuning-spending-your-runs-wisely">Budget-aware tuning: spending your runs wisely</h3>
+<p>Not every project gets a hundred GPU-hours. The workflow in this chapter scales to your budget — the key is spending runs where the returns are highest.</p>
+<p><strong>With ~10 runs</strong> (a typical student project on one GPU): spend 5–6 runs on the learning rate (the logarithmic grid from Step 3), 2 runs checking one alternative batch size or optimizer, and reserve the last 2–3 runs for fresh-seed repeats of the winner. Do not spend runs on momentum β or Adam's β₂ — the defaults are fine at this budget.</p>
+<p><strong>With ~50 runs:</strong> switch the learning-rate search to random search over a range (e.g., log-uniform from 10⁻⁵ to 10⁻¹), jointly sampling batch size from {32, 64, 128, 256} and optimizer from {Adam, SGD+momentum}. Spend roughly half the budget on this joint search, a quarter on schedule variants for the top 2–3 configurations, and a quarter on multi-seed confirmation.</p>
+<p><strong>With 100+ runs:</strong> add Bayesian optimization on top of random search, and consider proxy tuning — search on a smaller model or fewer epochs, then verify the winner at full scale. Proxy tuning works because the <em>ranking</em> of hyperparameters is usually stable across scales even when absolute performance is not; but always confirm the final configuration at full scale before publishing, since the optimal learning rate can shift with model size.</p>
+<p>One more budget rule: never spend more total compute on tuning than about 2–3× the cost of your final training run. Beyond that point, the extra accuracy rarely justifies the expense — and a reviewer will not reward a 0.2% gain bought with 10× the tuning budget that your baselines did not receive. Fair comparisons (Chapter 12) mean fair <em>budgets</em>.</p>
+<h3 id="the-experiment-log-a-template">The experiment log: a template</h3>
+<p>Tuning generates dozens of runs, and human memory is not a database. Keep one log file per project — a spreadsheet or markdown table — with one row per run and these columns: date, git commit hash, dataset version/split, model config, optimizer, learning rate, schedule, batch size, epochs, seed, best validation metric, test metric (filled once, at the end), and a notes column ("diverged at epoch 12", "suspiciously good — check for leakage"). Update it <em>during</em> the run, not after.</p>
+<p>This log pays for itself three times. First, it stops you from repeating failed configurations — the most common waste in student projects. Second, it makes the paper's experiments section trivially easy to write honestly: the search space and selection rule are right there. Third, when a reviewer asks "did you try X?" or "what was the variance?", you answer from the log in minutes instead of re-running experiments in a panic. Chapter 12's reproducibility checklist is essentially "publish the important columns of this log." Start the file on day one of the project; a log reconstructed from memory after submission is fiction.</p>
+<h3 id="lock-the-test-set">Lock the test set</h3>
+<p>One rule underpins the entire workflow above: the test set is locked until the very end. Every tuning decision — learning rate, schedule, early stopping, model selection — must be made on the validation set. The moment you peek at test performance to choose a hyperparameter, the test set becomes a second validation set, and your final numbers become optimistic. In a student project this is an easy trap: "let me just check the test accuracy for these three learning rates." Resist it. If you need more decision-making data, split off a larger validation set or use cross-validation — but the test set gets exactly one evaluation, after all decisions are frozen. A paper whose test numbers were tuned on test is methodologically broken, no matter how good the numbers look.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your paper's experiments section should describe tuning honestly but compactly: the search space, the selection criterion (validation metric), the number of runs, and the final values. Example: "We searched learning rates in {1e-4, 3e-4, 1e-3, 3e-3} with Adam, selecting by validation F1; the best was 1e-3. All reported results are means over 5 seeds." Reviewers do not expect you to have searched everything — they expect you to have searched <em>something</em> and to say what it was. And never tune on the test set: tune on validation, report on test, once. Tuning on test is a methodological error that invalidates the comparison.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Tuning priority: learning rate → batch size → optimizer → schedule → everything else.
+- Workflow: overfit-tiny-subset sanity check → defaults → LR range test → coarse-to-fine search → schedule → early stopping → multi-seed final runs.
+- Random search beats grid search when tuning multiple hyperparameters.
+- Select on validation, report on test, and report mean ± std over multiple seeds.
+- When nothing trains, suspect bugs, unnormalized inputs, or dynamics — in that order.</p>
+<hr />
+<h2 id="chapter-10-convergence-problems-and-fixes-plateaus-ravines-saddle-points">Chapter 10: Convergence Problems and Fixes — Plateaus, Ravines, Saddle Points</h2>
+<h3 id="when-the-walk-goes-wrong">When the walk goes wrong</h3>
+<p>Even with a good optimizer and a tuned learning rate, training can stall or misbehave. The loss surface of a neural network has characteristic terrain features, and each produces a recognizable symptom. Learning to match symptom to terrain — and terrain to fix — is what separates someone who "runs the code" from someone who "trains models." This chapter is your field guide.</p>
+<h3 id="plateaus-flat-ground-tiny-gradients">Plateaus: flat ground, tiny gradients</h3>
+<p>A <strong>plateau</strong> is a broad flat region where the gradient is near zero but you are not at a minimum — the loss is still high, yet steps are microscopic because step size scales with gradient magnitude (Chapter 2). Symptom: the loss curve goes flat early at a disappointing value. Causes: saturating activation functions (sigmoid/tanh pushed to their flat extremes), poor initialization, or genuinely flat directions in the landscape.</p>
+<p>Fixes: momentum (Chapter 6) carries velocity across flat ground even when the current gradient is tiny — this is one of momentum's best use cases. Better initialization (e.g., He/Xavier schemes) and non-saturating activations (ReLU and variants) prevent plateaus from forming. Normalizing inputs also helps by keeping early gradients healthy.</p>
+<h3 id="ravines-steep-walls-gentle-floor">Ravines: steep walls, gentle floor</h3>
+<p>A <strong>ravine</strong> (or narrow valley) is steep in some directions and gentle in others — the loss surface curves sharply across the valley but slopes gently along it. Symptom: the loss oscillates (bouncing wall to wall) while decreasing only slowly along the floor. Plain gradient descent wastes most of its motion on the bounces.</p>
+<p>Fixes: momentum is the classic cure — oscillations across the walls cancel in the velocity average while progress along the floor accumulates (we saw this mechanism in Chapter 6). Adaptive methods (Chapter 7) also help: they shrink the effective rate in the steep across-direction and enlarge it along the gentle floor, automatically. If you see oscillation, your first two suspects are always: learning rate too large, or missing momentum.</p>
+<h3 id="saddle-points-the-high-dimensional-trap">Saddle points: the high-dimensional trap</h3>
+<p>A <strong>saddle point</strong> is a spot where the gradient is exactly zero, but it is a minimum in some directions and a maximum in others — like a mountain pass: the lowest route across the ridge, but you can still fall off either side. In low dimensions they are curiosities; in the million-dimensional landscapes of deep learning, research suggests they vastly outnumber true local minima and are the more relevant obstacle. Symptom: the gradient norm shrinks toward zero while the loss is still high, and the loss curve flattens without having converged.</p>
+<p>The good news: saddle points are <em>unstable</em> — almost any noise pushes you off. Fixes: the inherent noise of mini-batch SGD (Chapter 4) is usually enough to escape; momentum helps you roll through; and second-order analysis can detect the downward-curving directions explicitly (Chapter 11). In practice, researchers rarely "handle" saddle points deliberately — using SGD with momentum and a sensible learning rate handles them implicitly.</p>
+<h3 id="local-minima-less-scary-than-they-sound">Local minima: less scary than they sound</h3>
+<p>A <strong>local minimum</strong> is a genuine bottom of a dip that is not the global bottom. Decades ago this was considered deep learning's central problem. The modern view is calmer: in high dimensions, most local minima of overparameterized networks have very similar loss values, and many are essentially as good as the global minimum for generalization purposes. Symptom: none distinguishable from successful convergence — the loss is low and stable. That is the point: if the loss is low and validation performance is good, it does not matter whether the minimum is "global." Do not chase global optimality; chase good validation metrics.</p>
+<h3 id="the-diagnostic-table">The diagnostic table</h3>
+<table>
+<thead>
+<tr>
+<th>Symptom (what you see)</th>
+<th>Likely terrain</th>
+<th>First fix</th>
+<th>Second fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Loss flat early, value still high</td>
+<td>Plateau</td>
+<td>Add/increase momentum</td>
+<td>Fix initialization, use ReLU, normalize inputs</td>
+</tr>
+<tr>
+<td>Loss oscillates, slow decrease</td>
+<td>Ravine</td>
+<td>Lower learning rate</td>
+<td>Add momentum or switch to Adam</td>
+</tr>
+<tr>
+<td>Gradient norm → 0, loss still high</td>
+<td>Saddle point</td>
+<td>Keep training (noise escapes it)</td>
+<td>Increase batch noise (smaller batch), add momentum</td>
+</tr>
+<tr>
+<td>Loss explodes / NaN</td>
+<td>Too-large steps (not terrain)</td>
+<td>Lower learning rate sharply</td>
+<td>Gradient clipping, check loss computation</td>
+</tr>
+<tr>
+<td>Loss flat at a good value</td>
+<td>(Possibly) local minimum</td>
+<td>Nothing — check validation metrics</td>
+<td>Try schedule/restarts only if metrics are poor</td>
+</tr>
+</tbody>
+</table>
+<h3 id="worked-example-the-plateau-trap-on-fx-x4">Worked example: the plateau trap on f(x) = x⁴</h3>
+<p>Compare f(x) = x² (gradient 2x) with the flatter-bottomed g(x) = x⁴ (gradient 4x³). Start both at x₀ = 2, η = 0.05.</p>
+<p><strong>x²:</strong> step 1: gradient 4, x₁ = 2 − 0.2 = 1.8. Step 2: gradient 3.6, x₂ = 1.8 − 0.18 = 1.62. Steady progress.</p>
+<p><strong>x⁴:</strong> step 1: gradient 4×8 = 32, x₁ = 2 − 1.6 = 0.4. (A huge leap — the steep walls fling it inward.) Step 2: gradient 4×0.064 = 0.256, x₂ = 0.4 − 0.0128 = 0.3872. Step 3: gradient 4×0.058 = 0.232, x₃ = 0.3872 − 0.0116 = 0.3756.</p>
+<p>Look at the x⁴ trajectory: 2 → 0.4 → 0.3872 → 0.3756 → …. After the first violent jump, it crawls — the flat region near 0 gives tiny gradients, so steps are tiny, even though x = 0.38 is nowhere near the minimum at x = 0 (g(0.38) ≈ 0.021, and progress has nearly stopped). This is a plateau: high-ish loss, near-zero gradient, apparent convergence that is actually stuckness. On x², by contrast, the gradient at 0.4 is 0.8 — still healthy — and progress continues.</p>
+<p>The lesson: when your loss flatlines early, check the gradient norm. If gradients are near zero but the loss is bad, you are on flat ground, not at the bottom — add momentum or fix the architecture's saturation, rather than accepting the plateau.</p>
+<h3 id="gradient-clipping-the-emergency-brake">Gradient clipping: the emergency brake</h3>
+<p>When gradients explode — a sudden spike in the loss, then NaN — the immediate priority is not elegance but survival: stop the parameters from being flung to infinity by a single bad mini-batch. <strong>Gradient clipping</strong> is the emergency brake. Before applying the update, check the gradient's norm (its overall magnitude); if it exceeds a threshold c, scale the whole gradient down so its norm equals c:</p>
+<p>if ||g|| &gt; c: g ← g · (c / ||g||)</p>
+<p>Crucially, clipping rescales but never <em>redirects</em>: the update still points the same way, just shorter. Work it by hand: gradient g = (30, 40), so ||g|| = √(900 + 1600) = 50. With threshold c = 5, the scale factor is 5/50 = 0.1, giving clipped gradient (3, 4) — same direction, norm exactly 5. A gradient of (3, 4) passes through untouched.</p>
+<p>There are two flavors: <strong>clip by norm</strong> (above — rescales the whole vector, the common choice) and <strong>clip by value</strong> (caps each entry independently, e.g., to [−1, 1], which does change direction slightly). Typical thresholds are 1.0–5.0 for by-norm clipping. Reach for clipping when you train recurrent networks, transformers with occasional loss spikes, or any setup where rare mini-batches produce enormous gradients. But remember: clipping treats the symptom, not the disease. If you need clipping constantly, your learning rate is probably too large or your loss computation has a bug — fix the root cause, and keep clipping as the seatbelt, not the steering wheel.</p>
+<h3 id="special-case-dead-relus-a-permanent-plateau">Special case: dead ReLUs — a permanent plateau</h3>
+<p>One plateau deserves its own name because it is so common: the <strong>dead ReLU</strong>. The ReLU activation outputs max(0, x) — its gradient is 1 for positive inputs and exactly 0 for negative ones. If a neuron's weights shift so that its input is always negative, its gradient becomes permanently zero: the neuron never updates again, no matter how long you train. It is a plateau at the level of a single neuron — flat, silent, irreversible (with plain gradient descent).</p>
+<p>Symptoms: a fraction of your network's neurons output zero for every input in a batch, and training accuracy plateaus below expectations. Causes: too large a learning rate (a giant step can knock many neurons into the dead zone at once) or poor initialization. Fixes: lower the learning rate, use <strong>Leaky ReLU</strong> (which gives a small gradient, e.g., 0.01x, for negative inputs instead of zero — dead neurons can revive), or use better initialization. Monitoring the fraction of active neurons per layer is a cheap diagnostic that catches this early; most training dashboards can show it.</p>
+<blockquote>
+<p><strong>For your research:</strong> Convergence problems make excellent <em>diagnosis</em> sections in papers and theses. If your method trains where baselines stall, document the failure precisely: "Baseline loss plateaued at 2.1 with gradient norms below 1e-5 after epoch 20 (Figure 3); our method continued to 0.4." Reviewers find loss curves with honest failure analysis far more convincing than a bare accuracy table. And when a baseline fails, investigate <em>why</em> before replacing it — "the baseline diverged because its learning rate was 10× too large" is a very different claim from "the baseline cannot solve this task," and only the first is fair.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Plateaus (flat, tiny gradients): add momentum; fix initialization, activations, input normalization.
+- Ravines (oscillation): lower the learning rate; momentum or adaptive methods cancel the bouncing.
+- Saddle points: the main high-dimensional obstacle; SGD noise and momentum usually escape them implicitly.
+- Local minima: less frightening than folklore suggests — similar loss values, good generalization; don't chase global optimality.
+- Diagnose by symptom: flat-early, oscillating, gradient-norm-zero, or exploding — then apply the matching fix.</p>
+<hr />
+<h2 id="chapter-11-second-order-methods-a-brief-honest-overview">Chapter 11: Second-Order Methods — A Brief Honest Overview</h2>
+<h3 id="using-curvature-not-just-slope">Using curvature, not just slope</h3>
+<p>Everything so far has been <em>first-order</em>: we used the gradient (slope) but ignored the <em>curvature</em> (how the slope itself changes). Second-order methods use the Hessian matrix — the matrix of second derivatives — which describes the local curvature of the loss surface in every direction. The payoff: where gradient descent feels the slope and steps blindly, a second-order method sees the shape of the valley and can jump much more intelligently.</p>
+<p>The archetype is <strong>Newton's method</strong>:</p>
+<p>θ ← θ − H⁻¹∇L(θ)</p>
+<p>where H is the Hessian. Instead of stepping a fixed η along the gradient, you multiply by the <em>inverse</em> Hessian, which automatically rescales each direction by its curvature: gentle directions get big steps, steep directions get small ones. On a perfect quadratic bowl, Newton's method converges in a <em>single step</em> — it sees the whole bowl at once.</p>
+<h3 id="worked-example-newtons-method-in-one-step">Worked example: Newton's method in one step</h3>
+<p>Take f(x) = x², start x₀ = 4. Gradient f′ = 2x, second derivative f″ = 2 (the 1×1 "Hessian").</p>
+<p>Newton update: x₁ = x₀ − f′(x₀)/f″(x₀) = 4 − 8/2 = 4 − 4 = 0.</p>
+<p>One step, exactly at the minimum. Compare: gradient descent with η = 0.1 needed many steps to crawl from 4 toward 0 (Chapter 5). The Hessian told Newton the valley's exact shape — a parabola with curvature 2 — so it computed precisely how far the bottom was.</p>
+<p>For a general quadratic f(x) = ax² + bx + c, Newton always lands on the minimum in one step, from any starting point. For non-quadratic functions, it converges extremely fast <em>near</em> the minimum (quadratically — the error squares each step), which is why it dominates classical numerical optimization.</p>
+<h3 id="why-deep-learning-mostly-doesnt-use-them">Why deep learning (mostly) doesn't use them</h3>
+<p>If Newton's method is so powerful, why did this book spend ten chapters on first-order methods? Three honest reasons:</p>
+<ol>
+<li>
+<p><strong>The Hessian is enormous.</strong> For n parameters, the Hessian is n×n. A modest network with 10 million parameters has a Hessian with 10¹⁴ entries — storing it would take hundreds of terabytes, and inverting it costs O(n³). Completely infeasible.</p>
+</li>
+<li>
+<p><strong>The Hessian may not be positive definite.</strong> Newton's method assumes the local shape is a bowl. At saddle points (Chapter 10) the Hessian has negative-curvature directions, and the raw Newton step can march confidently toward a <em>maximum</em>. Fixing this requires modifications that add complexity.</p>
+</li>
+<li>
+<p><strong>Stochastic noise breaks the precision.</strong> Second-order methods shine with exact gradients and Hessians. With mini-batch noise, the exquisite curvature computation is partly wasted — you are measuring the valley's shape with a shaking ruler. First-order methods with momentum capture much of the benefit far more cheaply.</p>
+</li>
+</ol>
+<h3 id="the-practical-middle-ground-quasi-newton-and-friends">The practical middle ground: quasi-Newton and friends</h3>
+<p>Since the true Hessian is unaffordable, <strong>quasi-Newton</strong> methods build a cheap <em>approximation</em> of it (or its inverse) from the history of gradients — no second derivatives needed. The most famous is <strong>L-BFGS</strong> (limited-memory BFGS), which stores only the last m gradient differences (m ≈ 10–20) instead of the full matrix. L-BFGS is excellent for small-to-medium, full-batch problems — logistic regression, small neural networks, scientific computing — and it appears in research as a strong baseline or a fine-tuning polish ("we refined the solution with L-BFGS").</p>
+<p>Other points on the spectrum: <strong>Hessian-free optimization</strong> computes Hessian-vector products without forming the Hessian (using a clever trick with the chain rule), getting curvature information at roughly the cost of a gradient. <strong>Natural gradient</strong> methods rescale using the Fisher information matrix instead of the Hessian, which respects the probabilistic geometry of the model. <strong>K-FAC</strong> approximates the Fisher matrix with a Kronecker factorization, making natural-gradient-like updates feasible for real networks — an active research area.</p>
+<p>The honest summary for a student: understand what second-order methods offer (curvature-aware steps, fast final convergence), know L-BFGS as the practical representative, and default to first-order methods for deep networks. If your thesis needs a "related work" paragraph on optimization, this section gives you the vocabulary.</p>
+<h3 id="how-l-bfgs-approximates-the-hessian-intuitively">How L-BFGS approximates the Hessian (intuitively)</h3>
+<p>L-BFGS never computes a second derivative. Instead it <em>infers</em> curvature the way you would: by watching how the gradient changes as the parameters move. If a small step produces a big change in the gradient, the surface is sharply curved in that direction; if the gradient barely changes, the surface is flat. This is the <strong>secant condition</strong>: the approximate inverse Hessian H⁻¹ must satisfy H⁻¹·(change in gradient) ≈ (change in parameters) for each recent step. Each iteration adds one more (parameter-change, gradient-change) pair, and the approximation is refined to be consistent with all of them — building up a picture of the valley's shape from footprints.</p>
+<p>The "L" (limited memory) part: instead of keeping every footprint forever, L-BFGS keeps only the last m ≈ 10–20 pairs and reconstructs the curvature on the fly. Memory cost is O(m·n) instead of O(n²) — affordable for thousands or tens of thousands of parameters, though still far too much for deep networks.</p>
+<p>This footprint logic explains L-BFGS's biggest constraint: it needs <em>deterministic</em> gradients. The secant condition compares gradients at two different points; if each gradient is a noisy mini-batch estimate, the "change in gradient" is mostly noise, and the curvature picture is garbage. That is why L-BFGS is paired with full-batch gradients (Chapter 3), not SGD. On a quadratic like f(x) = x² it converges almost instantly — with exact line search, in at most n steps for n parameters — because quadratics are exactly the shapes its secant updates describe perfectly.</p>
+<p>Where you will actually meet it: scikit-learn's default solver for logistic regression is L-BFGS (or its cousin lbfgs), and many scientific-computing and small-neural-network pipelines use it as the final "polish" after SGD/Adam gets close — a few L-BFGS steps on the full batch can squeeze out the last digits of the loss. If your paper does this, report the memory parameter m and the line-search/convergence tolerance; otherwise the polish step is not reproducible.</p>
+<h3 id="borrowing-second-order-ideas-on-a-first-order-budget">Borrowing second-order ideas on a first-order budget</h3>
+<p>Even though deep learning cannot afford the Hessian, its <em>ideas</em> leak into first-order methods everywhere — recognizing them deepens your understanding of why the standard optimizers work.</p>
+<p>Take Adam's second-moment term v (Chapter 7): it is, roughly, a <strong>diagonal approximation of the Hessian</strong> — curvature information restricted to one number per parameter instead of the full matrix. That is why Adam rescales each direction by its own curvature, the signature move of Newton's method, at first-order cost. RMSprop does the same. In this light, adaptive methods are "poor man's second-order methods": they capture the most valuable bit of curvature (per-direction scaling) while discarding the unaffordable cross-terms.</p>
+<p>Similarly, gradient clipping (Chapter 10) is a <strong>trust-region</strong> idea in disguise: classical second-order methods only trust their local quadratic model within a small region and cap step sizes accordingly. Momentum's velocity averaging approximates the effect of looking further along the valley — a crude form of the "see the shape ahead" ability that Newton gets from curvature. When you read optimization papers, watch for this pattern: many "new" first-order tricks are old second-order insights, cheaply approximated. Understanding both sides lets you read the literature as one continuous story rather than a catalog of disconnected algorithms.</p>
+<h3 id="how-to-discuss-this-in-your-related-work">How to discuss this in your related work</h3>
+<p>If your thesis or paper needs a related-work paragraph on optimization, here is the honest one-paragraph story this chapter gives you: training is dominated by first-order stochastic methods (SGD with momentum, Adam) because the Hessian is infeasible at deep-learning scale and mini-batch noise erodes the value of exact curvature; second-order methods (Newton, quasi-Newton, L-BFGS) remain the right tool for small, deterministic problems and appear as baselines or final polish steps; and the active research frontier — natural gradients, K-FAC, Hessian-free methods — tries to recover curvature's benefits at first-order cost. Framing it this way shows a reviewer you understand <em>why</em> the field made its choices, not just which optimizer is fashionable. Cite a textbook treatment such as [2] or [4] for the classical background, and the Adam paper [1] for the method that defines the current default.</p>
+<blockquote>
+<p><strong>For your research:</strong> Second-order methods are a legitimate choice — not a curiosity — when your model is small (thousands, not millions, of parameters) and your dataset fits in memory: then L-BFGS with full-batch gradients often converges in far fewer steps than Adam, and its determinism aids reproducibility. If you go this route, report the memory parameter m and the line-search settings. For deep networks, you can still borrow the <em>idea</em>: papers that add curvature approximations (like K-FAC) to first-order training are publishable contributions precisely because they close part of this gap.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Second-order methods use the Hessian (curvature) to take shape-aware steps; Newton converges in one step on quadratics.
+- Infeasible for deep nets: the Hessian is n×n (terabytes for real models), may mislead at saddle points, and stochastic noise wastes its precision.
+- L-BFGS approximates the inverse Hessian from gradient history — the practical choice for small, full-batch problems.
+- Hessian-free, natural gradient, and K-FAC are the research frontier for bringing curvature to deep learning.
+- Default to first-order for deep networks; reach for L-BFGS when the model is small 

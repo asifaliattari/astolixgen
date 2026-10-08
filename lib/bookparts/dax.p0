@@ -1,0 +1,850 @@
+<h1 id="dax-basics-for-power-bi">DAX Basics for Power BI</h1>
+<p><strong>Book 24 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Cover illustration: glowing data funnel and formula gears" src="/learn/images/book-24-cover.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>If you are a researcher who has ever opened Power BI, dragged numbers into a chart, and thought "there must be a better way to compute this," this book is for you. That better way is DAX — Data Analysis Expressions — the formula language behind every serious Power BI report. DAX is what turns a pile of survey responses, sensor readings, or sales rows into the exact numbers your thesis, paper, or dashboard needs: response rates, pre/post change scores, year-over-year growth, weighted averages.</p>
+<p>You do not need to be a programmer. If you can write a spreadsheet formula, you can learn DAX. But DAX is not a spreadsheet formula: it reasons about whole tables and filters, and the mental model behind it is the thing most learners get wrong. This book builds that mental model carefully, one idea at a time, with a consistent running dataset so every example has real rows, real results, and real mistakes you can learn from.</p>
+<p><strong>Learning objectives:</strong>
+- Explain what DAX is, where it lives (measures, calculated columns, tables), and when to use each one
+- Write correct DAX syntax using the right data types, operators, and formatting conventions
+- Distinguish calculated columns from measures and choose correctly every time
+- Use aggregation functions (SUM, AVERAGE, COUNT, DISTINCTCOUNT, MIN, MAX) with proper blank and error handling
+- Apply CALCULATE to modify filter context and explain exactly what changed
+- Combine filter functions (FILTER, ALL, VALUES, DISTINCT, ALLEXCEPT) to shape calculations
+- Build a proper date table and write time-intelligence formulas (DATESYTD, SAMEPERIODLASTYEAR, DATEADD)
+- Use iterator functions (SUMX, AVERAGEX, COUNTX, MAXX) and understand row-by-row evaluation
+- Write readable, maintainable DAX with variables (VAR) and clear structure
+- Explain row context vs filter context, relationships, and cross-filtering without guessing</p>
+<p><strong>The running dataset.</strong> Throughout this book we use two small fictional tables. Learn them once; every example refers back to them.</p>
+<p><strong>Table <code>Sales</code></strong> (8 rows — a tiny shop's orders):</p>
+<table>
+<thead>
+<tr>
+<th>OrderID</th>
+<th>Date</th>
+<th>Region</th>
+<th>Product</th>
+<th>Quantity</th>
+<th>UnitPrice</th>
+<th>CustomerID</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>101</td>
+<td>2026-01-05</td>
+<td>North</td>
+<td>Notebook</td>
+<td>10</td>
+<td>5.00</td>
+<td>C01</td>
+</tr>
+<tr>
+<td>102</td>
+<td>2026-01-12</td>
+<td>North</td>
+<td>Pen</td>
+<td>50</td>
+<td>1.20</td>
+<td>C02</td>
+</tr>
+<tr>
+<td>103</td>
+<td>2026-02-03</td>
+<td>South</td>
+<td>Notebook</td>
+<td>20</td>
+<td>5.00</td>
+<td>C01</td>
+</tr>
+<tr>
+<td>104</td>
+<td>2026-02-20</td>
+<td>East</td>
+<td>Desk</td>
+<td>2</td>
+<td>120.00</td>
+<td>C03</td>
+</tr>
+<tr>
+<td>105</td>
+<td>2026-03-08</td>
+<td>North</td>
+<td>Notebook</td>
+<td>5</td>
+<td>5.00</td>
+<td>C04</td>
+</tr>
+<tr>
+<td>106</td>
+<td>2026-03-15</td>
+<td>South</td>
+<td>Pen</td>
+<td>30</td>
+<td>1.20</td>
+<td>C02</td>
+</tr>
+<tr>
+<td>107</td>
+<td>2026-04-02</td>
+<td>East</td>
+<td>Pen</td>
+<td>100</td>
+<td>1.20</td>
+<td>C05</td>
+</tr>
+<tr>
+<td>108</td>
+<td>2026-04-18</td>
+<td>West</td>
+<td>Desk</td>
+<td>1</td>
+<td>120.00</td>
+<td>C06</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table <code>SurveyResponses</code></strong> (8 rows — a fictional pre/post training study):</p>
+<table>
+<thead>
+<tr>
+<th>ResponseID</th>
+<th>ParticipantID</th>
+<th>Group</th>
+<th>PreScore</th>
+<th>PostScore</th>
+<th>Completed</th>
+<th>SurveyDate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R01</td>
+<td>P01</td>
+<td>Control</td>
+<td>55</td>
+<td>58</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R02</td>
+<td>P02</td>
+<td>Control</td>
+<td>60</td>
+<td>61</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R03</td>
+<td>P03</td>
+<td>Control</td>
+<td>48</td>
+<td>(blank)</td>
+<td>FALSE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R04</td>
+<td>P04</td>
+<td>Treatment</td>
+<td>52</td>
+<td>71</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R05</td>
+<td>P05</td>
+<td>Treatment</td>
+<td>61</td>
+<td>78</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R06</td>
+<td>P06</td>
+<td>Treatment</td>
+<td>57</td>
+<td>69</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R07</td>
+<td>P07</td>
+<td>Treatment</td>
+<td>50</td>
+<td>(blank)</td>
+<td>FALSE</td>
+<td>2026-01-10</td>
+</tr>
+<tr>
+<td>R08</td>
+<td>P08</td>
+<td>Control</td>
+<td>62</td>
+<td>60</td>
+<td>TRUE</td>
+<td>2026-01-10</td>
+</tr>
+</tbody>
+</table>
+<p>Keep these tables open in your mind (or a second window). Chapter 12 returns to <code>SurveyResponses</code> for real research metrics.</p>
+<hr />
+<h2 id="chapter-1-what-is-dax-where-it-lives">Chapter 1: What Is DAX? Where It Lives</h2>
+<p>DAX stands for <strong>Data Analysis Expressions</strong>. It is the formula language used by Power BI, Power Pivot for Excel, and SQL Server Analysis Services tabular models. Every number you see in a Power BI card, chart, or table that is not raw imported data was computed by DAX.</p>
+<p>DAX looks like Excel formulas — it has <code>SUM</code>, <code>IF</code>, <code>AVERAGE</code>, and parentheses — and that resemblance is a trap. Excel formulas live in cells and reference other cells (B4, C7). DAX formulas reference <strong>columns and tables</strong> (<code>Sales[Quantity]</code>, <code>Sales</code>) and are evaluated in an <strong>evaluation context</strong> that changes depending on where the formula sits on your report page. Chapter 5 and Chapter 10 make context precise. For now, carry this: in DAX you never point at a cell; you describe a calculation, and Power BI decides which rows it applies to.</p>
+<h3 id="a-brief-history">A brief history</h3>
+<p>DAX was born in 2009 inside Power Pivot for Excel (then called "PowerPivot"), Microsoft's answer to analysts drowning in million-row spreadsheets. In 2013 it became the language of the Analysis Services tabular model; in 2015 it powered Power BI Desktop. The language has grown enormously since — time intelligence, variables, window functions — but its core idea has not changed: <strong>describe aggregations over tables, and let the report's filters decide the scope.</strong></p>
+<h3 id="the-three-places-dax-lives">The three places DAX lives</h3>
+<p>DAX code exists in exactly three kinds of objects. You create them in the <strong>Model view</strong> or the <strong>Data view</strong> of Power BI Desktop, writing in the formula bar (and later, in DAX Studio or the built-in DAX query view for serious work).</p>
+<p><strong>1. Measures.</strong> A measure is a formula that is calculated <strong>on demand</strong>, every time it is used in a visual, and re-calculated whenever filters change. Measures are the heart of DAX — perhaps 80% of your DAX life. You create one by right-clicking a table → <em>New measure</em>.</p>
+<pre><code class="language-dax">Total Sales = SUM ( Sales[Quantity] )
+</code></pre>
+<p>Put <code>Total Sales</code> in a card: it shows 268 (the total of the Quantity column). Put it in a bar chart by Region: Power BI evaluates it four times — once per region — showing North = 65, South = 50, East = 102, West = 1. The measure never stored those numbers; it computed them live from the current filters. That "compute live under the current filters" behavior is why measures are small, fast, and the correct default for almost everything.</p>
+<p><strong>2. Calculated columns.</strong> A calculated column is computed <strong>once per row</strong>, at data-refresh time, and the result is <strong>stored</strong> in the model — physically added to the table, like a new column in your source data.</p>
+<pre><code class="language-dax">Line Total = Sales[Quantity] * Sales[UnitPrice]
+</code></pre>
+<p>This adds a column where row 101 gets 50.00, row 102 gets 60.00, row 104 gets 240.00, and so on. The values sit in the model permanently until the next refresh. Because they are stored, calculated columns cost memory (model size grows) and refresh time. Use them when you need a value <strong>per row</strong> that you will then slice, filter, or group by — for example a <code>Profit Category</code> column you want to put on a chart axis.</p>
+<p><strong>3. Calculated tables.</strong> A calculated table is a whole table produced by a DAX expression, evaluated at refresh time and stored like an imported table.</p>
+<pre><code class="language-dax">High Value Orders = FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 )
+</code></pre>
+<p>This creates a new table containing only rows 102 (60.00 — wait, 50 × 1.20 = 60.00, not &gt; 100), so actually rows 104 (240.00) and 108 (120.00). Calculated tables are the least common of the three; their classic uses are building date tables (Chapter 7) and small parameter/helper tables.</p>
+<h3 id="the-one-sentence-rule-of-thumb">The one-sentence rule of thumb</h3>
+<blockquote>
+<p><strong>Measures</strong> answer "what is the number right now, under these filters?" — computed live.
+<strong>Calculated columns</strong> answer "what is the value for this row?" — computed once, stored.
+<strong>Calculated tables</strong> answer "what subset (or new shape) of data do I need as a table?" — computed once, stored.</p>
+</blockquote>
+<p><strong>Common errors (preview — Chapter 11 goes deep):</strong>
+- Writing <code>SUM(Sales)</code> (a table) instead of <code>SUM(Sales[Quantity])</code> (a column). Aggregation functions need a column.
+- Forgetting that a measure in a card with no filters aggregates the <em>whole</em> table — and then being surprised.
+- Using a calculated column where a measure was needed, and watching the model bloat to gigabytes.</p>
+<h3 id="dax-vs-excel-the-mental-shift-in-detail">DAX vs Excel: the mental shift, in detail</h3>
+<p>Excel users bring three habits that DAX punishes. Unlearn them deliberately:</p>
+<p><strong>Habit 1: pointing at cells.</strong> In Excel, <code>=B2*C2</code> means "this row's B times this row's C." In DAX, <code>Sales[Quantity] * Sales[UnitPrice]</code> in a calculated column means the same thing — but in a measure it is an error, because a measure has no "this row." Train yourself to ask, before writing any formula: <em>am I describing one row, or all visible rows?</em></p>
+<p><strong>Habit 2: copying formulas down.</strong> Excel repeats logic by copying; DAX repeats logic by <em>evaluation context</em>. One measure serves every bar, card, and row of every visual. When you feel the urge to "copy the formula for the next region," stop — add the region to the visual instead and let context do the copying.</p>
+<p><strong>Habit 3: hard-coding positions.</strong> <code>=SUM(B2:B9)</code> breaks when row 10 arrives. DAX's <code>SUM ( Sales[Quantity] )</code> automatically includes new rows after refresh. DAX formulas are <em>structural</em>, not positional — they describe relationships to columns, and they survive data growth.</p>
+<h3 id="where-dax-actually-runs-the-engine-underneath">Where DAX actually runs: the engine underneath</h3>
+<p>When you click a slicer, this happens in milliseconds: Power BI's formula engine translates your visuals + measures into a query; the <strong>VertiPaq</strong> storage engine (an in-memory columnar database) scans compressed columns; results return. Two consequences:</p>
+<ol>
+<li><strong>Columnar storage loves repeated values.</strong> A Region column with 4 distinct values compresses brilliantly; a unique TransactionID column barely compresses. This is why calculated columns with unique numbers bloat models — and why Chapter 3's "prefer measures" rule is really a storage rule.</li>
+<li><strong>DAX has two engines</strong>: the formula engine (handles logic, context, iterators) and the storage engine (fast scans and simple aggregations). Simple <code>SUM</code> over a column runs almost entirely in the fast storage engine; complex <code>SUMX</code> with branching logic runs row-by-row in the slower formula engine. You don't need the internals memorized — just the instinct: <em>simple aggregations are cheap; row-by-row logic is expensive.</em></li>
+</ol>
+<h3 id="your-first-hour-with-dax-in-power-bi-desktop">Your first hour with DAX in Power BI Desktop</h3>
+<p>A concrete onboarding path:</p>
+<ol>
+<li><strong>Load the sample tables.</strong> Home → Enter Data, paste the 8-row <code>Sales</code> table from this book's introduction. Name it <code>Sales</code>. Set <code>Date</code> to Date type, <code>Quantity</code> to Whole Number.</li>
+<li><strong>Create your first measure.</strong> In Data view, right-click <code>Sales</code> → New measure. Type <code>Total Quantity = SUM ( Sales[Quantity] )</code> and press Enter. The measure appears with a calculator icon.</li>
+<li><strong>See context in action.</strong> Insert a Card visual → drag <code>Total Quantity</code> in (shows 218). Insert a clustered bar chart → Axis: <code>Region</code>, Values: <code>Total Quantity</code> (bars: 65, 50, 102, 1). Same measure, four contexts.</li>
+<li><strong>Add a slicer.</strong> Insert Slicer → <code>Product</code>. Click "Pen": the card drops to 180 (50+30+100), the chart re-splits. You just watched filter context change live.</li>
+<li><strong>Break it on purpose.</strong> In the bar chart, try dragging the <em>measure</em> to the Axis field — Power BI refuses. Measures can't group; that's calculated columns' job (Chapter 3). Learning the refusal teaches the rule.</li>
+</ol>
+<p>Do this once with real clicks and the abstract ideas in this chapter become muscle memory.</p>
+<h3 id="what-dax-is-not-boundary-setting">What DAX is not (boundary-setting)</h3>
+<ul>
+<li><strong>Not a data-cleaning language.</strong> Fixing types, merging tables, unpivoting — that's Power Query (M). DAX assumes clean, shaped tables. If your formula is fighting messy data, the fix is upstream in Power Query, not a cleverer DAX expression.</li>
+<li><strong>Not a general programming language.</strong> No loops, no mutable variables, no printing. DAX is a <em>functional</em> expression language: you describe results, and the engine figures out execution. Thinking "how do I loop?" is the wrong question; "what set of rows do I want?" is the right one.</li>
+<li><strong>Not SQL.</strong> SQL queries tables directly with SELECT/JOIN; DAX queries a <em>model</em> through evaluation context. SQL veterans must unlearn row-by-row thinking just as Excel veterans must unlearn cell thinking.</li>
+<li><strong>Not only for Power BI.</strong> The same DAX runs in Excel Power Pivot and Analysis Services. Learn once, use in three places — and formulas you write for a thesis dashboard transfer directly to enterprise models.</li>
+</ul>
+<h3 id="the-learning-order-that-works">The learning order that works</h3>
+<p>Learners who thrive follow this sequence: aggregations (Ch4) → column-vs-measure (Ch3) → CALCULATE (Ch5) → filter functions (Ch6) → iterators (Ch8) → VAR/style (Ch9) → contexts/relationships (Ch10) → time intelligence (Ch7) → debugging (Ch11) → domain application (Ch12). Note time intelligence comes <em>late</em> — it's CALCULATE plus a date table, and it confuses everyone who attempts it before CALCULATE clicks. If you take one pacing rule from this book: <strong>don't rush to Chapter 7; Chapters 3–6 are the foundation everything else stands on.</strong></p>
+<h3 id="how-to-practice-the-15-minute-daily-loop">How to practice: the 15-minute daily loop</h3>
+<ol>
+<li>Pick one measure from this book. Rewrite it from memory in a blank model on the 8-row Sales table.</li>
+<li>Hand-compute the expected value before pressing Enter (the book gives you the answers).</li>
+<li>Put it in two different visuals (card + bar chart by Region). Explain out loud why the numbers differ.</li>
+<li>Break it deliberately: remove a relationship, blank a column, add a conflicting slicer. Observe. Fix.</li>
+</ol>
+<p>Fifteen minutes a day for a month beats a weekend cram session — DAX is a <em>mental model</em>, and mental models are built by prediction-and-surprise cycles, not by reading. The companion habit: keep a "DAX journal" file where you paste each measure you wrote, the wrong version first, with a one-line note on what the bug taught you. Researchers already keep lab notebooks; this is the same instinct applied to analysis code.</p>
+<h3 id="dax-and-the-ai-era-a-note-on-getting-help">DAX and the AI era — a note on getting help</h3>
+<p>AI assistants can now write DAX for you — and that's genuinely useful for boilerplate. But they hallucinate context behavior with total confidence: an AI will happily give you a FILTER where overwrite was needed, or a VAR shared across CALCULATEs (Chapter 9's trap). <strong>Use AI to draft, then verify every measure against hand-computed values on tiny data</strong> (this book's 8-row tables are the fixture). The mental model in these chapters is what lets you spot the AI's mistakes. DAX you can't debug is DAX you can't defend — and in research, you must defend every number.</p>
+<p><strong>For your research:</strong> Your survey data arrives as rows (one row per participant). Almost every research metric — response rate, mean change score, group comparison — is a <strong>measure</strong>, because it must recompute when you filter to "Treatment group only" or "completed surveys only." Reserve calculated columns for per-participant derivations you will group by later (e.g., a <code>Change Category</code> column: "Improved / Same / Declined"), which Chapter 12 builds.</p>
+<p><strong>Key takeaways:</strong>
+- DAX = Data Analysis Expressions, the formula language of Power BI, Power Pivot, and SSAS tabular.
+- It references columns and tables, never cells — and it evaluates inside a context set by the report.
+- Measures compute live under current filters (default choice); calculated columns compute per row at refresh and are stored; calculated tables produce stored tables at refresh.</p>
+<hr />
+<h2 id="chapter-2-dax-syntax-data-types-and-operators">Chapter 2: DAX Syntax, Data Types, and Operators</h2>
+<p>DAX syntax is deliberately Excel-like, so this chapter is about the differences that bite beginners. Read it once carefully; it will save you hours of red squiggles later.</p>
+<h3 id="anatomy-of-a-formula">Anatomy of a formula</h3>
+<pre><code class="language-dax">Total Sales =
+SUM ( Sales[Quantity] )
+</code></pre>
+<p>Three parts: the <strong>name</strong> (<code>Total Sales</code>), the <strong>equals sign</strong> (assignment), and the <strong>expression</strong>. In Power BI's formula bar, IntelliSense helps you complete table and column names — always pick from the list rather than typing, because DAX is picky about names.</p>
+<p>References use a strict notation:
+- <code>Sales[Quantity]</code> — column <code>Quantity</code> in table <code>Sales</code> (fully qualified).
+- <code>'Sales Data'[Quantity]</code> — table names with spaces or special characters need single quotes.
+- <code>[Quantity]</code> — inside a calculated column on the <code>Sales</code> table, the table name can be omitted.
+- <code>Sales</code> — a table reference (no brackets), used where a function expects a table.</p>
+<p><strong>Case-insensitivity:</strong> <code>sum</code>, <code>SUM</code>, and <code>Sum</code> are identical. Column names are also case-insensitive. Pick one style (UPPERCASE functions, <code>Table[Column]</code> references) and stay consistent — Chapter 9 shows a full style guide.</p>
+<h3 id="data-types">Data types</h3>
+<p>Every DAX value has one of these types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Integer</td>
+<td>Whole number (64-bit)</td>
+<td><code>42</code></td>
+</tr>
+<tr>
+<td>Decimal</td>
+<td>Floating-point number</td>
+<td><code>4.99</code>, <code>0.05</code></td>
+</tr>
+<tr>
+<td>Currency</td>
+<td>Fixed 4-decimal number, for money</td>
+<td><code>120.00</code> (formatted)</td>
+</tr>
+<tr>
+<td>Boolean</td>
+<td>TRUE / FALSE</td>
+<td><code>TRUE()</code></td>
+</tr>
+<tr>
+<td>Date/Time</td>
+<td>Date + time</td>
+<td><code>DATE(2026,1,5)</code></td>
+</tr>
+<tr>
+<td>Text (String)</td>
+<td>Characters</td>
+<td><code>"North"</code></td>
+</tr>
+<tr>
+<td>Blank</td>
+<td>Missing value — DAX's NULL</td>
+<td><code>BLANK()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Three subtleties matter enormously:</p>
+<ol>
+<li><strong>BLANK is not zero and not an empty string.</strong> <code>BLANK() + 5</code> = 5. <code>BLANK() = 0</code> is FALSE. In <code>SurveyResponses</code>, participants R03 and R07 have blank <code>PostScore</code> — they dropped out. Averages must skip them (AVERAGE does; your own division might not — Chapter 4 shows how).</li>
+<li><strong>Currency vs Decimal.</strong> The Currency type stores exactly 4 decimal places and avoids floating-point wobble. For money, prefer it (Power BI lets you set the format; the type follows the data). <code>0.1 + 0.2</code> in Decimal can give <code>0.30000000000000004</code>; in Currency it gives <code>0.3</code>.</li>
+<li><strong>Dates are numbers underneath.</strong> DAX stores dates as serial numbers (days since 30 Dec 1899, like Excel). That is why <code>Sales[Date] + 7</code> adds a week, and why date tables (Chapter 7) work at all. It is also why importing a date as text breaks every time-intelligence function — check the column's data type in Power Query first.</li>
+</ol>
+<h3 id="operators">Operators</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Operators</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arithmetic</td>
+<td><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>^</code> (power) <code>%</code> (percent: <code>50%</code> = 0.5)</td>
+</tr>
+<tr>
+<td>Comparison</td>
+<td><code>=</code> <code>==</code> <code>&gt;</code> <code>&gt;=</code> <code>&lt;</code> <code>&lt;=</code> <code>&lt;&gt;</code></td>
+</tr>
+<tr>
+<td>Text concatenation</td>
+<td><code>&amp;</code></td>
+</tr>
+<tr>
+<td>Logical</td>
+<td><code>&amp;&amp;</code> (AND) <code>\|\|</code> (OR) <code>!</code> (NOT) — <code>AND()</code>, <code>OR()</code>, <code>NOT()</code> also exist</td>
+</tr>
+</tbody>
+</table>
+<p>Notes worth memorizing:
+- <code>=</code> vs <code>==</code>: In DAX, <code>=</code> is TRUE when comparing a blank to 0 or to <code>""</code> (loose, Excel-like). <code>==</code> is strict: <code>BLANK() == 0</code> is FALSE. Use <code>==</code> when blanks are meaningful — e.g., distinguishing a participant who scored 0 from one who dropped out.
+- <code>&amp;&amp;</code> and <code>||</code> have no function-call overhead and short-circuit; prefer them over <code>AND()</code>/<code>OR()</code> inside FILTER.
+- The <code>&amp;</code> operator converts numbers to text automatically: <code>"Qty: " &amp; 10</code> → <code>"Qty: 10"</code>.</p>
+<h3 id="comments-and-line-breaks">Comments and line breaks</h3>
+<p>DAX allows <code>//</code> for single-line comments and <code>/* ... */</code> for blocks. Long formulas should be broken across lines — the formula bar accepts Enter, and Chapter 9 shows professional formatting:</p>
+<pre><code class="language-dax">// Average post score, completers only
+Average Post Score =
+AVERAGE ( SurveyResponses[PostScore] )
+</code></pre>
+<h3 id="common-errors">Common errors</h3>
+<ul>
+<li><strong>"The syntax for 'X' is incorrect."</strong> — usually a missing parenthesis or comma. Count opening/closing parens; the formula bar highlights the match.</li>
+<li><strong>"Column 'Quantity' cannot be found"</strong> — you typed the column name instead of picking <code>Sales[Quantity]</code> from IntelliSense, or you referenced a column from the wrong table.</li>
+<li><strong>Comparing text to numbers</strong> (<code>Sales[Region] &gt; 5</code>) — DAX will try to convert and fail confusingly. Keep types consistent.</li>
+<li><strong>Single <code>=</code> with blanks</strong>: <code>IF ( SurveyResponses[PostScore] = 0, ... )</code> catches blanks too. Use <code>ISBLANK()</code> or <code>==</code> when the distinction matters.</li>
+</ul>
+<h3 id="implicit-type-conversion-the-hidden-rules">Implicit type conversion — the hidden rules</h3>
+<p>DAX converts types automatically in expressions, following strict rules. Know them, because silent conversions cause silent wrongness:</p>
+<table>
+<thead>
+<tr>
+<th>Expression</th>
+<th>Result</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>5 + "3"</code></td>
+<td>8</td>
+<td>Text that looks numeric converts to number</td>
+</tr>
+<tr>
+<td><code>5 + "North"</code></td>
+<td>Error</td>
+<td>Non-numeric text cannot convert</td>
+</tr>
+<tr>
+<td><code>"2026-01-05" + 7</code></td>
+<td>2026-01-12 (date)</td>
+<td>Date-like text converts, then date arithmetic</td>
+</tr>
+<tr>
+<td><code>TRUE + 5</code></td>
+<td>6</td>
+<td>TRUE → 1, FALSE → 0</td>
+</tr>
+<tr>
+<td><code>BLANK() + 5</code></td>
+<td>5</td>
+<td>BLANK converts to 0 in addition...</td>
+</tr>
+<tr>
+<td><code>BLANK() * 5</code></td>
+<td>BLANK</td>
+<td>...but propagates as BLANK in multiplication</td>
+</tr>
+<tr>
+<td><code>5 / BLANK()</code></td>
+<td>Error (use DIVIDE)</td>
+<td>Division by blank is not auto-handled</td>
+</tr>
+</tbody>
+</table>
+<p>The BLANK asymmetry (<code>+</code> absorbs it, <code>*</code> propagates it) surprises everyone once. Rule of thumb: <strong>never rely on implicit conversion with blanks or text</strong> — use <code>VALUE()</code>, <code>FORMAT()</code>, <code>DATEVALUE()</code>, or <code>IF ( ISBLANK(...) )</code> to be explicit.</p>
+<h3 id="operator-precedence">Operator precedence</h3>
+<p>DAX follows standard math precedence, Excel-style:</p>
+<ol>
+<li><code>%</code> (percent), <code>^</code> (exponent)</li>
+<li><code>*</code> <code>/</code></li>
+<li><code>+</code> <code>-</code></li>
+<li><code>&amp;</code> (concatenation)</li>
+<li><code>=</code> <code>==</code> <code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code> <code>&lt;&gt;</code></li>
+<li><code>!</code> (NOT), then <code>&amp;&amp;</code>, then <code>||</code></li>
+</ol>
+<p>So <code>2 + 3 * 4 = 14</code>, and <code>"a" &amp; "b" = "c"</code> is FALSE (concatenation binds tighter than comparison — it evaluates <code>"ab" = "c"</code>). When in doubt, <strong>parenthesize</strong>. Parentheses are free; misread precedence is expensive. This is doubly true mixing <code>&amp;&amp;</code> and <code>||</code>: <code>a || b &amp;&amp; c</code> means <code>a || (b &amp;&amp; c)</code> — write the parens anyway.</p>
+<h3 id="format-turning-values-into-text-deliberately">FORMAT — turning values into text deliberately</h3>
+<pre><code class="language-dax">FORMAT ( 0.7583, &quot;0.0%&quot; )              -- &quot;75.8%&quot;
+FORMAT ( DATE ( 2026, 4, 18 ), &quot;dd mmm yyyy&quot; )   -- &quot;18 Apr 2026&quot;
+FORMAT ( 751, &quot;#,##0&quot; )                -- &quot;751&quot;
+</code></pre>
+<p>FORMAT is for <em>display strings</em> (titles, labels, concatenated sentences). Never FORMAT a value you will compute with afterward — it becomes text and math breaks. Format in the visual's formatting pane when possible; FORMAT() only when building dynamic text.</p>
+<h3 id="numbers-rounding-and-money">Numbers, rounding, and money</h3>
+<pre><code class="language-dax">ROUND ( 93.875, 2 )      -- 93.88
+ROUNDDOWN ( 93.875, 1 )  -- 93.8
+INT ( 93.875 )           -- 93 (truncates toward zero for positives)
+MOD ( 10, 3 )            -- 1
+ABS ( -15.33 )           -- 15.33
+</code></pre>
+<p>For currency display, set the measure's format to Currency in the ribbon rather than rounding in DAX — the underlying precision stays intact for further math, and only the display rounds. Rounding inside DAX <em>changes the value</em>; rounding in formatting <em>changes the picture</em>. In research reporting, compute with full precision and round only at presentation.</p>
+<h3 id="dax-vs-m-who-does-what">DAX vs M: who does what</h3>
+<p>Power BI has two languages, and beginners constantly use the wrong one:</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Language</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Import, clean, merge, unpivot, change types</td>
+<td>M (Power Query)</td>
+<td>Power Query Editor</td>
+</tr>
+<tr>
+<td>Model-time calculations over clean tables</td>
+<td>DAX</td>
+<td>Measures, columns, tables</td>
+</tr>
+</tbody>
+</table>
+<p>Rule: <strong>shape in M, calculate in DAX.</strong> Examples: converting "Agree"→5 belongs in Power Query (it's data shaping); computing the mean of the 5s belongs in DAX (it's analysis). Computing it in DAX via VALUE() on every query is slower and hides the transformation from anyone auditing your pipeline. If you find yourself writing heroic DAX to work around messy data, stop and fix the query.</p>
+<h3 id="names-keywords-and-quoting-rules">Names, keywords, and quoting rules</h3>
+<ul>
+<li>Measure/column/table names can contain spaces and most characters; quote table names with spaces in references: <code>'Sales Data'[Quantity]</code>.</li>
+<li>Avoid DAX reserved words as names: <code>Date</code>, <code>Value</code>, <code>Filter</code>, <code>Table</code>, <code>Year</code>, <code>Month</code>, <code>Day</code>. A column named <code>Date</code> works but forces constant disambiguation — name it <code>OrderDate</code> instead.</li>
+<li>Leading/trailing spaces in names are legal and invisible — a classic "column not found" cause after pasting from Excel. If IntelliSense won't complete a name you can see, check for stray spaces.</li>
+<li>Keep names stable: renaming a column breaks every formula referencing it (Power BI offers auto-fix, but calculated-table code and DAX Studio queries won't update).</li>
+</ul>
+<h3 id="date-arithmetic-in-depth">Date arithmetic in depth</h3>
+<p>Because dates are serial numbers, arithmetic is natural — but has edges:</p>
+<pre><code class="language-dax">DATE ( 2026, 1, 5 ) + 7          -- 2026-01-12
+DATEDIFF ( DATE(2026,1,5), DATE(2026,4,18), DAY )     -- 103
+DATEDIFF ( DATE(2026,1,5), DATE(2026,4,18), MONTH )   -- 3 (boundary count, not 30-day blocks)
+EDATE ( DATE(2026,1,31), 1 )    -- 2026-02-28 (clamps to month end)
+EOMONTH ( DATE(2026,4,18), 0 )  -- 2026-04-30
+EOMONTH ( DATE(2026,4,18), -1 ) -- 2026-03-31
+</code></pre>
+<p>DATEDIFF counts <em>boundaries crossed</em>, not elapsed units: Jan 31 → Feb 1 is 1 MONTH by DATEDIFF but 1 day apart. For "days since enrollment" (Chapter 3's scenario C) DAY is exact; for "months of follow-up," decide whether you mean boundary months or 30-day blocks and document it — reviewers notice.</p>
+<pre><code class="language-dax">YEAR ( Sales[Date] )    -- 2026
+MONTH ( Sales[Date] )   -- 1..12
+DAY ( Sales[Date] )     -- 1..31
+WEEKDAY ( Sales[Date], 2 )  -- 1=Monday..7=Sunday
+</code></pre>
+<p>Extract these in the Date table (Chapter 7), not per-measure — computed once, reused everywhere.</p>
+<h3 id="boolean-logic-patterns-in-filters">Boolean logic patterns in filters</h3>
+<pre><code class="language-dax">-- &quot;North or South&quot;:
+Sales[Region] = &quot;North&quot; || Sales[Region] = &quot;South&quot;
+-- cleaner:
+Sales[Region] IN { &quot;North&quot;, &quot;South&quot; }
+
+-- &quot;Not West&quot;:
+Sales[Region] &lt;&gt; &quot;West&quot;
+-- or: NOT ( Sales[Region] = &quot;West&quot; )
+
+-- &quot;Quantity positive and price above 10&quot;:
+Sales[Quantity] &gt; 0 &amp;&amp; Sales[UnitPrice] &gt; 10
+</code></pre>
+<p><code>IN { ... }</code> is the readable multi-value match — prefer it over chained <code>||</code>. And remember <code>&amp;&amp;</code>/<code>||</code> short-circuit: put the cheapest, most selective condition first inside FILTER over large tables.</p>
+<h3 id="working-with-text-the-patterns-youll-actually-use">Working with text: the patterns you'll actually use</h3>
+<pre><code class="language-dax">-- Split-safe full name:
+Full Name = Participants[FirstName] &amp; &quot; &quot; &amp; Participants[LastName]
+
+-- Case-insensitive compare (DAX comparisons ignore case by default):
+IF ( Sales[Region] = &quot;north&quot;, ... )   -- matches &quot;North&quot; ✓
+
+-- Find &amp; extract:
+FIND ( &quot;@&quot;, Participants[Email] )                 -- position of @
+LEFT ( Participants[Email], FIND ( &quot;@&quot;, Participants[Email] ) - 1 )  -- username part
+LEN ( Participants[ResponseID] )                   -- length check for ID validation
+
+-- Clean imported text:
+TRIM ( Participants[Group] )        -- removes leading/trailing spaces
+UPPER ( Participants[Group] )       -- normalize &quot;treatment&quot; vs &quot;Treatment&quot;
+</code></pre>
+<p>The TRIM/UPPER pair deserves emphasis: survey exports routinely contain "Treatment", "treatment ", "TREATMENT" — three groups where you meant one. <strong>Normalize text in Power Query</strong> (it's shaping), and use TRIM defensively in DAX only for quick checks like <code>DISTINCTCOUNT</code> audits. A one-line audit measure finds the problem early:</p>
+<pre><code class="language-dax">Distinct Raw Groups = DISTINCTCOUNT ( SurveyResponses[Group] )   -- expect 2; more = dirty data
+</code></pre>
+<p><strong>For your research:</strong> Research datasets are full of meaningful missingness — a blank post-score means dropout, not zero. Internalize <code>BLANK()</code>, <code>ISBLANK()</code>, and <code>==</code> now; Chapter 12's attrition metrics depend on them. Also: Likert items imported as text ("Agree") cannot be averaged — convert to numbers in Power Query before writing DAX.</p>
+<p><strong>Key takeaways:</strong>
+- Reference columns as <code>Table[Column]</code>; quote table names with spaces.
+- BLANK is DAX's NULL — it is not zero; <code>==</code> compares strictly, <code>=</code> loosely.
+- Dates are numbers underneath; check data types in Power Query before writing time formulas.
+- <code>&amp;&amp;</code>, <code>||</code>, <code>&amp;</code>, <code>//</code> comments, and consistent casing keep formulas correct and readable.</p>
+<hr />
+<h2 id="chapter-3-calculated-columns-vs-measures-the-most-important-distinction">Chapter 3: Calculated Columns vs Measures — The Most Important Distinction</h2>
+<p>If this book teaches you only one thing, let it be this chapter. Choosing wrong between a calculated column and a measure is the single most common source of slow models, wrong numbers, and Stack Overflow questions in the DAX world.</p>
+<h3 id="how-they-are-evaluated">How they are evaluated</h3>
+<p>A <strong>calculated column</strong> is evaluated in <strong>row context</strong>: DAX walks down the table one row at a time, and inside the formula, <code>Sales[Quantity]</code> means "the Quantity of <em>this</em> row." The result is stored in the model at refresh time.</p>
+<p>A <strong>measure</strong> is evaluated in <strong>filter context</strong>: it has no "current row." <code>SUM ( Sales[Quantity] )</code> means "add up Quantity over <em>whichever rows the current filters select</em>." The result is computed when the visual renders, and recomputed every time a slicer changes.</p>
+<h3 id="side-by-side-on-the-sales-table">Side-by-side on the Sales table</h3>
+<p><strong>Calculated column</strong> — line total per row:</p>
+<pre><code class="language-dax">-- Created on the Sales table: New column
+Line Total = Sales[Quantity] * Sales[UnitPrice]
+</code></pre>
+<p>Result (stored): row 101 → 50.00, row 102 → 60.00, row 103 → 100.00, row 104 → 240.00, row 105 → 25.00, row 106 → 36.00, row 107 → 120.00, row 108 → 120.00. Sum of the column = 751.00. You can now slice by this column, put it on an axis, or sum it.</p>
+<p><strong>Measure</strong> — total revenue, computed live:</p>
+<pre><code class="language-dax">Total Revenue = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+</code></pre>
+<p>(<code>SUMX</code> is an iterator — Chapter 8. For now read it as "for each row, multiply, then add up.") In a card with no filters: 751.00. In a bar chart by Region: North = 135.00 (50+60+25), South = 136.00 (100+36), East = 360.00 (240+120), West = 120.00. One formula, four answers — the visual's filters did the slicing.</p>
+<p>Now watch what happens if you pick the wrong tool:</p>
+<p><strong>Wrong: measure used as a row-level value.</strong> You cannot put a measure on a chart axis or use it in a slicer. Measures produce single values per filter context, not per-row categories.</p>
+<p><strong>Wrong: calculated column used as a summary.</strong> Suppose you want "revenue for the selected region." A calculated column <code>Line Total</code> stores per-row values; to get the region total you <em>still</em> need a measure: <code>SUM ( Sales[Line Total] )</code>. Worse, if someone tries to encode the filter into the column itself:</p>
+<pre><code class="language-dax">-- DON'T DO THIS
+North Revenue Column = IF ( Sales[Region] = &quot;North&quot;, Sales[Quantity] * Sales[UnitPrice], 0 )
+</code></pre>
+<p>This hard-codes "North" into the model. Add a slicer for Product and the column ignores it — it was computed at refresh. A measure <code>CALCULATE ( [Total Revenue], Sales[Region] = "North" )</code> (Chapter 5) respects everything else on the page. Hard-coding filters into columns is how dashboards silently lie.</p>
+<h3 id="the-decision-checklist">The decision checklist</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>If yes →</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Do you need the value <strong>per row</strong>, to group/slice/filter by it later?</td>
+<td>Calculated column</td>
+</tr>
+<tr>
+<td>Must it respond to slicers and visual filters?</td>
+<td>Measure</td>
+</tr>
+<tr>
+<td>Is it an intermediate step for another measure?</td>
+<td>Usually a measure (or VAR — Chapter 9)</td>
+</tr>
+<tr>
+<td>Will it appear on an axis, in a slicer, or in a table's rows?</td>
+<td>Calculated column</td>
+</tr>
+<tr>
+<td>Does the model already feel slow or large?</td>
+<td>Prefer measures — columns cost storage</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The golden rule:</strong> <em>default to measures.</em> Create a calculated column only when you need a row-level value for grouping or filtering. Roughly 90% of real-world DAX is measures.</p>
+<h3 id="storage-and-refresh-cost-concretely">Storage and refresh cost, concretely</h3>
+<p>Each calculated column physically stores one value per row. On 8 rows, nothing. On 50 million rows, a decimal column costs roughly 400 MB before compression — and VertiPaq compression is weaker on high-cardinality numeric columns. Measures cost nothing to store; they cost CPU at query time. For a researcher with 5,000 survey rows, either is fine — but the habit you build on 5,000 rows is the habit you'll use on 5 million.</p>
+<h3 id="common-errors_1">Common errors</h3>
+<ul>
+<li><strong>"A circular dependency was detected"</strong> — two calculated columns referencing each other. Break the chain with a measure or restructure.</li>
+<li><strong>Aggregation of a measure inside a calculated column</strong> — <code>Sales[Quantity] * [Total Revenue]</code> in a column: the measure is evaluated in the column's row context (context transition — Chapter 10), producing a per-row total-revenue value. Usually not what you wanted; usually a sign you mixed the two worlds.</li>
+<li><strong>Column values not updating with slicers</strong> — not a bug; columns compute at refresh. If you expected live response, you wanted a measure.</li>
+</ul>
+<h3 id="worked-mini-example-average-order-value">Worked mini-example: average order value</h3>
+<p>Wrong way (column):</p>
+<pre><code class="language-dax">-- Column: Avg Order Value = ???  -- there is no &quot;average&quot; of one row
+</code></pre>
+<p>There is no sensible per-row average here. Right way (measure):</p>
+<pre><code class="language-dax">Average Order Value =
+DIVIDE ( [Total Revenue], DISTINCTCOUNT ( Sales[OrderID] ) )
+</code></pre>
+<p>Expected: 751.00 / 8 = 93.875 → displays 93.88. Filter to Region = East: 360.00 / 2 = 180.00. The measure adapts; no column could.</p>
+<h3 id="three-scenarios-choosing-under-pressure">Three scenarios: choosing under pressure</h3>
+<p><strong>Scenario A — "Revenue band" for a chart axis.</strong> You need bars grouped as Small (&lt;100), Medium (100–200), Large (&gt;200) order totals. The band must be an axis → it must be a <strong>calculated column</strong> (measures can't sit on axes):</p>
+<pre><code class="language-dax">-- Calculated column on Sales:
+Revenue Band =
+VAR LineTotal = Sales[Quantity] * Sales[UnitPrice]
+RETURN
+    SWITCH (
+        TRUE (),
+        LineTotal &lt; 100, &quot;Small&quot;,
+        LineTotal &lt;= 200, &quot;Medium&quot;,
+        &quot;Large&quot;
+    )
+</code></pre>
+<p>Result: rows 101,102,103,105,106 → Small; 107,108 → Medium; 104 → Large. Now a bar chart with Axis = Revenue Band, Values = Total Revenue works. Note the VAR inside the column — computed per row, perfectly legal.</p>
+<p><strong>Scenario B — "Running total" down a date axis.</strong> Tempting as a column? No — a running total depends on <em>which dates are visible</em> and must respond to slicers → <strong>measure</strong>:</p>
+<pre><code class="language-dax">Revenue Running Total =
+CALCULATE (
+    [Total Revenue],
+    FILTER ( ALL ( 'Date' ), 'Date'[Date] &lt;= MAX ( 'Date'[Date] ) )
+)
+</code></pre>
+<p>(Requires the Date table from Chapter 7.) In a monthly chart, April's bar shows 751.00 — everything up to and including April. A column could never do this; it can't see the visual's "up to here."</p>
+<p><strong>Scenario C — "Days since enrollment" per participant.</strong> Per-row, needed for grouping participants into "early/late enrollee" cohorts → <strong>calculated column</strong>:</p>
+<pre><code class="language-dax">-- Column on SurveyResponses:
+Days Since Start = DATEDIFF ( DATE ( 2026, 1, 10 ), SurveyResponses[SurveyDate], DAY )
+</code></pre>
+<p>All rows → 0 here (same date); with real staggered enrollment you'd get 0, 5, 12… Then a measure averages outcomes <em>by</em> that column.</p>
+<h3 id="measure-dependency-chains">Measure dependency chains</h3>
+<p>Measures can reference other measures — and should. This is called <strong>measure branching</strong>:</p>
+<pre><code class="language-dax">Total Revenue  = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )
+Revenue YTD    = CALCULATE ( [Total Revenue], DATESYTD ( 'Date'[Date] ) )
+Revenue YoY %  = DIVIDE ( [Total Revenue] - [Revenue Last Year], [Revenue Last Year] )
+</code></pre>
+<p>Each layer is testable alone: verify Total Revenue first, then YTD, then YoY. Debugging a 10-line mega-measure is hell; debugging three 2-line measures is trivial. <strong>Branch measures like you outline a paper: base results first, derived claims on top.</strong> The engine is smart about shared sub-expressions, so branching rarely costs performance.</p>
+<p>But branching has a rule: <strong>never branch a measure into a calculated column casually.</strong> A column referencing a measure triggers context transition per row (Chapter 10) — occasionally exactly what you want (Customer Revenue in Chapter 5), usually a performance sink and a logic puzzle. If a column needs measure logic, inline the aggregation explicitly so the row context is visible.</p>
+<h3 id="storage-math-feeling-the-cost">Storage math: feeling the cost</h3>
+<p>Approximate VertiPaq cost per calculated column value: integers ~1–2 bytes after compression (low cardinality) up to 8 bytes (unique); decimals similar; text = dictionary-encoded. A 10M-row table with three decimal calculated columns ≈ 10M × 3 × ~4 bytes ≈ 120 MB. Three <em>measures</em> doing the same math ≈ 0 MB stored. At 8 rows this is philosophy; at 10M rows it's the difference between a model that opens and one that doesn't. Researchers: your survey data is small, but your sensor/IoT data (Book 30's territory) is not — build the measure habit now.</p>
+<h3 id="the-hybrid-pattern-columns-feeding-measures">The hybrid pattern: columns feeding measures</h3>
+<p>The most common professional shape isn't "column vs measure" — it's <strong>columns feeding measures</strong>:</p>
+<pre><code class="language-dax">-- Column (row-level, groupable):
+Line Total = Sales[Quantity] * Sales[UnitPrice]
+
+-- Measures (live, filter-aware):
+Total Revenue   = SUM ( Sales[Line Total] )
+Avg Line Total  = AVERAGE ( Sales[Line Total] )
+Revenue YTD     = CALCULATE ( [Total Revenue], DATESYTD ( 'Date'[Date] ) )
+</code></pre>
+<p>The column does the row math once at refresh; the measures aggregate it live under any filters. You get v3 performance (Chapter 8's ladder) with full slicer responsiveness. <strong>Use this whenever the row-level math is static</strong> (price × quantity never depends on slicers) — which covers most business and research derivations.</p>
+<h3 id="refactoring-converting-a-column-into-a-measure">Refactoring: converting a column into a measure</h3>
+<p>Signs a calculated column should have been a measure: it ignores slicers and someone complains; the model refresh slowed after adding it; it contains CALCULATE or aggregations. The conversion:</p>
+<ol>
+<li>Copy the column expression.</li>
+<li>Create a measure; wrap row-level parts appropriately (a bare column reference becomes an aggregation or iterator).</li>
+<li>Replace usages; delete the column; refresh and compare numbers on a test page.</li>
+</ol>
+<p>Example: column <code>North Revenue = IF ( Sales[Region] = "North", Sales[Quantity] * Sales[UnitPrice], 0 )</code> summed in a card → measure <code>North Revenue = CALCULATE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ), Sales[Region] = "North" )</code>. Same number, now slicer-aware, zero storage.</p>
+<p><strong>For your research:</strong> You will be tempted to make a calculated column <code>Change Score = PostScore - PreScore</code>. That is actually a <em>good</em> calculated column — it is per-participant, and you will group by it ("improved vs declined") and average it. But <code>Response Rate</code>, <code>Mean Change (Treatment)</code>, <code>Dropout %</code> are measures: they must recompute when you slice by group, site, or wave. Chapter 12 builds the full research set; this chapter gives you the rule to sort them.</p>
+<p><strong>Key takeaways:</strong>
+- Calculated columns: row context, computed once at refresh, stored — for per-row values you group or filter by.
+- Measures: filter context, computed live — for every summary number on your report; the default choice.
+- Never hard-code report filters into a calculated column; use CALCULATE in a measure instead.
+- Columns cost storage; measures cost query-time CPU. Default to measures.</p>
+<hr />
+<h2 id="chapter-4-aggregation-functions-sum-average-count-distinctcount-minmax">Chapter 4: Aggregation Functions — SUM, AVERAGE, COUNT, DISTINCTCOUNT, MIN/MAX</h2>
+<p>Aggregation functions collapse many rows into one number. They are the simplest DAX you will write and the foundation everything else stands on. Master their exact behavior — especially around blanks and duplicates — because every fancier function inherits these semantics.</p>
+<h3 id="the-core-five">The core five</h3>
+<pre><code class="language-dax">Total Quantity = SUM ( Sales[Quantity] )
+</code></pre>
+<p>Adds the column. Expected: 10+50+20+2+5+30+100+1 = <strong>218</strong>.</p>
+<pre><code class="language-dax">Average Quantity = AVERAGE ( Sales[Quantity] )
+</code></pre>
+<p>Expected: 218 / 8 = <strong>27.25</strong>. Note: AVERAGE ignores blanks but <strong>counts zeros</strong>. If a row had Quantity = 0 it would drag the average down; a blank would not.</p>
+<pre><code class="language-dax">Order Count = COUNT ( Sales[OrderID] )
+</code></pre>
+<p>COUNT counts <strong>non-blank values</strong> in a column. Expected: <strong>8</strong>. There is also <code>COUNTA</code> (counts non-blank including text — legacy name, same idea) and <code>COUNTBLANK ( Sales[PostScore] )</code> which counts blanks: on <code>SurveyResponses[PostScore]</code> it returns <strong>2</strong> (R03, R07).</p>
+<pre><code class="language-dax">Customer Count = DISTINCTCOUNT ( Sales[CustomerID] )
+</code></pre>
+<p>Counts <strong>distinct non-blank</strong> values. Customers: C01, C02, C03, C04, C05, C06 → <strong>6</strong>. C01 and C02 each appear twice but count once. DISTINCTCOUNT ignores blanks — a blank CustomerID would not be counted.</p>
+<pre><code class="language-dax">Min Quantity = MIN ( Sales[Quantity] )      -- 1
+Max Quantity = MAX ( Sales[Quantity] )      -- 100
+</code></pre>
+<p>MIN/MAX work on numbers, dates, and text (alphabetical for text). <code>MIN ( Sales[Date] )</code> → 2026-01-05.</p>
+<h3 id="variants-you-will-meet">Variants you will meet</h3>
+<ul>
+<li><code>SUM</code>, <code>AVERAGE</code>, <code>MIN</code>, <code>MAX</code> take a <strong>column</strong>.</li>
+<li><code>COUNTROWS ( Sales )</code> takes a <strong>table</strong> and counts rows including blanks: <code>COUNTROWS ( Sales )</code> = 8. This is the idiomatic row count — faster and clearer than <code>COUNT</code>.</li>
+<li><code>DISTINCTCOUNT</code> vs <code>DISTINCTCOUNTNOBLANK</code>: the latter is the same as DISTINCTCOUNT in modern DAX (blank is excluded by both). Older code sometimes wraps <code>DISTINCT</code> in <code>COUNTROWS</code>; same result, slower.</li>
+<li>Statistical extras: <code>STDEV.P</code>, <code>VAR.P</code> exist, but researchers usually compute those in R/Python/SPSS. In DAX you need them only for dashboard display.</li>
+</ul>
+<h3 id="the-blank-trap-worked-example">The blank trap — worked example</h3>
+<p>On <code>SurveyResponses</code>, compute the average post score:</p>
+<pre><code class="language-dax">Avg Post Score = AVERAGE ( SurveyResponses[PostScore] )
+</code></pre>
+<p>PostScores: 58, 61, blank, 71, 78, 69, blank, 60 → AVERAGE skips the two blanks: (58+61+71+78+69+60) / 6 = 397/6 = <strong>66.17</strong>. Correct — dropouts did not take the post-test, so they must not count as zero. A beginner who "fills" blanks with 0 first gets 397/8 = 49.63, a meaningless number that understates the completers. <strong>Rule: never convert meaningful blanks to zero before aggregating.</strong></p>
+<h3 id="divide-the-safe-division">DIVIDE — the safe division</h3>
+<pre><code class="language-dax">-- Dangerous:
+Risky Rate = [Total Revenue] / [Order Count]
+
+-- Safe:
+Safe Rate = DIVIDE ( [Total Revenue], [Order Count] )
+</code></pre>
+<p>If the denominator is blank or zero, <code>/</code> throws an error that breaks the visual; <code>DIVIDE</code> returns BLANK (or an optional third argument: <code>DIVIDE ( a, b, 0 )</code> returns 0). Use DIVIDE for every rate, ratio, and percentage. Researchers: your response rates and proportions all use DIVIDE.</p>
+<h3 id="aggregating-expressions-vs-columns">Aggregating expressions vs columns</h3>
+<p><code>SUM</code> takes a column, not an expression — <code>SUM ( Sales[Quantity] * Sales[UnitPrice] )</code> is a syntax error. For expressions you need iterators (Chapter 8):</p>
+<pre><code class="language-dax">Total Revenue = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )   -- 751.00
+</code></pre>
+<p>Think of it as: simple aggregations for single columns; X-functions when each row needs math first.</p>
+<h3 id="common-errors_2">Common errors</h3>
+<ul>
+<li><strong><code>SUM</code> of a text column</strong> — "Cannot convert value 'North' of type Text to type Number." Check the column type in Data view.</li>
+<li><strong>AVERAGE returning blank</strong> — every value is blank (e.g., filtered to a group with no post-scores). Not an error, but your card shows blank; wrap with <code>COALESCE ( [Avg Post Score], 0 )</code> if the report needs a zero.</li>
+<li><strong>COUNT vs COUNTROWS confusion</strong> — <code>COUNT ( Sales[OrderID] )</code> = 8 here, but if OrderID had blanks, COUNT would undercount rows. Default to COUNTROWS for "how many rows."</li>
+<li><strong>DISTINCTCOUNT on a high-cardinality column</strong> (e.g., 50M unique IDs) is one of the most expensive operations in DAX. Fine at research scale; know it for later.</li>
+</ul>
+<h3 id="the-count-family-fully-mapped">The COUNT family, fully mapped</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Counts</th>
+<th>Ignores</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>COUNTROWS ( table )</td>
+<td>All rows</td>
+<td>Nothing</td>
+<td>"How many rows?" — default</td>
+</tr>
+<tr>
+<td>COUNT ( column )</td>
+<td>Non-blank values</td>
+<td>Blanks</td>
+<td>Legacy; prefer COUNTROWS</td>
+</tr>
+<tr>
+<td>COUNTA ( column )</td>
+<td>Non-blank incl. text</td>
+<td>Blanks</td>
+<td>Text columns (rarely needed)</td>
+</tr>
+<tr>
+<td>COUNTBLANK ( column )</td>
+<td>Blanks</td>
+<td>Non-blanks</td>
+<td>Missingness audit</td>
+</tr>
+<tr>
+<td>DISTINCTCOUNT ( column )</td>
+<td>Distinct non-blanks</td>
+<td>Blanks + dupes</td>
+<td>"How many unique X?"</td>
+</tr>
+<tr>
+<td>COUNTX ( table, expr )</td>
+<td>Rows where expr ≠ blank</td>
+<td>Blank results</td>
+<td>Conditional counting</td>
+</tr>
+</tbody>
+</table>
+<p>Worked on <code>SurveyResponses[PostScore]</code> (6 values, 2 blanks): COUNT = 6, COUNTBLANK = 2, COUNTROWS = 8. On <code>Sales[CustomerID]</code>: DISTINCTCOUNT = 6 (C01–C06), COUNTROWS = 8. <strong>Missingness audit pattern</strong> — run this on every new dataset before analysis:</p>
+<pre><code class="language-dax">Missing Post Scores = COUNTBLANK ( SurveyResponses[PostScore] )
+Missing Rate = DIVIDE ( COUNTBLANK ( SurveyResponses[PostScore] ), COUNTROWS ( SurveyResponses ) )
+-- 2/8 = 25%
+</code></pre>
+<p>A 25% missing rate changes your analysis plan (Chapter 12 discusses completers vs imputation). Compute it first, decide second.</p>
+<h3 id="conditional-aggregation-without-filter">Conditional aggregation without FILTER</h3>
+<p>Two idioms for "average of X where Y":</p>
+<pre><code class="language-dax">-- Idiom 1: FILTER inside (flexible, slower):
+Avg North Quantity =
+AVERAGEX ( FILTER ( Sales, Sales[Region] = &quot;North&quot; ), Sales[Quantity] )
+-- (10+50+5)/3 = 21.67
+
+-- Idiom 2: CALCULATE outside (fast, preferred):
+Avg North Quantity =
+CALCULATE ( AVERAGE ( Sales[Quantity] ), Sales[Region] = &quot;North&quot; )
+-- same 21.67, uses indexes
+</code></pre>
+<p>Same answer; different engine path. Idiom 2 lets the storage engine pre-filter before aggregating. <strong>Default to CALCULATE + simple filters; reach for FILTER only when the condition needs row-level math</strong> (e.g., <code>Sales[Quantity] * Sales[UnitPrice] &gt; 100</code>).</p>
+<h3 id="a-full-kpi-set-worked-end-to-end">A full KPI set — worked end to end</h3>
+<p>Build a KPI card set for the shop, verifying each by hand:</p>
+<pre><code class="language-dax">Total Orders    = COUNTROWS ( Sales )                                        -- 8
+Total Customers = DISTINCTCOUNT ( Sales[CustomerID] )                        -- 6
+Total Revenue   = SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] )         -- 751.00
+Avg Order Value = DIVIDE ( [Total Revenue], [Total Orders] )                 -- 93.88
+Repeat Customer % =
+DIVIDE (
+    [Total Orders] - [Total Customers],   -- orders beyond one-per-customer
+    [Total Orders]
+)                                                                           -- (8-6)/8 = 25%
+</code></pre>
+<p>Check Repeat Customer % by hand: C01 ordered twice, C02 twice → 2 repeat orders of 8 = 25% ✓. Every KPI cross-checks against a hand count on 8 rows — this discipline (hand-verify on tiny data, then trust at scale) is the single best correctness habit in DAX.</p>
+<h3 id="median-and-the-percentile-problem">MEDIAN and the percentile problem</h3>
+<p>DAX has <code>MEDIAN ( column )</code> and <code>PERCENTILE.INC / PERCENTILE.EXC</code>:</p>
+<pre><code class="language-dax">Median Quantity = MEDIAN ( Sales[Quantity] )
+-- sorted: 1,2,5,10,20,30,50,100 → median = (10+20)/2 = 15
+</code></pre>
+<p>For medians of <em>expressions</em> (median line total), there's no MEDIANX — use <code>PERCENTILEX.INC ( Sales, Sales[Quantity] * Sales[UnitPrice], 0.5 )</code> → sorted line totals {25,36,50,60,100,120,120,240} → median = (60+100)/2 = <strong>80</strong>. Researchers: report medians alongside means whenever distributions skew (reaction times, income, hospital stays) — one line of DAX, much more honest descriptives.</p>
+<h3 id="approximate-distinct-count">Approximate distinct count</h3>
+<p><code>APPROXIMATEDISTINCTCOUNT ( column )</code> trades exactness for speed on huge columns (uses HyperLogLog). On 8 rows it's pointless; on 2 billion clickstream rows it's the difference between an answer and a timeout. Know it exists; at research scale, DISTINCTCOUNT is always fine.</p>
+<h3 id="statistical-functions-the-honest-boundary">Statistical functions — the honest boundary</h3>
+<p>DAX offers <code>STDEV.P</code>, <code>STDEV.S</code>, <code>VAR.P</code>, <code>VAR.S</code> and related functions — but a dashboard is the wrong place for inference. Guidance: use DAX for <strong>descriptives</strong> (n, mean, median, SD, min, max) that appear in tables and charts; do <strong>hypothesis tests, CIs, and models</strong> in R/Python/SPSS. If you must show a confidence interval on a dashboard, compute the components in DAX (mean, SD, n) and assemble carefully — or better, precompute in your stats tool and import as a table. Chapter 12 holds this line throughout.</p>
+<h3 id="weighted-averages-done-right">Weighted averages — done right</h3>
+<p>The classic trap: averaging averages. "Average revenue per order, weighted by quantity"? No — think in totals:</p>
+<pre><code class="language-dax">-- WRONG: average of per-row unit prices (each row weighted equally)
+AVERAGE ( Sales[UnitPrice] )   -- (5+1.2+5+120+5+1.2+1.2+120)/8 = 32.33 — meaningless
+
+-- RIGHT: total revenue / total quantity = quantity-weighted mean price
+Weighted Mean Price = DIVIDE ( [Total Revenue], SUM ( Sales[Quantity] ) )
+-- 751.00 / 218 = 3.44
+</code></pre>
+<p>3.44 is the true average price per unit sold; 32.33 is a nonsense number that happens to be computable. <strong>Whenever weights exist (quantities, sample sizes, durations), the weighted mean is SUM(value×weight)/SUM(weight) — never AVERAGE of the rates.</strong> In research: pooling means across sites uses n-weighted means; pooling response rates uses enrollment-weighted rates. The formula is identical; only the labels change.</p>
+<h3 id="summarize-vs-letting-the-visual-group">SUMMARIZE vs letting the visual group</h3>
+<p>Beginners sometimes pre-aggregate with SUMMARIZE into a calculated table, then build visuals on it. Don't — visuals group natively, and measures compute per group via filter context (Chapter 5). Pre-aggregated tables freeze the grain: add a slicer on a column you didn't include in the SUMMARIZE, and numbers go wrong silently. <strong>Aggregate in measures, group in visuals, shape in tables.</strong> The only exception: genuinely static snapshots (month-end balances) where the grain is the point.</p>
+<h3 id="coalesce-and-iferror-blank-armor">COALESCE and IFERROR — blank armor</h3>
+<pre><code class="language-dax">COALESCE ( [Avg Post Score], 0 )        -- blank → 0 (only for display!)
+IFERROR ( [Risky Calc], &quot;Check data&quot; ) -- catches any error, returns fallback
+</code></pre>
+<p>Use COALESCE at the <em>presentation</em> edge (cards that must show 0, not blank). Never COALESCE inside intermediate math — a blank that means "no data" must stay blank until the final display, or you'll average zeros into existence (Chapter 2's trap).</p>
+<p><strong>For your research:</strong> Three aggregations run your entire results section: <code>COUNTROWS</code> (sample sizes, CONSORT flow counts), <code>DIVIDE ( completers, enrolled )</code> (response/retention rates), and <code>AVERAGE</code>/<code>DISTINCTCOUNT</code> (mean scores, unique participants). Write them as measures so every subgroup filter recomputes them live — and always use DIVIDE so a zero-denominator subgroup shows blank instead of crashing your table.</p>
+<p><strong>Key takeaways:</strong>
+- SUM/AVERAGE/MIN/MAX take columns; COUNTROWS takes a table; DISTINCTCOUNT counts unique non-blanks.
+- AVERAGE ignores blanks but counts zeros — never fill meaningful blanks with 0.
+- DIVIDE replaces <code>/</code> for every rate or ratio; it returns BLANK on divide-by-zero instead of an error.
+- For math-per-row before summing, use the X-iterators (Chapter 8), not SUM.</p>
+<hr />
+<h2 id="chapter-5-calculate-the-most-important-dax-function">Chapter 5: CALCULATE — The Most Important DAX Function</h2>
+<p><img alt="CALCULATE: layered filters pouring rows into one result" src="/learn/images/book-24-ch5-calculate.webp" /></p>
+<p>If Chapter 3 was the most important <em>distinction</em>, CALCULATE is the most important <em>function</em>. Roughly half of all non-trivial DAX is CALCULATE. It does one thing: <strong>it changes the filter context in which its first argument is evaluated</strong> — then evaluates it. Everything else (time intelligence, percent-of-total, prior-year comparisons) is a clever arrangement of CALCULATE.</p>
+<h3 id="filter-context-finally-made-concrete">Filter context, finally made concrete</h3>
+<p>Filter context is the set of filters currently applied to a calculation: slicers, page filters, visual axes, cross-highlighting. In our bar chart by Reg

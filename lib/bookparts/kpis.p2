@@ -1,0 +1,1204 @@
+t is a calendar:</p>
+<ul>
+<li><strong>Daily/weekly (operational):</strong> owners review leading indicators and reds; actions logged.</li>
+<li><strong>Monthly (tactical):</strong> KPI review meeting — actuals vs targets, variance explanations for reds/ambers, decisions recorded. The exception list (Chapter 7, Pattern 5) is the agenda.</li>
+<li><strong>Quarterly (strategic):</strong> are the KPIs still the right ones? Strategy shifts, market shifts — retire dead KPIs, promote new candidates through the Chapter 3 design process.</li>
+<li><strong>Annually (audit):</strong> full dictionary review — definitions still accurate? Targets still defensible? Data sources still reliable? Gaming detected? This is also when you check threshold calibration (Chapter 6): a KPI red 40% of the time needs new thresholds or a new target, not more red paint.</li>
+</ul>
+<p>Record decisions from every review. A KPI system with no decision log is a measurement hobby.</p>
+<h3 id="96-the-annual-kpi-audit-a-checklist">9.6 The annual KPI audit: a checklist</h3>
+<p>Once a year, put every KPI in the dictionary through this audit. Score pass/fail; failures go to the quarterly design review for redesign or retirement:</p>
+<ul>
+<li>[ ] <strong>Strategic alignment</strong> — does it still map to a current strategic goal?</li>
+<li>[ ] <strong>Actionability</strong> — did the owner change a decision based on it in the last two quarters? (Ask for the decision log entry.)</li>
+<li>[ ] <strong>Definition integrity</strong> — does the DAX still match the spec? Any undocumented tweaks?</li>
+<li>[ ] <strong>Data quality</strong> — reconciliation passed? Freshness SLA met? Missing-data rate acceptable?</li>
+<li>[ ] <strong>Threshold calibration</strong> — red/amber/green frequencies sane (Chapter 6)? No alarm fatigue, no complacency?</li>
+<li>[ ] <strong>Gaming check</strong> — any evidence the KPI is being optimized instead of the business? Counterbalance KPI still in place?</li>
+<li>[ ] <strong>Cost vs value</strong> — still worth its measurement cost (Chapter 2)?</li>
+<li>[ ] <strong>Duplication</strong> — does another KPI now measure the same thing? Merge them.</li>
+<li>[ ] <strong>Owner validity</strong> — is the named owner still the right person and still in role?</li>
+<li>[ ] <strong>Lifecycle stage</strong> — should this KPI be retired, and if so, what replaces its monitoring function?</li>
+</ul>
+<p>Publish the audit summary: KPIs kept, redesigned, retired, and proposed. Transparency here builds the trust that governance exists to protect.</p>
+<h3 id="97-roles-who-does-what-raci-sketch">9.7 Roles: who does what (RACI sketch)</h3>
+<p>Small organizations do not need a bureaucracy, but they do need named roles:</p>
+<ul>
+<li><strong>KPI owner</strong> (Accountable) — the named person per KPI; owns the target and the response.</li>
+<li><strong>Data steward</strong> (Responsible) — owns the pipeline, quality checks, and "data as of."</li>
+<li><strong>Dashboard developer</strong> (Responsible) — builds and maintains visuals and DAX.</li>
+<li><strong>Executive sponsor</strong> (Accountable) — resolves cross-team disputes, e.g., whose definition of "customer" wins.</li>
+<li><strong>Consumers</strong> (Informed) — everyone who views the dashboard; consulted on usability, not on definitions.</li>
+</ul>
+<p>Write the RACI into the governance page of your KPI dictionary. When a number is disputed at 8 AM before a board meeting, the RACI tells you who decides — which is the difference between a ten-minute resolution and a three-day email war.</p>
+<h3 id="98-incident-response-the-red-kpi-runbook">9.8 Incident response: the red-KPI runbook</h3>
+<p>When a headline KPI goes red, the organization needs a practiced response, not improvisation. A <strong>runbook</strong> — one page per critical KPI, stored with the KPI dictionary — specifies:</p>
+<ol>
+<li><strong>Detect</strong> — which alert fired, who was notified, expected response time (e.g., owner acknowledges within 4 business hours).</li>
+<li><strong>Triage (first 24h)</strong> — owner checks the three usual suspects in order: data problem? (freshness/completeness measures), one-off event? (a single huge order/return), real deterioration? (driver tree).</li>
+<li><strong>Diagnose (days 2–3)</strong> — drill the KPI tree to the leaf, quantify each driver's contribution (Chapter 5), form a hypothesis in one sentence.</li>
+<li><strong>Act</strong> — named corrective action, owner, deadline. Log it in the decision log.</li>
+<li><strong>Follow up</strong> — re-check at the next review; if still red after two cycles, escalate to the executive sponsor.</li>
+</ol>
+<p>Example: <em>On-time delivery</em> goes red on a Monday alert. Triage: data fresh, no single event — real deterioration. Diagnosis: driver tree shows carrier pickup failures in the West region, contributing −2.1pp. Action: logistics head switches West region to backup carrier for 2 weeks; deadline Wednesday. Follow-up: Monday review shows recovery to amber. Total time from red to action: 48 hours — because the runbook existed before the crisis.</p>
+<p><strong>For your research:</strong> Governance is the organizational version of <strong>research ethics and reproducibility practices</strong> — and thesis examiners probe exactly these areas. Map the concepts: the KPI dictionary = your <strong>codebook</strong> (every variable defined once, with source and computation); certification = <strong>validated instruments</strong> (pilot-tested, reliability-checked); change control = your <strong>research log</strong> (dated record of every methodological decision — why you changed a questionnaire item in week 3); refresh/quality SLAs = your <strong>data-quality checks</strong> (missing-data reports, outlier review); RLS = <strong>data anonymization and access control</strong> for participant data. When your methodology chapter describes these practices explicitly, it signals a researcher who thinks like a professional — and it preempts the examiner's hardest questions about trust in your numbers.</p>
+<p><strong>Key takeaways:</strong>
+- Alerts push exceptions ("something is wrong now"); subscriptions push routine state ("here is the world, on rhythm"). Use both, sparingly and matched to decision rhythms.
+- Governance = KPI dictionary, named owners, certification, change control, refresh/quality SLAs, and RLS. No dictionary, no official numbers.
+- Build data-quality measures (freshness, completeness, reconciliation) into the model and surface "data as of" on every dashboard.
+- Governance runs on a calendar: operational reviews weekly, tactical monthly, strategic quarterly, audit annually — with every decision logged.</p>
+<hr />
+<h2 id="chapter-10-kpis-in-different-domains-sales-operations-hr-education">Chapter 10: KPIs in Different Domains (Sales, Operations, HR, Education)</h2>
+<p>KPI principles are universal, but KPI <em>practice</em> is local: each domain has its own rhythms, its own gaming risks, and its own classic KPI sets. This chapter tours four domains in depth — with full KPI sets, owners, targets, and DAX — so you can see the patterns from earlier chapters working in real contexts. (Healthcare, finance, and manufacturing examples appear throughout the book; the mechanics are identical.)</p>
+<h3 id="101-sales">10.1 Sales</h3>
+<p>Sales is the most KPI-mature domain, and the most prone to gaming. The classic funnel KPI tree:</p>
+<pre><code>Revenue
+├── Pipeline (leading)
+│   ├── New opportunities created / week
+│   └── Pipeline coverage ratio (target 3–4× quota)
+├── Conversion (leading/lagging mix)
+│   ├── Lead → opportunity conversion %
+│   └── Opportunity → win rate % (target by segment)
+└── Value (lagging)
+    ├── Average deal size
+    └── Sales cycle length (days; lower is better)
+</code></pre>
+<p>Core KPI set:</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+<th>Gaming guard</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quota attainment %</td>
+<td>Booked ÷ quota</td>
+<td>Sales Director</td>
+<td>100%</td>
+<td>Pair with discount rate</td>
+</tr>
+<tr>
+<td>Pipeline coverage</td>
+<td>Open pipeline ÷ quota</td>
+<td>Sales Director</td>
+<td>3–4×</td>
+<td>Audit stage definitions</td>
+</tr>
+<tr>
+<td>Win rate %</td>
+<td>Won ÷ (won + lost)</td>
+<td>Sales Managers</td>
+<td>varies by segment</td>
+<td>Pair with deal-size trend</td>
+</tr>
+<tr>
+<td>Avg discount %</td>
+<td>Discount given ÷ list</td>
+<td>Finance</td>
+<td>≤ 12%</td>
+<td>The counterbalance KPI</td>
+</tr>
+<tr>
+<td>Sales cycle (days)</td>
+<td>Avg close − create</td>
+<td>Sales Ops</td>
+<td>−10% YoY</td>
+<td>Watch for rushed closes</td>
+</tr>
+</tbody>
+</table>
+<p>The gaming story is instructive: quota attainment alone invites end-of-quarter discounting fire sales. The <strong>attainment + discount + win-rate trio</strong> is the defense — you can hit quota with 40% discounts, but you cannot hide it.</p>
+<pre><code class="language-dax">Quota Attainment % =
+DIVIDE ( [Booked Revenue], SUM ( Quotas[QuotaAmount] ) )
+
+Win Rate % =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( Opportunities[OppID] ),
+        Opportunities[Stage] = &quot;Closed Won&quot;
+    ),
+    CALCULATE (
+        DISTINCTCOUNT ( Opportunities[OppID] ),
+        Opportunities[Stage] IN { &quot;Closed Won&quot;, &quot;Closed Lost&quot; }
+    )
+)
+
+Avg Discount % =
+DIVIDE (
+    SUM ( Opportunities[DiscountAmount] ),
+    SUM ( Opportunities[ListAmount] )
+)
+</code></pre>
+<h3 id="102-operations">10.2 Operations</h3>
+<p>Operations KPIs split into the classic triad — <strong>cost, quality, delivery</strong> — plus safety and productivity.</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>On-time delivery %</td>
+<td>On-time orders ÷ total</td>
+<td>Logistics Head</td>
+<td>≥ 98%</td>
+</tr>
+<tr>
+<td>Order cycle time</td>
+<td>Avg confirm→dispatch hours</td>
+<td>Warehouse Mgr</td>
+<td>≤ 24h</td>
+</tr>
+<tr>
+<td>Defect rate (DPMO or %)</td>
+<td>Defects ÷ units</td>
+<td>Quality Mgr</td>
+<td>≤ 1% / Six-Sigma bands</td>
+</tr>
+<tr>
+<td>OEE %</td>
+<td>Availability × Performance × Quality</td>
+<td>Plant Mgr</td>
+<td>≥ 85%</td>
+</tr>
+<tr>
+<td>Cost per unit</td>
+<td>Total cost ÷ units</td>
+<td>Ops Director</td>
+<td>−3% YoY</td>
+</tr>
+<tr>
+<td>Stockout rate %</td>
+<td>Stockout SKUs ÷ SKUs</td>
+<td>Inventory Mgr</td>
+<td>≤ 2%</td>
+</tr>
+<tr>
+<td>LTIFR (safety)</td>
+<td>Lost-time injuries × 1M ÷ hours worked</td>
+<td>HSE Mgr</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Operations is where <strong>leading/lagging pairing</strong> shines: preventive-maintenance compliance (leading) → unplanned downtime (lagging); in-process quality checks (leading) → defect rate (lagging); carrier booking lead time (leading) → on-time delivery (lagging).</p>
+<pre><code class="language-dax">On-Time Delivery % =
+DIVIDE (
+    CALCULATE (
+        COUNTROWS ( Shipments ),
+        Shipments[DeliveredOnTime] = TRUE ()
+    ),
+    COUNTROWS ( Shipments )
+)
+
+OEE % =
+    [Availability %] * [Performance %] * [Quality %]
+
+Cost Per Unit =
+DIVIDE (
+    SUM ( CostLedger[TotalCost] ),
+    SUM ( Production[UnitsProduced] )
+)
+</code></pre>
+<h3 id="103-hr">10.3 HR</h3>
+<p>HR KPIs measure the workforce as the organization's engine — hiring, capability, engagement, and retention.</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Time to fill (days)</td>
+<td>Avg requisition→accept</td>
+<td>Talent Lead</td>
+<td>≤ 45 days</td>
+</tr>
+<tr>
+<td>Quality of hire</td>
+<td>Hiring-manager rating at 6 mo</td>
+<td>HR Director</td>
+<td>≥ 4/5</td>
+</tr>
+<tr>
+<td>Voluntary turnover %</td>
+<td>Voluntary leavers ÷ avg headcount</td>
+<td>HR Director</td>
+<td>≤ 8–10%</td>
+</tr>
+<tr>
+<td>Regretted attrition %</td>
+<td>High-performer leavers ÷ high performers</td>
+<td>HR Director</td>
+<td>≤ 5%</td>
+</tr>
+<tr>
+<td>eNPS</td>
+<td>% promoters − % detractors</td>
+<td>HR Director</td>
+<td>≥ +30</td>
+</tr>
+<tr>
+<td>Training completion %</td>
+<td>Completed ÷ assigned</td>
+<td>L&amp;D Mgr</td>
+<td>≥ 95%</td>
+</tr>
+<tr>
+<td>Absenteeism %</td>
+<td>Absent days ÷ scheduled days</td>
+<td>HR Ops</td>
+<td>≤ 3%</td>
+</tr>
+</tbody>
+</table>
+<p>HR's gaming risk is subtle: turnover looks great if you stop hiring (denominator games) or reclassify leavers. Hence <strong>regretted attrition</strong> (losing people you wanted to keep) as the honest KPI, and eNPS as the leading pulse.</p>
+<pre><code class="language-dax">Voluntary Turnover % =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( Separations[EmployeeID] ),
+        Separations[Type] = &quot;Voluntary&quot;
+    ),
+    AVERAGE ( Headcount[Headcount] )
+)
+
+eNPS =
+VAR Promoters =
+    DIVIDE (
+        CALCULATE (
+            COUNTROWS ( EngagementSurvey ),
+            EngagementSurvey[Score] &gt;= 9
+        ),
+        COUNTROWS ( EngagementSurvey )
+    )
+VAR Detractors =
+    DIVIDE (
+        CALCULATE (
+            COUNTROWS ( EngagementSurvey ),
+            EngagementSurvey[Score] &lt;= 6
+        ),
+        COUNTROWS ( EngagementSurvey )
+    )
+RETURN
+    Promoters - Detractors
+</code></pre>
+<h3 id="104-education">10.4 Education</h3>
+<p>Education KPIs serve students, faculty, administrators, and regulators — each with different definitions of success, which is why the KPI spec (Chapter 1) matters most here.</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Application→enrollment yield %</td>
+<td>Enrolled ÷ admitted</td>
+<td>Admissions Dir</td>
+<td>≥ 30%</td>
+</tr>
+<tr>
+<td>First-year retention %</td>
+<td>Returning ÷ cohort</td>
+<td>Dean</td>
+<td>≥ 85%</td>
+</tr>
+<tr>
+<td>On-time graduation %</td>
+<td>Graduated on time ÷ cohort</td>
+<td>Dean</td>
+<td>≥ 70%</td>
+</tr>
+<tr>
+<td>Graduate employment % (6 mo)</td>
+<td>Employed ÷ graduates</td>
+<td>Careers Office</td>
+<td>≥ 80%</td>
+</tr>
+<tr>
+<td>Student satisfaction %</td>
+<td>Satisfied ÷ respondents</td>
+<td>Quality Office</td>
+<td>≥ 85%</td>
+</tr>
+<tr>
+<td>Faculty:student ratio</td>
+<td>FTE faculty ÷ FTE students</td>
+<td>Provost</td>
+<td>≤ 1:20</td>
+</tr>
+<tr>
+<td>Research income per faculty</td>
+<td>Grant income ÷ faculty</td>
+<td>Research Dean</td>
+<td>+10% YoY</td>
+</tr>
+</tbody>
+</table>
+<p>Education's classic tension: <strong>access vs outcomes</strong>. Widening access (more admits) can depress graduation rates — so these KPIs must be read as a set, segmented by entry pathway, never as a single headline. The leading indicators from Chapter 4 (week-4 submission rates, advising contacts) belong on the operational dashboard that deans review monthly.</p>
+<pre><code class="language-dax">First-Year Retention % =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( Enrollments[StudentID] ),
+        Enrollments[AcademicYear] = &quot;Year 2&quot;
+    ),
+    DISTINCTCOUNT ( Cohorts[StudentID] )
+)
+
+Graduate Employment % =
+DIVIDE (
+    CALCULATE (
+        COUNTROWS ( AlumniSurvey ),
+        AlumniSurvey[Employed6Mo] = TRUE ()
+    ),
+    COUNTROWS ( AlumniSurvey )
+)
+</code></pre>
+<h3 id="105-healthcare">10.5 Healthcare</h3>
+<p>Healthcare KPIs carry a moral weight other domains do not: the "defects" are human harm. The field organizes KPIs around the <strong>triple aim</strong> — better patient experience, better population health, lower cost — which maps neatly onto the Balanced Scorecard.</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Avg length of stay (ALOS)</td>
+<td>Patient-days ÷ discharges</td>
+<td>Medical Director</td>
+<td>Benchmark-adjusted</td>
+</tr>
+<tr>
+<td>30-day readmission %</td>
+<td>Readmitted ÷ discharges</td>
+<td>Quality Officer</td>
+<td>≤ national benchmark</td>
+</tr>
+<tr>
+<td>Hospital-acquired infection rate</td>
+<td>Infections ÷ 1,000 patient-days</td>
+<td>Infection Control</td>
+<td>trending down</td>
+</tr>
+<tr>
+<td>ED wait time (triage→doctor)</td>
+<td>Avg minutes</td>
+<td>ED Head</td>
+<td>≤ 30 min</td>
+</tr>
+<tr>
+<td>Bed occupancy %</td>
+<td>Occupied bed-days ÷ available</td>
+<td>Ops Manager</td>
+<td>85–90% (full is unsafe)</td>
+</tr>
+<tr>
+<td>Mortality ratio (HSMR/RAMI)</td>
+<td>Observed ÷ expected deaths</td>
+<td>Medical Director</td>
+<td>≤ 100</td>
+</tr>
+<tr>
+<td>Patient satisfaction %</td>
+<td>Top-box ÷ respondents</td>
+<td>Patient Experience</td>
+<td>≥ 85%</td>
+</tr>
+</tbody>
+</table>
+<p>Two subtleties matter. First, <strong>risk adjustment</strong>: raw mortality or readmission rates punish hospitals that take sicker patients — always compare observed vs <em>expected</em> (adjusted for case mix), never raw rates across hospitals. Second, <strong>occupancy targets are bands, not maxima</strong>: 100% occupancy means no surge capacity and soaring infection risk; the KPI is green inside 85–90%, amber outside either way — a rare two-sided threshold.</p>
+<pre><code class="language-dax">Readmission Rate % =
+DIVIDE (
+    CALCULATE (
+        DISTINCTCOUNT ( Discharges[PatientID] ),
+        Discharges[Readmitted30d] = TRUE ()
+    ),
+    DISTINCTCOUNT ( Discharges[PatientID] )
+)
+
+Bed Occupancy % =
+DIVIDE (
+    SUM ( BedDays[OccupiedDays] ),
+    SUM ( BedDays[AvailableDays] )
+)
+</code></pre>
+<h3 id="106-banking-and-finance">10.6 Banking and finance</h3>
+<p>Banks live under regulators, so their KPI sets blend business performance with <strong>risk and compliance</strong> — a useful model for any regulated industry.</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Formula</th>
+<th>Owner</th>
+<th>Typical target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Net interest margin %</td>
+<td>(Interest income − expense) ÷ earning assets</td>
+<td>CFO</td>
+<td>≥ peer median</td>
+</tr>
+<tr>
+<td>Cost-to-income ratio %</td>
+<td>Operating cost ÷ operating income</td>
+<td>CFO</td>
+<td>≤ 50%</td>
+</tr>
+<tr>
+<td>NPL ratio %</td>
+<td>Non-performing loans ÷ total loans</td>
+<td>Chief Risk Officer</td>
+<td>≤ internal limit</td>
+</tr>
+<tr>
+<td>Capital adequacy (CAR) %</td>
+<td>Capital ÷ risk-weighted assets</td>
+<td>CRO</td>
+<td>≥ regulatory min + buffer</td>
+</tr>
+<tr>
+<td>Loan-to-deposit ratio %</td>
+<td>Loans ÷ deposits</td>
+<td>Treasurer</td>
+<td>80–90%</td>
+</tr>
+<tr>
+<td>Digital adoption %</td>
+<td>Active digital users ÷ customers</td>
+<td>CDO</td>
+<td>+10pp YoY</td>
+</tr>
+<tr>
+<td>Complaint resolution (days)</td>
+<td>Avg days to close</td>
+<td>Service Head</td>
+<td>≤ 7 days</td>
+</tr>
+</tbody>
+</table>
+<p>The design lesson: <strong>risk KPIs are constraints, not goals</strong> — NPL ratio and CAR have ceilings/floors, and breaching them triggers mandatory action (regulatory, not optional). In your KPI dictionary, tag each KPI as <em>goal-type</em> (maximize/minimize toward target) or <em>constraint-type</em> (stay within bounds). Dashboards should visually distinguish them: constraints get hard red lines; goals get RAG bands.</p>
+<pre><code class="language-dax">NPL Ratio % =
+DIVIDE (
+    CALCULATE (
+        SUM ( Loans[Outstanding] ),
+        Loans[Status] = &quot;Non-performing&quot;
+    ),
+    SUM ( Loans[Outstanding] )
+)
+
+Cost to Income % =
+DIVIDE (
+    SUM ( GL[OperatingCost] ),
+    SUM ( GL[OperatingIncome] )
+)
+</code></pre>
+<h3 id="107-the-universal-starter-set-kpis-every-organization-needs">10.7 The universal starter set: KPIs every organization needs</h3>
+<p>Across all six domains in this chapter, the same four questions recur — and they form a starter set for any organization designing KPIs from scratch:</p>
+<ol>
+<li><strong>Are we financially healthy?</strong> — Revenue growth, margin, cash position. (Lagging; monthly.)</li>
+<li><strong>Do customers value us?</strong> — Satisfaction/NPS, retention/churn, complaint rate. (Mixed; the leading edge of future revenue.)</li>
+<li><strong>Do our operations work?</strong> — Quality rate, on-time delivery, productivity, safety. (Leading-heavy; weekly.)</li>
+<li><strong>Do our people thrive?</strong> — Engagement, regretted attrition, capability coverage. (Leading; the longest lag to financial results.)</li>
+</ol>
+<p>Start here — one or two KPIs per question, each with the full spec — then add domain-specific depth. This is the Balanced Scorecard (Chapter 3) in practical form, and it prevents the most common beginner error: a KPI set that is 90% financial and 100% lagging. If your draft set cannot answer all four questions, it is not a picture of the business; it is a picture of the finance department.</p>
+<p><strong>For your research:</strong> If your thesis touches any of these domains, this chapter is a source of <strong>validated, real-world variables</strong> — and a warning. Using "employee turnover" as a variable without specifying voluntary vs involuntary, or "student performance" without defining the assessment and cohort, repeats the incomparable-definitions anti-pattern (Chapter 2) inside your research. Borrow the domain's standard definitions, cite them, and put your full operational definitions in an appendix table modeled on the KPI specification. Reviewers in applied fields will recognize the rigor immediately.</p>
+<p><strong>Key takeaways:</strong>
+- Each domain has a classic KPI set — learn your domain's canon before inventing new indicators.
+- Sales: guard attainment with discount and win-rate counterbalances. Operations: pair leading process KPIs with lagging outcome KPIs. HR: prefer regretted attrition over raw turnover. Education: read access and outcome KPIs as a segmented set.
+- The DAX patterns repeat across domains: <code>DIVIDE</code> ratios, <code>CALCULATE</code> filters, survey-score math — master the pattern once, apply everywhere.</p>
+<hr />
+<h2 id="chapter-11-kpis-for-research-projects-tracking-thesisresearch-progress">Chapter 11: KPIs for Research Projects (Tracking Thesis/Research Progress)</h2>
+<p>Here is the chapter that turns the whole book inward. A thesis or research project is a production system: it has inputs (reading, data), processes (experiments, analysis, writing), outputs (chapters, papers), and a deadline. Yet most researchers manage it by anxiety — a vague sense of falling behind, discovered too late. Apply everything in this book to the project itself, and you get something rare: a researcher who can see trouble coming while there is still time to act.</p>
+<h3 id="111-your-research-as-a-kpi-system">11.1 Your research as a KPI system</h3>
+<p>Start with Chapter 3's process. <strong>Goal:</strong> "Submit a defensible thesis by [date] with at least one publication submitted." <strong>Critical success factors:</strong> literature mastery, data/experiments complete, analysis sound, writing finished, supervisor alignment. Now design KPIs per CSF — a mix of leading and lagging, each with a target, a rhythm, and an owner (you, plus your supervisor as stakeholder).</p>
+<h3 id="112-the-researcher-kpi-set">11.2 The researcher KPI set</h3>
+<p><strong>Literature mastery (leading):</strong>
+- <em>Papers read deeply per week</em> — target 3–5. "Deeply" means summarized in your literature table (Book 1's Author|Objective|Method|Finding|Limitation row), not skimmed.
+- <em>Literature table coverage</em> — % of your planned core papers summarized. Target 100% by end of month 2.
+- Lagging partner: <em>related-work chapter draft complete</em> (yes/no by date).</p>
+<p><strong>Experiments/data (leading + lagging):</strong>
+- <em>Experiments completed per week</em> — target 2 (Chapter 4's advice). Owner: you. Red (&lt; 1 for two weeks) triggers a supervisor meeting — the "action on red."
+- <em>Dataset readiness %</em> — collected, cleaned, labeled, split. Track as a checklist percentage.
+- <em>Blocked days</em> — days waiting on data access, compute, or ethics approval. Leading indicator of schedule risk; if it exceeds 10, escalate.
+- Lagging partner: <em>results chapter draft complete</em>.</p>
+<p><strong>Writing (the KPI researchers avoid):</strong>
+- <em>Draft pages per week</em> — target 4–6 during writing phase. Writing is the ultimate lagging indicator of thinking; a page target makes it visible early.
+- <em>Supervisor feedback cycle time</em> — days from draft sent to comments received. If this drifts past 14, the bottleneck is not you — raise it.
+- <em>Revision rounds per chapter</em> — more than 3 suggests the chapter's argument was unclear; a quality signal.</p>
+<p><strong>Publication pipeline (lagging, with leading feeders):</strong>
+- <em>Papers submitted / in review / revise-and-resubmit / accepted</em> — a funnel, exactly like the sales pipeline in Chapter 10. Pipeline coverage for researchers: submissions in flight should be ≥ 2× your target publications.
+- <em>Conference deadlines hit %</em> — deadlines met ÷ deadlines targeted. Missed deadlines are the research equivalent of lost deals.</p>
+<h3 id="113-the-weekly-research-review-your-operational-dashboard">11.3 The weekly research review (your operational dashboard)</h3>
+<p>Every Monday, 30 minutes, with a one-page dashboard — even a spreadsheet:</p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>Target</th>
+<th>Actual</th>
+<th>RAG</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Papers summarized (wk)</td>
+<td>4</td>
+<td>2</td>
+<td>🔴</td>
+<td>2 catch-up sessions booked</td>
+</tr>
+<tr>
+<td>Experiments (wk)</td>
+<td>2</td>
+<td>2</td>
+<td>🟢</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Draft pages (wk)</td>
+<td>5</td>
+<td>6</td>
+<td>🟢</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Blocked days (cumul.)</td>
+<td>≤ 10</td>
+<td>12</td>
+<td>🟡</td>
+<td>Emailed lab for GPU slot</td>
+</tr>
+<tr>
+<td>Next milestone</td>
+<td>15 Oct</td>
+<td>On track</td>
+<td>🟢</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>(Use text labels alongside color — Chapter 6's accessibility rule applies to your spreadsheet too.)</p>
+<p>Bring this to supervision meetings. Supervisors consistently report that students who arrive with a status page get better guidance — because the meeting starts from facts, not feelings. You are also demonstrating the professional skill this whole book teaches, in the context where it matters most to your career.</p>
+<h3 id="114-targets-and-thresholds-for-a-thesis">11.4 Targets and thresholds for a thesis</h3>
+<p>Apply Chapter 6 honestly: set milestone dates by <strong>bottom-up capacity</strong> (how many pages/experiments can you really do per week? check against your last month's actuals — the historical baseline method) plus <strong>top-down requirement</strong> (the submission deadline, minus buffer). Set the amber threshold at 1 week of slippage, red at 2 — and define the action on red in advance: "two red weeks → supervision meeting within 5 days." Deciding the response before the crisis is the entire point of thresholds.</p>
+<h3 id="115-dax-for-the-ambitious-a-research-tracker-in-power-bi">11.5 DAX for the ambitious: a research tracker in Power BI</h3>
+<p>If you keep a simple log table (<code>ResearchLog</code> with Date, Activity, Hours, OutputType), these measures build your personal dashboard:</p>
+<pre><code class="language-dax">Papers Summarized (Week) =
+CALCULATE (
+    COUNTROWS ( ResearchLog ),
+    ResearchLog[Activity] = &quot;Paper summary&quot;,
+    DATESMTD ( 'Date'[Date] )
+)
+
+-- Replace DATESMTD with a 7-day window for true weekly tracking:
+Papers Summarized (7d) =
+CALCULATE (
+    COUNTROWS ( ResearchLog ),
+    ResearchLog[Activity] = &quot;Paper summary&quot;,
+    DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -7, DAY )
+)
+
+Writing Pace (Pages/Week) =
+DIVIDE (
+    CALCULATE (
+        SUM ( ResearchLog[PagesWritten] ),
+        DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -7, DAY )
+    ),
+    1
+)
+
+Research RAG =
+VAR Pace = [Writing Pace (Pages/Week)]
+RETURN
+    SWITCH (
+        TRUE (),
+        Pace &gt;= 5, &quot;Green&quot;,
+        Pace &gt;= 3, &quot;Amber&quot;,
+        &quot;Red&quot;
+    )
+</code></pre>
+<p>Is this overkill? For some, yes — a spreadsheet works. But building it teaches you the full KPI lifecycle (design → DAX → dashboard → review) on a dataset you care about, which is the best possible practice for the professional work in Chapter 12.</p>
+<h3 id="116-the-supervision-contract-your-supervisor-as-kpi-stakeholder">11.6 The supervision contract: your supervisor as KPI stakeholder</h3>
+<p>Your supervisor is the executive sponsor of your research KPI system — and like any sponsor, they need a contract, not assumptions. Agree explicitly, early:</p>
+<ul>
+<li><strong>Review rhythm</strong> — fortnightly 30-minute reviews with your one-page RAG status (not "meet when there's something to show").</li>
+<li><strong>Feedback SLA</strong> — comments on drafts within 10 working days; if breached, you proceed on documented assumptions rather than stalling.</li>
+<li><strong>Decision rights</strong> — which decisions are yours (daily methods, tool choices) vs joint (scope changes, publication targets).</li>
+<li><strong>Red-escalation rule</strong> — two red weeks on any leading KPI triggers an ad-hoc meeting within 5 days. Agreeing this <em>before</em> trouble removes the awkwardness of asking for help <em>during</em> trouble.</li>
+</ul>
+<p>Write it down — one page, both sign. Students resist this as overly formal; supervisors almost universally welcome it, because it replaces vague anxiety with a professional operating rhythm. It is also, quietly, evidence of research maturity that external examiners love to see referenced in the methodology chapter.</p>
+<h3 id="117-the-risk-register-leading-indicators-of-failure">11.7 The risk register: leading indicators of failure</h3>
+<p>Every project has known risks; researchers just rarely write them down. Keep a <strong>risk register</strong> — a table of the top 5–8 risks, each with a leading indicator, a threshold, and a contingency:</p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Leading indicator</th>
+<th>Amber trigger</th>
+<th>Contingency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dataset access delayed</td>
+<td>Blocked days</td>
+<td>&gt; 7</td>
+<td>Switch to public backup dataset</td>
+</tr>
+<tr>
+<td>GPU/compute unavailable</td>
+<td>Queue wait hours</td>
+<td>&gt; 48h avg</td>
+<td>Reduce experiment grid; use colab fallback</td>
+</tr>
+<tr>
+<td>Supervisor unresponsive</td>
+<td>Feedback cycle days</td>
+<td>&gt; 14</td>
+<td>Proceed on written assumptions; escalate to co-supervisor</td>
+</tr>
+<tr>
+<td>Scope creep</td>
+<td>Open research questions count</td>
+<td>&gt; 5</td>
+<td>Freeze scope; park extras in future work</td>
+</tr>
+<tr>
+<td>Writing stall</td>
+<td>Pages/week</td>
+<td>&lt; 3 for 2 wks</td>
+<td>Daily 500-word sprints; writing group</td>
+</tr>
+</tbody>
+</table>
+<p>Review the register monthly. Most thesis crises — the lost semester, the failed experiment campaign — were visible in a leading indicator weeks earlier. The register is how you make sure you look.</p>
+<h3 id="118-writing-it-up-the-kpi-system-in-your-methodology-chapter">11.8 Writing it up: the KPI system in your methodology chapter</h3>
+<p>When your thesis is done, the tracking system from this chapter becomes methodology content. A compact write-up template:</p>
+<blockquote>
+<p>"Project progress was monitored using a KPI framework adapted from Parmenter (2019). Six KPIs were defined — three leading (papers summarized per week, experiments completed per week, draft pages per week) and three lagging (literature review completion, results chapter completion, submissions in the publication funnel) — each with targets, weekly review, and pre-agreed escalation actions. The full KPI specification table is provided in Appendix C. Two red episodes occurred (weeks 9–10, experiments blocked by compute availability); the escalation protocol triggered a scope reduction documented in the research log."</p>
+</blockquote>
+<p>That paragraph does triple duty: it demonstrates project management rigor, it cites established literature for an unconventional choice, and it shows honest reporting of problems — exactly what examiners reward. Keep the weekly status tables as evidence; a single appendix page of RAG history is more convincing than a paragraph claiming "the project proceeded smoothly." Start this week: define your six KPIs tonight, and hold your first Monday review next week.</p>
+<h3 id="119-worked-example-a-16-week-semester-kpi-plan">11.9 Worked example: a 16-week semester KPI plan</h3>
+<p>A concrete plan for one semester of thesis work, showing targets, rhythm, and escalation:</p>
+<table>
+<thead>
+<tr>
+<th>Weeks</th>
+<th>Phase</th>
+<th>Leading KPIs (weekly targets)</th>
+<th>Lagging milestone</th>
+<th>Red trigger → action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–3</td>
+<td>Literature</td>
+<td>4 paper summaries/wk; table 100% of 30 core papers by wk 3</td>
+<td>Related-work outline approved</td>
+<td>&lt; 3 summaries/wk for 2 wks → daily 90-min reading blocks</td>
+</tr>
+<tr>
+<td>4–6</td>
+<td>Data/pilot</td>
+<td>Dataset readiness 100% by wk 6; 1 pilot experiment/wk</td>
+<td>Pilot results reviewed</td>
+<td>Blocked days &gt; 7 → switch to backup dataset</td>
+</tr>
+<tr>
+<td>7–11</td>
+<td>Experiments</td>
+<td>2 experiments/wk; results logged same-day</td>
+<td>Results chapter draft (wk 11)</td>
+<td>&lt; 1 experiment/wk for 2 wks → supervision meeting in 5 days</td>
+</tr>
+<tr>
+<td>12–14</td>
+<td>Writing</td>
+<td>5 draft pages/wk</td>
+<td>Full draft to supervisor (wk 14)</td>
+<td>&lt; 3 pages/wk for 2 wks → writing group + daily sprints</td>
+</tr>
+<tr>
+<td>15–16</td>
+<td>Revision</td>
+<td>Feedback cycle ≤ 10 days; revision rounds ≤ 2/chapter</td>
+<td>Submission-ready thesis</td>
+<td>Feedback &gt; 14 days → proceed on written assumptions</td>
+</tr>
+</tbody>
+</table>
+<p>Notice the structure: every phase has leading KPIs with weekly targets, one lagging milestone, and a pre-agreed red trigger with a named action. Copy this table, adjust the numbers to your reality (bottom-up capacity, top-down deadline — Chapter 6), and you have a supervision-ready plan in one page.</p>
+<p><strong>For your research:</strong> This chapter <em>is</em> the "for your research" box, expanded. The deeper point: <strong>your thesis methodology can cite KPI-design literature.</strong> When you justify your progress-tracking or your evaluation framework, references like Parmenter (KPIs) and Kaplan &amp; Norton (Balanced Scorecard) are legitimate, peer-recognized sources — they turn "I kept a to-do list" into "progress was monitored using a KPI framework adapted from Parmenter (2019)." That single sentence elevates a mundane project-management paragraph into a methodologically grounded one. Examiners notice.</p>
+<p><strong>Key takeaways:</strong>
+- Manage your thesis like a production system: KPIs for literature, experiments, writing, and the publication funnel — leading and lagging, with targets and review rhythms.
+- The Monday 30-minute review with a one-page RAG status page is the highest-ROI habit in this chapter.
+- Set milestone targets bottom-up (your real capacity) constrained top-down (the deadline), with pre-agreed actions for red.
+- A Power BI research tracker is both a productivity tool and the best practice ground for professional KPI skills.</p>
+<hr />
+<h2 id="chapter-12-capstone-build-a-complete-kpi-dashboard">Chapter 12: Capstone — Build a Complete KPI Dashboard</h2>
+<p>You have the theory. This capstone walks you through building a complete KPI dashboard end to end — from a fictional company's messy reality to a governed, reviewed dashboard. Follow along in Power BI Desktop; every step maps to a chapter in this book. The company is fictional, but every decision below mirrors real projects.</p>
+<p><img alt="Illustration of a complete KPI dashboard with KPI cards, charts, gauges, and a map panel" src="/learn/images/media-generation-book-28-ch12-dashboard-0-ce714abd-5f5c-4390-bf5a-c629734f382b.webp" /></p>
+<h3 id="121-the-scenario-northwind-traders-fictional">12.1 The scenario: Northwind Traders (fictional)</h3>
+<p>Northwind Traders sells specialty foods online and through regional stores. The CEO's strategy for the year: <strong>"Profitable growth — grow revenue 15% while holding gross margin at 40%."</strong> The CFO adds a constraint: keep operating costs flat. You are the analyst. Deliverable: a KPI dashboard the executive team reviews monthly, plus an operational page the sales and logistics managers review weekly.</p>
+<h3 id="122-step-1-design-chapters-13">12.2 Step 1 — Design (Chapters 1–3)</h3>
+<p>Goal → CSFs → candidates → selection:</p>
+<ul>
+<li><strong>CSF 1: Grow revenue</strong> → KPIs: <em>Revenue attainment %</em> (target 100% of plan), <em>Revenue YoY %</em> (target +15%).</li>
+<li><strong>CSF 2: Protect margin</strong> → KPIs: <em>Gross margin %</em> (target ≥ 40%), <em>Average discount %</em> (target ≤ 10% — the counterbalance).</li>
+<li><strong>CSF 3: Deliver reliably</strong> → KPIs: <em>On-time delivery %</em> (target ≥ 98%).</li>
+<li><strong>CSF 4: Control costs</strong> → KPIs: <em>Operating expense variance %</em> (target within ±2% of budget).</li>
+</ul>
+<p>Six KPIs — inside the 5–10 guideline. Each gets a spec (owner, frequency, thresholds, action on red). Leading indicators for the operational page: <em>pipeline coverage</em> (sales), <em>orders picked per hour</em> (warehouse), <em>carrier booking lead time</em> (logistics).</p>
+<h3 id="123-step-2-data-model">12.3 Step 2 — Data model</h3>
+<p>Tables: <code>Sales</code> (fact: OrderID, Date, Region, Product, Amount, Cost, Discount), <code>Targets</code> (YearMonth, Region, TargetRevenue, TargetMargin), <code>OpexBudget</code> (Month, Dept, Budget, Actual), <code>Shipments</code> (OrderID, PromisedDate, ActualDate), <code>Date</code> (proper date table, marked as date table).</p>
+<p>Relationships: <code>Date[Date]</code> → <code>Sales[Date]</code>, <code>Shipments[ActualDate]</code>; <code>Targets</code> bridged to <code>Date</code> via <code>TREATAS</code> on YearMonth (Chapter 8). Check quality: reconciliation measure comparing dashboard revenue to finance's GL export; "Data as of" card from <code>MAX(Sales[LoadDate])</code>.</p>
+<h3 id="124-step-3-dax-measures-chapters-5-6-8">12.4 Step 3 — DAX measures (Chapters 5, 6, 8)</h3>
+<p>Build the full family. Base and targets:</p>
+<pre><code class="language-dax">Total Revenue = SUM ( Sales[Amount] )
+Total Cost = SUM ( Sales[Cost] )
+Gross Profit = [Total Revenue] - [Total Cost]
+
+Gross Margin % = DIVIDE ( [Gross Profit], [Total Revenue] )
+
+Target Revenue =
+CALCULATE (
+    SUM ( Targets[TargetRevenue] ),
+    TREATAS ( VALUES ( 'Date'[YearMonth] ), Targets[YearMonth] )
+)
+</code></pre>
+<p>Time intelligence and attainment:</p>
+<pre><code class="language-dax">Revenue YTD = CALCULATE ( [Total Revenue], DATESYTD ( 'Date'[Date] ) )
+Target Revenue YTD = CALCULATE ( [Target Revenue], DATESYTD ( 'Date'[Date] ) )
+Revenue Attainment % = DIVIDE ( [Revenue YTD], [Target Revenue YTD] )
+Revenue PY = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )
+Revenue YoY % = DIVIDE ( [Total Revenue] - [Revenue PY], [Revenue PY] )
+</code></pre>
+<p>Driver decomposition (the margin tree):</p>
+<pre><code class="language-dax">Avg Discount % = DIVIDE ( SUM ( Sales[DiscountAmount] ), SUM ( Sales[ListAmount] ) )
+
+-- Margin tree: Gross Margin % = f(discount, product mix, unit cost)
+Discount Impact on Margin =
+    ( [Avg Discount %] - [Target Discount %] ) * -1
+</code></pre>
+<p>RAG and status:</p>
+<pre><code class="language-dax">Revenue RAG =
+VAR A = [Revenue Attainment %]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( A ), &quot;No data&quot;,
+        A &gt;= 1, &quot;Green&quot;,
+        A &gt;= 0.95, &quot;Amber&quot;,
+        &quot;Red&quot;
+    )
+
+Margin RAG =
+VAR M = [Gross Margin %]
+RETURN
+    SWITCH (
+        TRUE (),
+        ISBLANK ( M ), &quot;No data&quot;,
+        M &gt;= 0.40, &quot;Green&quot;,
+        M &gt;= 0.38, &quot;Amber&quot;,
+        &quot;Red&quot;
+    )
+
+Revenue RAG Color =
+SWITCH (
+    [Revenue RAG],
+    &quot;Green&quot;, &quot;#2E7D32&quot;,
+    &quot;Amber&quot;, &quot;#F9A825&quot;,
+    &quot;Red&quot;, &quot;#C62828&quot;,
+    &quot;#9E9E9E&quot;
+)
+</code></pre>
+<p>Put measures in display folders (Base / Time Intelligence / Targets &amp; Variance / RAG &amp; Status), write one-line descriptions, set format strings.</p>
+<h3 id="125-step-4-layout-chapter-7">12.5 Step 4 — Layout (Chapter 7)</h3>
+<p><strong>Page 1 — Executive KPI summary (monthly):</strong> KPI card strip across the top (Revenue attainment, Revenue YoY, Gross margin %, Avg discount %, On-time delivery %, Opex variance %) — each card: value, target, variance, RAG dot + label, 12-month sparkline. Below: trend+target line charts for revenue and margin. Bottom: exception table — regions/products with red or amber status, sorted by shortfall impact. One page, no scroll.</p>
+<p><strong>Page 2 — Driver analysis:</strong> the revenue tree (orders × AOV decomposition) and margin waterfall (target margin → discount impact → mix impact → actual). Decomposition Tree visual for interactive drill-down by region and product category.</p>
+<p><strong>Page 3 — Operational (weekly):</strong> leading indicators — pipeline coverage gauge (bullet graph), orders picked per hour trend, carrier lead-time trend, this week's exception list. Slicers: region, week.</p>
+<p><strong>Mobile layout:</strong> page 1 condensed — six cards stacked, two key trends.</p>
+<h3 id="126-step-5-alerts-subscriptions-governance-chapter-9">12.6 Step 5 — Alerts, subscriptions, governance (Chapter 9)</h3>
+<ul>
+<li><strong>Alerts:</strong> on the Revenue attainment card (fire if &lt; 95%) and On-time delivery card (&lt; 97%), routed to the Sales Director and Logistics Head, each with the agreed runbook from the KPI spec.</li>
+<li><strong>Subscriptions:</strong> executive page emailed monthly on the 3rd working day; operational page emailed every Monday 7 AM to sales and logistics managers.</li>
+<li><strong>Governance:</strong> six KPIs entered in the KPI dictionary with specs; dataset certified after reconciling to finance; RLS roles for regional managers; monthly review meeting with the exception table as the agenda; quarterly design review.</li>
+</ul>
+<h3 id="127-step-6-the-review-meeting-where-value-happens">12.7 Step 6 — The review meeting (where value happens)</h3>
+<p>Month 3: Revenue attainment shows <strong>Amber, 96%</strong>. The exception table points at the West region. Driver page: orders on target, AOV down 6% → discount deeper than plan in West. Decision logged: West regional manager to tighten discount approvals above 12%; review in 30 days. Month 4: attainment back to Green, 101%. <strong>That</strong> — a red/amber that triggered a named action that moved the number — is the entire point of this book. Everything else was scaffolding.</p>
+<h3 id="128-checklist-before-you-call-it-done">12.8 Checklist before you call it done</h3>
+<ul>
+<li>[ ] Every KPI has a spec: definition, formula, source, owner, frequency, target, thresholds, action on red</li>
+<li>[ ] Targets have documented rationale; thresholds calibrated from history</li>
+<li>[ ] Date table in place; YTD compared against YTD target</li>
+<li>[ ] RAG by field-value color measures; text labels alongside color</li>
+<li>[ ] Bad news above the fold; one idea per visual; mobile layout built</li>
+<li>[ ] Data-quality measures visible ("data as of," missing days); reconciled to source</li>
+<li>[ ] Alerts on exceptions with runbooks; subscriptions matched to rhythms</li>
+<li>[ ] KPI dictionary updated; dataset certified; RLS tested; review meeting scheduled</li>
+</ul>
+<h3 id="129-presenting-the-dashboard-to-executives">12.9 Presenting the dashboard to executives</h3>
+<p>The dashboard is built; now you must sell it in the room. Rules for the first review:</p>
+<ul>
+<li><strong>Start with the reds.</strong> Open on the exception table, not the methodology. Executives fund outcomes, not architecture — earn attention with the first decision the dashboard enabled.</li>
+<li><strong>One page, ten minutes.</strong> Walk page 1 only. Pages 2–3 exist for the questions that follow; let the audience pull you into them.</li>
+<li><strong>Name the decisions, not the measures.</strong> "This card told the West region to tighten discounts, and margin recovered" beats "this is a YTD attainment measure using DATESYTD."</li>
+<li><strong>Bring the data-quality slide.</strong> One slide: sources, refresh cadence, reconciliation result, "data as of." It preempts the only question that can kill credibility — "can we trust these numbers?"</li>
+<li><strong>Ask for decisions, not approval.</strong> End with: "We propose these six KPIs, these targets, and this monthly review. What would you change?" A dashboard the executives co-own survives; one they merely approved does not.</li>
+</ul>
+<h3 id="1210-year-two-the-maintenance-plan">12.10 Year two: the maintenance plan</h3>
+<p>Dashboards rot. Targets set this year mislead next year; data sources change; the strategy pivots. Write the maintenance plan now:</p>
+<ul>
+<li><strong>Monthly:</strong> operational review (owner-led), data-quality check, alert tuning (too many false positives? adjust).</li>
+<li><strong>Quarterly:</strong> design review — any KPI failing the actionability test goes on the redesign list; new strategic initiatives get candidate KPIs via the Chapter 3 process.</li>
+<li><strong>Annually:</strong> full audit (Chapter 9 checklist), target re-setting with fresh baselines and benchmarks, threshold recalibration, dictionary cleanup, RLS review as people change roles.</li>
+<li><strong>On strategy change:</strong> immediate KPI impact assessment — which KPIs still align, which need new targets, which retire. Strategy without KPI realignment is a press release.</li>
+</ul>
+<p>Budget for maintenance explicitly — roughly 15–20% of the build effort per year. A dashboard with no maintenance budget is a dashboard with an expiry date.</p>
+<h3 id="1211-capstone-extensions-five-ways-to-go-further">12.11 Capstone extensions: five ways to go further</h3>
+<p>Finished the core build? These extensions each teach a professional skill:</p>
+<ol>
+<li><strong>What-if parameters.</strong> Add Power BI what-if parameters for discount rate and order volume, and show how revenue and margin respond live. Turns the dashboard into a planning tool — the step from monitoring to <em>managing</em>.</li>
+<li><strong>Forecast line.</strong> Add a simple forecast (moving-average or linear trend in DAX) to the revenue trend chart, with the forecast clearly labeled and shaded differently. Teaches honest uncertainty communication.</li>
+<li><strong>Scorecard page.</strong> Build a classic KPI scorecard table: KPI | Actual | Target | Variance | RAG | Trend sparkline | Owner — one row per KPI, printable for the board pack.</li>
+<li><strong>Anomaly alerts.</strong> Use Power BI's anomaly detection on the revenue line to auto-flag unexpected dips, then compare its flags against your threshold-based alerts. Teaches the difference between statistical and business significance.</li>
+<li><strong>Narrative automation.</strong> Write a DAX-driven smart narrative text box summarizing the month ("Revenue was 96% of target, amber; the shortfall came from AOV…"). Teaches turning numbers into the story executives actually read.</li>
+</ol>
+<p>Each extension is a portfolio piece on its own — and together they cover the skill set employers test for in BI analyst interviews.</p>
+<h3 id="1212-definition-of-done-the-sign-off-sheet">12.12 Definition of done: the sign-off sheet</h3>
+<p>Close the capstone with a one-page sign-off, signed by the executive sponsor and each KPI owner:</p>
+<ul>
+<li>KPI dictionary complete and certified; DAX reconciled to source systems (variance ≤ 0.5%).</li>
+<li>Targets documented with rationale; thresholds calibrated; RAG logic in governed measures.</li>
+<li>Executive, driver-analysis, and operational pages built; mobile layout tested on a phone.</li>
+<li>Alerts live with runbooks; subscriptions scheduled and matched to rhythms.</li>
+<li>RLS roles tested ("view as role" for each region).</li>
+<li>First monthly review meeting scheduled with the exception table as the agenda.</li>
+<li>Maintenance plan and annual audit date agreed.</li>
+</ul>
+<p>A dashboard without sign-off is a prototype; the signatures convert it into an organizational commitment — which is what makes the reds get acted on in month 3 instead of admired.</p>
+<p><strong>For your research:</strong> Treat this capstone as a <strong>methods template for any applied thesis with a dashboard component</strong> — and as a portfolio piece. A thesis chapter that walks through design → data model → measures → layout → governance, with the checklist as your validation section, is structured exactly like a design-science research contribution. Even better: document one real review cycle (the Month 3 → Month 4 story above, with real numbers from your own research tracker in Chapter 11) as evidence that the artifact works. "We built it, we used it, here is what changed" is the strongest claim an applied researcher can make.</p>
+<p><strong>Key takeaways:</strong>
+- A complete KPI dashboard = designed KPIs + clean model + governed DAX + five-second layout + alerts/subscriptions + a review meeting where decisions happen.
+- Build in layers: executive summary, driver analysis, operational detail — plus mobile.
+- The dashboard is scaffolding; the value is the decision log. If no decision changed, the dashboard failed regardless of how beautiful it is.
+- Use the 8-point checklist before calling any KPI dashboard done.</p>
+<hr />
+<h2 id="learning-dashboard-summary-tables">Learning Dashboard: Summary Tables</h2>
+<h3 id="table-a-kpi-design-canvas-one-page-per-kpi">Table A — KPI Design Canvas (one page per KPI)</h3>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>Prompt</th>
+<th>Your answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strategic goal</td>
+<td>Which goal does this serve? (Chapter 3)</td>
+<td></td>
+</tr>
+<tr>
+<td>Critical success factor</td>
+<td>What must go right?</td>
+<td></td>
+</tr>
+<tr>
+<td>KPI name</td>
+<td>Short, unambiguous</td>
+<td></td>
+</tr>
+<tr>
+<td>Definition</td>
+<td>Computable by a stranger (Chapter 1)</td>
+<td></td>
+</tr>
+<tr>
+<td>Formula</td>
+<td>Exact calculation</td>
+<td></td>
+</tr>
+<tr>
+<td>Unit &amp; direction</td>
+<td>%, $, days… / higher or lower is better?</td>
+<td></td>
+</tr>
+<tr>
+<td>Data source</td>
+<td>Table, column, system</td>
+<td></td>
+</tr>
+<tr>
+<td>Owner</td>
+<td>Named person</td>
+<td></td>
+</tr>
+<tr>
+<td>Frequency</td>
+<td>Measured / reviewed</td>
+<td></td>
+</tr>
+<tr>
+<td>Target</td>
+<td>Value + rationale (Chapter 6)</td>
+<td></td>
+</tr>
+<tr>
+<td>Thresholds</td>
+<td>Green / Amber / Red bands</td>
+<td></td>
+</tr>
+<tr>
+<td>Leading or lagging</td>
+<td>And its paired indicator (Chapter 4)</td>
+<td></td>
+</tr>
+<tr>
+<td>Parent in KPI tree</td>
+<td>Which headline KPI does it drive? (Chapter 5)</td>
+<td></td>
+</tr>
+<tr>
+<td>Action on red</td>
+<td>Named response within a deadline</td>
+<td></td>
+</tr>
+<tr>
+<td>Counterbalance KPI</td>
+<td>What stops gaming? (Chapter 2)</td>
+<td></td>
+</tr>
+<tr>
+<td>Review date</td>
+<td>Next design review</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="table-b-rag-threshold-guide">Table B — RAG Threshold Guide</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Rule of thumb</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Set the target first</td>
+<td>Document the rationale: baseline, benchmark, top-down, or bottom-up (Chapter 6)</td>
+</tr>
+<tr>
+<td>Direction</td>
+<td>State explicitly whether higher or lower is better — thresholds flip</td>
+</tr>
+<tr>
+<td>Amber width</td>
+<td>Start at ~1 standard deviation of normal variation, or 2–5% around target</td>
+</tr>
+<tr>
+<td>Calibrate from history</td>
+<td>If red fired &gt; 25–30% of recent periods, widen bands or fix the target — not the process</td>
+</tr>
+<tr>
+<td>Noisy KPIs</td>
+<td>Require 2 consecutive breaches or a 3-period average before flagging (hysteresis)</td>
+</tr>
+<tr>
+<td>Always pair</td>
+<td>Color + value + target + variance; never color alone</td>
+</tr>
+<tr>
+<td>Accessibility</td>
+<td>Add icons or text labels — ~1 in 12 men has color-vision deficiency</td>
+</tr>
+<tr>
+<td>Govern the logic</td>
+<td>Thresholds live in DAX (<code>SWITCH(TRUE(),...)</code>), not in visual settings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="table-c-dax-kpi-pattern-library">Table C — DAX KPI Pattern Library</h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>DAX skeleton</th>
+<th>Chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base measure</td>
+<td><code>Total X = SUM ( Fact[Column] )</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td>Safe ratio</td>
+<td><code>DIVIDE ( [Numerator], [Denominator] )</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td>Attainment %</td>
+<td><code>DIVIDE ( [Actual], [Target] )</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td>YTD / MTD / QTD</td>
+<td><code>CALCULATE ( [M], DATESYTD ( 'Date'[Date] ) )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Prior year</td>
+<td><code>CALCULATE ( [M], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Prior month/quarter</td>
+<td><code>CALCULATE ( [M], DATEADD ( 'Date'[Date], -1, MONTH ) )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>YoY / MoM %</td>
+<td><code>DIVIDE ( [M] - [M Prior], [M Prior] )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Variance</td>
+<td><code>[M] - [Target M]</code> and <code>DIVIDE ( [Variance], [Target M] )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Rolling 12M</td>
+<td><code>CALCULATE ( [M], DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -12, MONTH ) )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Moving average</td>
+<td><code>AVERAGEX ( DATESINPERIOD ( ... -3, MONTH ), [M] )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>RAG status</td>
+<td><code>SWITCH ( TRUE(), ISBLANK(A), "No data", A &gt;= 1, "Green", A &gt;= 0.95, "Amber", "Red" )</code></td>
+<td>6</td>
+</tr>
+<tr>
+<td>RAG color (field value)</td>
+<td><code>SWITCH ( [RAG], "Green", "#2E7D32", "Amber", "#F9A825", "Red", "#C62828", "#9E9E9E" )</code></td>
+<td>6</td>
+</tr>
+<tr>
+<td>Status score (sortable)</td>
+<td><code>SWITCH ( TRUE(), ..., 3, ..., 2, 1 )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Alert trigger</td>
+<td><code>IF ( [Attainment %] &lt; 0.95, 1, 0 )</code></td>
+<td>9</td>
+</tr>
+<tr>
+<td>Unrelated targets bridge</td>
+<td><code>CALCULATE ( SUM ( Targets[Amt] ), TREATAS ( VALUES ( 'Date'[YM] ), Targets[YM] ) )</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Data freshness</td>
+<td><code>MAX ( Fact[LoadDate] )</code></td>
+<td>9</td>
+</tr>
+<tr>
+<td>Missing days</td>
+<td><code>COUNTROWS ( EXCEPT ( DATESINPERIOD(...), VALUES ( Fact[Date] ) ) )</code></td>
+<td>9</td>
+</tr>
+<tr>
+<td>Driver contribution</td>
+<td><code>( [Child] - [Child Target] ) * [Sibling Target ]</code></td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Actionable metric</strong> — a metric with a named owner and a defined decision it changes.</li>
+<li>** amber** — the RAG zone meaning "at risk": watch closely, prepare contingency.</li>
+<li><strong>Attainment %</strong> — actual ÷ target, the core KPI comparison.</li>
+<li><strong>Balanced Scorecard</strong> — Kaplan &amp; Norton's framework viewing performance through financial, customer, internal-process, and learning-and-growth perspectives.</li>
+<li><strong>Baseline</strong> — historical performance level used as the reference for targets.</li>
+<li><strong>Benchmarking</strong> — comparing KPIs against peers, competitors, or published standards.</li>
+<li><strong>Bullet graph</strong> — compact visual showing actual (bar), target (line), and threshold bands; preferred over gauges.</li>
+<li><strong>Counterbalance KPI</strong> — a paired KPI that prevents gaming of the primary KPI (e.g., discount rate vs revenue).</li>
+<li><strong>Critical success factor (CSF)</strong> — one of the few things that must go right for a goal to be achieved.</li>
+<li><strong>Dashboard</strong> — a single-screen visual display of the most important information for an objective, readable at a glance.</li>
+<li><strong>DAX (Data Analysis Expressions)</strong> — the formula language for measures and calculations in Power BI.</li>
+<li><strong>Date table</strong> — a continuous calendar table, marked as a date table, required for DAX time intelligence.</li>
+<li><strong>Decomposition tree</strong> — a visual or analysis breaking a KPI into its driver components level by level.</li>
+<li><strong>Display folder</strong> — Power BI model organization grouping related measures.</li>
+<li><strong>Driver</strong> — a component variable that mathematically contributes to a KPI (e.g., conversion rate drives revenue).</li>
+<li><strong>DuPont analysis</strong> — the classic driver tree decomposing ROE into margin × turnover × leverage.</li>
+<li><strong>Exception list</strong> — a worst-first table of breached thresholds and top variances; the action agenda.</li>
+<li><strong>Goodhart's Law</strong> — "when a measure becomes a target, it ceases to be a good measure."</li>
+<li><strong>Green</strong> — the RAG zone meaning "on track": no action beyond normal management.</li>
+<li><strong>Hysteresis</strong> — requiring a sustained breach (not a single blip) before flagging red, for noisy KPIs.</li>
+<li><strong>KPI (Key Performance Indicator)</strong> — a strategic metric with a target, an owner, and a decision attached.</li>
+<li><strong>KPI dictionary</strong> — the governed registry of approved KPIs with full specifications; the single source of truth.</li>
+<li><strong>KPI tree (driver tree)</strong> — a hierarchical decomposition of a headline KPI into drivers with explicit math.</li>
+<li><strong>KRI (Key Result Indicator)</strong> — Parmenter's term for an overall result measure (e.g., net profit), reported but hard to act on directly.</li>
+<li><strong>Lagging indicator</strong> — a measure of past outcomes; accurate but late.</li>
+<li><strong>Leading indicator</strong> — a measure of inputs/activities predicting future outcomes; early but noisy.</li>
+<li><strong>Measure (DAX)</strong> — a dynamic calculation in Power BI that responds to filter context.</li>
+<li><strong>Metric</strong> — a measure placed in business context (ratio, rate, comparison).</li>
+<li><strong>OEE (Overall Equipment Effectiveness)</strong> — Availability × Performance × Quality; the headline manufacturing KPI.</li>
+<li><strong>Operational dashboard</strong> — a frequently reviewed dashboard of leading indicators for managers.</li>
+<li><strong>RAG (Red–Amber–Green)</strong> — status color language for at-a-glance KPI health.</li>
+<li><strong>Red</strong> — the RAG zone meaning "off track": the agreed action triggers.</li>
+<li><strong>RLS (Row-level security)</strong> — Power BI feature restricting which data rows each user sees.</li>
+<li><strong>SMART</strong> — Specific, Measurable, Achievable, Relevant, Time-bound; the KPI design test.</li>
+<li><strong>Sparkline</strong> — a tiny trend line inside a KPI card showing recent history.</li>
+<li><strong>Strategic dashboard</strong> — a monthly/quarterly dashboard of lagging KPIs for executives.</li>
+<li><strong>Subscription</strong> — scheduled email delivery of a dashboard/report snapshot.</li>
+<li><strong>Target</strong> — the desired KPI value, set by a defensible method with documented rationale.</li>
+<li><strong>Threshold</strong> — a boundary value separating RAG zones.</li>
+<li><strong>Time intelligence</strong> — DAX functions shifting date filter context (YTD, prior year, rolling periods).</li>
+<li><strong>TREATAS</strong> — DAX function applying filter context from one table's values to another's columns; used for unrelated target tables.</li>
+<li><strong>Vanity metric</strong> — a metric that flatters but guides no decision.</li>
+<li><strong>Variance</strong> — actual minus target (or prior period); the raw material of performance analysis.</li>
+<li><strong>Variance analysis</strong> — explaining a headline variance through its driver components.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Definitions.</strong> Write one-sentence definitions of <em>measure</em>, <em>metric</em>, and <em>KPI</em> in your own words, then give one example of each from a university context.</li>
+<li><strong>Actionability test.</strong> Pick three numbers from any dashboard or report you have seen. Run each through the three-question actionability test (owner? decision? moves both ways?). Classify each as KPI or vanity metric and justify in two lines each.</li>
+<li><strong>KPI specification.</strong> Choose one KPI from your workplace or university (e.g., "student attendance %"). Fill in all ten fields of the Chapter 1 specification table, including thresholds and the action on red.</li>
+<li><strong>Vanity-to-actionable rewrite.</strong> Take these vanity metrics and rewrite each as an actionable KPI with target, owner, and decision: (a) total website visitors, (b) total training hours delivered, (c) total registered app users.</li>
+<li><strong>Leading/lagging pairs

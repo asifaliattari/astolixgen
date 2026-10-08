@@ -1,0 +1,23 @@
+.</strong> For the goal "reduce customer complaints," name two lagging indicators and two leading indicators, with a one-paragraph causal mechanism for each leading indicator.</li>
+<li><strong>KPI tree.</strong> Draw a driver tree for "net profit" of a small retail shop, 3 levels deep, with × or +/− operators on every branch. Verify the math reconciles, then name the owner of each leaf.</li>
+<li><strong>DAX lab.</strong> Given <code>Sales[Amount]</code>, <code>Sales[OrderDate]</code>, a <code>Date</code> table, and a <code>Targets</code> table (YearMonth, TargetAmount): write measures for (a) Revenue YTD, (b) Revenue PY, (c) Revenue YoY %, (d) Revenue YTD attainment %, (e) a RAG status measure with 100%/95% bands, and (f) its hex-color companion measure.</li>
+<li><strong>Threshold calibration.</strong> A KPI has target 90% with bands green ≥ 90 / amber 85–90 / red &lt; 85. Last year's twelve monthly values: 88, 91, 84, 89, 87, 92, 83, 88, 86, 90, 82, 89. Count how often each zone fired. Are the thresholds well calibrated? Propose new bands if not, with reasoning.</li>
+<li><strong>Research KPI system (research-oriented).</strong> Design a complete KPI set for your own thesis or current research project: goal, 3–4 CSFs, 6–8 KPIs (mixed leading/lagging) with targets, owners, review rhythm, and actions on red. Build the Monday review table from Chapter 11 and fill it with this week's real numbers.</li>
+<li><strong>Capstone mini-project (research-oriented).</strong> Build a Power BI dashboard (or spreadsheet dashboard) tracking your research KPIs from Exercise 9 for four consecutive weeks. Write a 500-word reflection structured as: design decisions (which framework from this book you used and why), one red/amber episode and the action it triggered, and what you would change about your KPI set — framed as a methods note suitable for a thesis appendix.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] S. Few, <em>Information Dashboard Design: Displaying Data for At-a-Glance Monitoring</em>, 2nd ed. Sebastopol, CA, USA: O'Reilly Media, 2013.</p>
+<p>[2] S. Few, <em>Now You See It: Simple Visualization Techniques for Quantitative Analysis</em>. Burlingame, CA, USA: Analytics Press, 2009.</p>
+<p>[3] D. Parmenter, <em>Key Performance Indicators: Developing, Implementing, and Using Winning KPIs</em>, 4th ed. Hoboken, NJ, USA: Wiley, 2019.</p>
+<p>[4] R. S. Kaplan and D. P. Norton, <em>The Balanced Scorecard: Translating Strategy into Action</em>. Boston, MA, USA: Harvard Business School Press, 1996.</p>
+<p>[5] R. S. Kaplan and D. P. Norton, "The balanced scorecard — measures that drive performance," <em>Harvard Business Review</em>, vol. 70, no. 1, pp. 71–79, Jan./Feb. 1992.</p>
+<p>[6] W. W. Eckerson, <em>Performance Dashboards: Measuring, Monitoring, and Managing Your Business</em>, 2nd ed. Hoboken, NJ, USA: Wiley, 2010.</p>
+<p>[7] R. Kimball and M. Ross, <em>The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling</em>, 3rd ed. Hoboken, NJ, USA: Wiley, 2013.</p>
+<p>[8] A. Ferrari and M. Russo, <em>The Definitive Guide to DAX: Business Intelligence for Microsoft Power BI, SQL Server Analysis Services, and Excel</em>, 2nd ed. Redmond, WA, USA: Microsoft Press, 2019.</p>
+<p>[9] E. R. Tufte, <em>The Visual Display of Quantitative Information</em>, 2nd ed. Cheshire, CT, USA: Graphics Press, 2001.</p>
+<p>[10] E. Ries, <em>The Lean Startup: How Today's Entrepreneurs Use Continuous Innovation to Create Radically Successful Businesses</em>. New York, NY, USA: Crown Business, 2011.</p>
+<p>[11] T. H. Davenport and J. G. Harris, <em>Competing on Analytics: The New Science of Winning</em>. Boston, MA, USA: Harvard Business School Press, 2007.</p>
+<p>[12] Microsoft, "Data Analysis Expressions (DAX) reference," Microsoft Learn. [Online]. Available: https://learn.microsoft.com/en-us/dax/</p>
+<hr />
+<p><em>End of Book 28. Next: Book 29 — Power BI Visuals and Report Design.</em></p>

@@ -1,0 +1,337 @@
+<h1 id="ai-project-workflow-from-idea-to-deployment">AI Project Workflow: From Idea to Deployment</h1>
+<p><strong>Book 9 of 10 — AstolixGen Learning Series (Detailed Edition)</strong> · For researcher and publication students</p>
+<hr />
+<p><img alt="Cover" src="/learn/images/media-generation-book-09-cover-detailed-0-1e04b3bf-f86f-47ac-b783-6c7f660372e1.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>Most AI courses teach you how to train a model. Very few teach you how to run a complete project: how to pick a problem worth solving, how to search and read the literature, how to organize hundreds of experiments without losing your mind, how to evaluate honestly, how to write the paper, and how to put a working demo in front of people. That missing middle — the actual workflow of a research project — is what this book covers. It is written for MS and PhD students, and for early researchers who want to publish. Throughout the book, we follow one running example: a student project that builds a crop-disease image classifier for tomato leaf diseases. You will see how the same project looks at every stage, so nothing stays abstract.</p>
+<p><strong>Learning objectives:</strong>
+- Describe the full lifecycle of an AI research project from problem definition to deployment.
+- Write a problem statement that is narrow, measurable, and defensible in peer review.
+- Conduct a structured literature review and identify a genuine research gap.
+- Plan data collection and labeling, and handle basic ethical and consent issues.
+- Build and report simple baselines before trying advanced methods, and organize experiments with tracking, versioning, and clear naming.
+- Run an experimental loop: hypothesis, run, analyze, iterate.
+- Evaluate models honestly with correct splits, metrics, and error analysis.
+- Write a paper in the standard IEEE conference structure, section by section.
+- Make a project reproducible through code release, fixed seeds, and documentation.
+- Turn a notebook into a working demo that others can run, and present your work with clear slides and confident answers to questions.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Definition (one line)</th>
+<th>Example</th>
+<th>Use in research</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Problem statement</td>
+<td>One or two sentences defining exactly what you will solve and how success is measured.</td>
+<td>"Classify tomato leaf images as healthy or diseased with ≥90% accuracy on field photos."</td>
+<td>Anchors the whole project; reviewers check everything against it.</td>
+</tr>
+<tr>
+<td>Research gap</td>
+<td>Something prior work did not address — a dataset, condition, or method comparison missing from the literature.</td>
+<td>No published model tested on Pakistani field images.</td>
+<td>Justifies why your paper deserves to exist.</td>
+</tr>
+<tr>
+<td>Baseline</td>
+<td>A simple, well-known method run first, before any new idea.</td>
+<td>Logistic regression on color histograms; a published CNN re-trained.</td>
+<td>The reference line your improvements must beat honestly.</td>
+</tr>
+<tr>
+<td>Data split</td>
+<td>Dividing data into train, validation, and test sets with no leakage between them.</td>
+<td>70% train / 15% validation / 15% test, split by farm, not by photo.</td>
+<td>Prevents inflated results that reviewers will reject.</td>
+</tr>
+<tr>
+<td>Labeling</td>
+<td>Assigning correct ground-truth answers to data, ideally checked by a domain expert.</td>
+<td>An agronomist labels each leaf photo "healthy" or "early blight."</td>
+<td>Label quality caps model quality; document who labeled and how.</td>
+</tr>
+<tr>
+<td>Experiment tracking</td>
+<td>Recording every run's code version, data, hyperparameters, and results.</td>
+<td>A log table or tool entry per training run.</td>
+<td>Lets you compare fairly, reproduce results, and answer reviewer questions.</td>
+</tr>
+<tr>
+<td>Hypothesis</td>
+<td>A specific, testable prediction about what will improve results and why.</td>
+<td>"Adding field photos to training will raise field-image accuracy by ≥5 points."</td>
+<td>Keeps experiments purposeful instead of random tuning.</td>
+</tr>
+<tr>
+<td>Evaluation metric</td>
+<td>A number that defines success, chosen before you start tuning.</td>
+<td>F1-score on the held-out test set.</td>
+<td>Aligns your goal, your tables, and your paper's claims.</td>
+</tr>
+<tr>
+<td>Error analysis</td>
+<td>Studying the cases your model gets wrong to understand its weaknesses.</td>
+<td>Most errors are on shaded leaves or mixed infections.</td>
+<td>Turns failures into findings and new experiments.</td>
+</tr>
+<tr>
+<td>Ablation study</td>
+<td>Removing one part of your method at a time to show each part's contribution.</td>
+<td>Drop augmentation → accuracy falls 3 points.</td>
+<td>Strengthens your claims about what actually matters.</td>
+</tr>
+<tr>
+<td>Overfitting</td>
+<td>Learning training-data noise instead of the real pattern; great train scores, poor test scores.</td>
+<td>99% train accuracy but 71% test accuracy.</td>
+<td>The most common trap; fix with data, regularization, or simpler models.</td>
+</tr>
+<tr>
+<td>Cross-validation</td>
+<td>Rotating data through train/test roles to estimate performance more robustly.</td>
+<td>5-fold CV on a small dataset.</td>
+<td>Useful when data is scarce; report the mean and spread.</td>
+</tr>
+<tr>
+<td>Reproducibility</td>
+<td>The ability for another person to rerun your work and get the same results.</td>
+<td>Fixed seeds, pinned library versions, released code and data.</td>
+<td>Many venues now check this; it builds trust in your results.</td>
+</tr>
+<tr>
+<td>Seed</td>
+<td>The number that initializes randomness so runs can be repeated exactly.</td>
+<td><code>random_state=42</code> in every script.</td>
+<td>Without fixed seeds, "improvements" may be luck.</td>
+</tr>
+<tr>
+<td>Checkpoint</td>
+<td>A saved model file (weights) at a point during or after training.</td>
+<td><code>model_epoch20.pth</code> with best validation score.</td>
+<td>Lets you resume, evaluate, and deploy the best version.</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Making the model usable outside the lab — a demo, app, or service.</td>
+<td>A web page where a farmer uploads a leaf photo and gets a diagnosis.</td>
+<td>Shows real-world value; often the most convincing part of a presentation.</td>
+</tr>
+<tr>
+<td>Demo</td>
+<td>A live, runnable showing of your system to an audience.</td>
+<td>Classifying a fresh leaf photo during the seminar.</td>
+<td>Makes abstract results concrete; prepare a fallback video.</td>
+</tr>
+<tr>
+<td>Q&amp;A handling</td>
+<td>Answering questions about your work clearly and honestly.</td>
+<td>"We did not test on other crops — that is future work."</td>
+<td>Honesty about limits earns more respect than defensiveness.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Roadmap of chapter connections.</strong> Chapter 1 gives you the map of the whole journey — keep it in mind as you read on. Chapter 2 turns a vague idea into a precise problem statement; that statement is the compass for Chapters 3 through 8. Chapter 3's literature review tells you what has been tried and where the gap is; Chapter 4 then shows how to collect and label the data that fills that gap. Chapter 5 sets up honest baselines, Chapter 6 organizes the experiments that try to beat them, and Chapter 7 explains the loop of hypothesize–run–analyze–iterate that generates your results. Chapter 8 turns those results into trustworthy evaluation and error analysis. Chapters 9 and 10 convert results into a paper and a reproducible project. Chapters 11 and 12 take the finished work into the world: a deployment and a presentation. Read in order if you are new; experienced students can jump to Chapters 6–9 for the experimental core.</p>
+<hr />
+<p><img alt="Lifecycle of an AI project" src="/learn/images/media-generation-book-09-fig1-0-e80a670d-7232-4dd6-b68a-392d0648f6c0.webp" /></p>
+<h2 id="chapter-1-the-full-journey-from-idea-to-deployed-system">Chapter 1: The Full Journey — From Idea to Deployed System</h2>
+<p>Every published AI paper you admire hides an enormous amount of unglamorous work. The paper shows a clean table of results; behind it are months of reading, arguing with your supervisor, broken data pipelines, experiments that failed for silly reasons, and a demo that crashed the night before the presentation. This book is about that hidden work — the workflow that turns an idea into a deployed system and a published paper.</p>
+<p>A research project is not "train a model and write it up." It is a loop with six stages: <strong>problem definition → data → baselines → experiments → evaluation → paper and deployment</strong>, and then back to problem definition, because every finished project suggests the next one. Understanding this loop changes how you work. Instead of wandering from one tutorial to another, you always know which stage you are in, what the stage's output should be, and when you are allowed to move on.</p>
+<h3 id="why-workflow-matters-more-than-cleverness">Why workflow matters more than cleverness</h3>
+<p>Beginners often believe research success comes from knowing the fanciest model. It does not. Reviewers and supervisors judge a project on four things: Is the problem clearly defined? Is the evaluation honest? Is the work reproducible? Is the writing clear? A simple logistic regression project that nails all four will beat a giant neural network project that fails them. Workflow is the machinery that produces those four qualities.</p>
+<p>Think of the difference between coursework and research. In a course, the dataset is given, the metric is given, and the answer exists. In research, you must create all three yourself: you find or build the dataset, you choose the metric and defend it, and there is no answer key — only evidence. That is why workflow matters. Without it, you drown in decisions. With it, each decision has a place and a time.</p>
+<h3 id="the-six-stages-in-brief">The six stages in brief</h3>
+<p><strong>Stage 1 — Problem definition.</strong> You state exactly what you are solving and how you will measure success. This is a written sentence, not a feeling. A good problem statement at this stage saves you weeks later, because it tells you what data to collect and which papers to read.</p>
+<p><strong>Stage 2 — Data.</strong> You find, collect, clean, and label data. This is usually 50–70% of a real project's effort. Students chronically underestimate it. The data stage also includes ethics: consent, privacy, and permission.</p>
+<p><strong>Stage 3 — Baselines.</strong> You run the simplest reasonable methods first and record their scores. Baselines are your honest starting line. Everything you do later is measured against them.</p>
+<p><strong>Stage 4 — Experiments.</strong> You run the loop: form a hypothesis, run the experiment, analyze the result, and decide the next step. This is where the actual research happens, and where tracking matters most.</p>
+<p><strong>Stage 5 — Evaluation.</strong> You measure your best model on held-out data with the right metrics, and you study its errors. This stage answers the reviewer's question: "Should I believe these numbers?"</p>
+<p><strong>Stage 6 — Paper and deployment.</strong> You write the work up in the standard structure, release code and data so others can reproduce it, and build a demo that makes the work real. Deployment is optional for some papers but powerful for presentations and impact.</p>
+<p>Notice the loop: a deployed system and a written paper always reveal the next problem. The error analysis in Stage 5 hands you Stage 1 of the next project. Research is a spiral, not a line.</p>
+<h3 id="a-realistic-timeline">A realistic timeline</h3>
+<p>For an MS thesis-level project with one student working part-time, a sensible calendar looks like this: problem definition and literature review, 3–5 weeks; data collection and labeling, 4–8 weeks; baselines and experiments, 6–10 weeks; evaluation and error analysis, 2–3 weeks; writing and revision, 3–4 weeks; demo and presentation, 1–2 weeks. That is roughly one semester of real work. The biggest beginner mistake is spending 80% of the time on experiments and leaving data and writing squeezed into the final week. Protect the writing time — a brilliant result nobody can understand is not a result.</p>
+<h3 id="worked-example-the-crop-disease-classifier">Worked example: the crop-disease classifier</h3>
+<p>Meet our running example. A master's student, let's call her Ayesha, works at a university in an agricultural region. Farmers near her campus lose tomato crops to leaf diseases every season, and the local agriculture office diagnoses diseases slowly, by sending samples to a distant lab. Ayesha's idea: build an image classifier that tells a farmer whether a tomato leaf is healthy or diseased, from a phone photo taken in the field.</p>
+<p>Her first instinct is to download a famous public dataset of leaf photos, train a deep learning model, and report 95% accuracy. That is a coursework project, not research. When she reads the literature (Chapter 3), she discovers something interesting: published models score above 90% on clean lab photos but drop to 65–75% on real field photos with messy backgrounds, shadows, and multiple leaves. Nobody has tested these models on field photos from her region. That becomes her gap, and her project: <strong>can a classifier trained on lab photos plus a modest set of local field photos reach reliable accuracy on local field photos?</strong> The chapters ahead follow this project stage by stage — the problem statement, the literature table, the data collection, the baselines, the experiments, the evaluation, the paper, and the demo.</p>
+<h3 id="the-researchers-mindset-at-each-stage">The researcher's mindset at each stage</h3>
+<p>Each stage has a different mental mode. In problem definition, be a skeptic: attack your own idea before reviewers do. In data, be a detective: assume the data is hiding problems until you prove otherwise. In experiments, be a scientist: change one thing at a time and write down what you expected before you see the result. In evaluation, be an auditor: try to disprove your own numbers. In writing, be a teacher: your reader was not there for the journey. Practicing these modes is what turns a student into a researcher.</p>
+<h3 id="common-ways-projects-derail-and-how-the-workflow-prevents-them">Common ways projects derail (and how the workflow prevents them)</h3>
+<p>Most struggling projects fail in predictable ways, and each failure maps to a skipped stage. <strong>Tutorial hell</strong>: the student completes course after course on model architectures but never defines a problem — cured by Chapter 2's problem statement, which forces commitment. <strong>Data collected without a question</strong>: months of gathering images or scraping text, then the horrible realization that the data cannot answer any interesting question — cured by defining the problem and reading the literature first. <strong>The "one more experiment" trap</strong>: endless tuning with no stopping rule, so the paper never gets written — cured by Chapter 7's stopping rules and Chapter 1's calendar. <strong>Writing left to the final week</strong>: the results exist but cannot be communicated, and the deadline passes — cured by protecting writing time from the start and drafting figures early (Chapter 9). <strong>No version control, no tracking</strong>: the best result cannot be reproduced, so it cannot be published — cured by Chapter 6's five non-negotiables. Notice the pattern: every derailment is a stage done out of order or skipped. The workflow is not bureaucracy; it is the collected memory of thousands of failed projects, organized so you do not have to fail the same way.</p>
+<p>There is also a subtler derailment: <strong>solving the wrong problem well</strong>. A student builds a beautiful 97%-accurate classifier for a task nobody needs, on data nobody trusts, and wonders why no venue wants it. The defense is external contact, early and often: talk to the farmer, the doctor, the engineer — whoever lives with the problem — before you commit. Ayesha spent two afternoons at the agriculture office before writing her problem statement. Those conversations gave her the diagnosis-delay fact that anchored her motivation section and the realism that kept her project honest. No tutorial teaches that; the workflow demands it.</p>
+<h3 id="how-to-use-this-book-alongside-your-project">How to use this book alongside your project</h3>
+<p>Do not read this book cover to cover and then start. Use it as a field manual. <strong>Before you begin</strong>: read Chapters 1–3 and produce a problem statement and a literature summary table. <strong>During data work</strong>: keep Chapter 4 open; do the pilot before the full collection. <strong>During experiments</strong>: live in Chapters 5–8; the experiment log template and the hypothesis template are daily tools. <strong>When results stabilize</strong>: read Chapters 9–10 and start the paper and the code release in parallel — writing will surface gaps in your experiments while there is still time to fill them. <strong>Before your presentation</strong>: Chapters 11–12. And when the project ends, return to Chapter 1: your error analysis has already written the first paragraph of your next problem statement. The loop continues.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before you read further, write down your current project idea in one paragraph. Then answer three questions honestly: (1) What exactly would "success" look like as a number? (2) What data would you need, and do you have access to it? (3) What is the nearest published work, and what did it not do? If you cannot answer all three, your next job is not training a model — it is Chapters 2 and 3 of this book. Bring these answers to your supervisor; they will immediately respect the seriousness of your preparation.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- An AI research project is a loop of six stages: problem definition, data, baselines, experiments, evaluation, and paper/deployment.
+- Reviewers judge clarity of problem, honesty of evaluation, reproducibility, and writing — not model fanciness.
+- Data work usually takes more than half the project's time; plan for it.
+- Budget writing time from the start; do not squeeze it into the final week.
+- Every stage has a mental mode: skeptic, detective, scientist, auditor, teacher.</p>
+<hr />
+<h2 id="chapter-2-defining-the-problem-precisely">Chapter 2: Defining the Problem Precisely</h2>
+<p>Most failed research projects do not fail at training. They fail at the first sentence: nobody — not the student, not the supervisor, not the reviewer — can say exactly what the project is trying to do. A vague problem produces vague data, vague experiments, and a paper that reviewers reject with the dreaded phrase "unclear contribution." This chapter teaches you to write problem statements that survive review.</p>
+<h3 id="what-a-problem-statement-is-and-is-not">What a problem statement is and is not</h3>
+<p>A problem statement is a precise, written claim: what task you are solving, on what data, measured how, compared against what. It is not a topic ("AI in agriculture"), not a dream ("help farmers"), and not a method ("use deep learning"). Methods belong later; the problem statement is method-free. It says what must be achieved, not how you will achieve it.</p>
+<p>Compare these:
+- Weak: "I want to use deep learning to help farmers detect plant diseases."
+- Strong: "Build an image classifier that labels tomato leaf photos taken in the field as healthy, early blight, or late blight, reaching at least 85% accuracy on a held-out set of photos from farms in Punjab, compared against a ResNet-50 baseline trained only on lab images."</p>
+<p>The strong version names the input (field photos), the output (three classes), the metric (accuracy), the test condition (held-out Punjab farm photos), and the comparison (a specific baseline). A reviewer reading it knows exactly what would count as success. That is the standard you are aiming for.</p>
+<h3 id="the-four-components-of-a-surviving-problem-statement">The four components of a surviving problem statement</h3>
+<p>Every strong problem statement has four parts:</p>
+<ol>
+<li>
+<p><strong>Context and motivation.</strong> Why does this matter, and to whom? One or two sentences. Cite a real fact if you can — crop losses, diagnosis delays, cost of lab testing. Motivation tells the reviewer why they should care; it does not prove anything by itself.</p>
+</li>
+<li>
+<p><strong>The gap.</strong> What exactly is missing in current work? This must be specific and evidence-based, not "no one has done this before" (which is usually false or means nobody cared). Good gaps: prior work used lab images but not field images; prior work did not test on your region's crop varieties; prior work compared no baselines; prior work is too heavy for a phone.</p>
+</li>
+<li>
+<p><strong>The objective.</strong> What you will build or test, stated without method hype. "Evaluate whether adding N field photos to training improves field-image accuracy" is an objective. "Use a novel hybrid attention transformer" is a method looking for a problem.</p>
+</li>
+<li>
+<p><strong>The success criterion.</strong> The number and the comparison. Name the metric (accuracy, F1, error rate), the test data, and the baseline you must beat. If you cannot name these now, you are not ready to start experiments — go back to the literature.</p>
+</li>
+</ol>
+<h3 id="making-it-measurable-metrics-and-constraints">Making it measurable: metrics and constraints</h3>
+<p>Beginners often pick accuracy because it is familiar, then discover their classes are imbalanced and accuracy lies. If 90% of your leaves are healthy, a model that always says "healthy" scores 90% accuracy and is useless. For imbalanced problems, <strong>F1-score</strong> (the balance of precision and recall) or per-class accuracy tells the truth. Choose your metric before you run experiments, write it in the problem statement, and do not change it after seeing results — changing the metric to favor your model is a classic integrity failure that reviewers spot instantly.</p>
+<p>Also state your constraints: the model must run on a phone, or train on a single GPU, or work with only 500 labeled images. Constraints turn a generic project into an interesting one, and they protect you from scope creep — when your supervisor suggests adding five more diseases, you can point at the written scope.</p>
+<h3 id="scope-control-the-art-of-saying-not-yet">Scope control: the art of saying "not yet"</h3>
+<p>The number one killer of student projects is scope creep. "While you're at it, add the other crops. And make it real-time. And write the mobile app." Each addition sounds small and each one doubles the work. A good problem statement is a shield: it defines what is in and, by omission, what is out. Keep a "future work" list. Everything that is not in the problem statement goes there — visibly, so your supervisor agrees it is parked, not forgotten.</p>
+<p>A useful trick: the <strong>minimum publishable unit</strong>. Ask, "What is the smallest result that would still be a real contribution?" For Ayesha, it is: a classifier for three tomato leaf classes on local field photos, honestly evaluated, compared to a baseline. The mobile app, the other crops, the real-time video — those are future work. Finish the minimum unit first. You can always expand; you cannot un-collapse a project that grew too big.</p>
+<h3 id="the-stranger-test">The stranger test</h3>
+<p>Before the supervisor meeting, try the <strong>stranger test</strong>: read your problem statement to someone outside your field — a friend, a family member — and ask them to restate it in their own words. If they can say what task you are doing, how you will measure success, and what you are comparing against, the statement is clear. If they say "something with AI and plants," rewrite. Researchers are blind to their own jargon; the stranger is a cheap, honest detector. Ayesha's first draft failed the stranger test ("deep learning for farmers" came back as "an app, maybe?"); her final draft passed ("you're checking whether adding local photos helps a tomato-disease photo classifier, and you need 85% on new farms to win"). Clarity for a stranger is clarity for a reviewer.</p>
+<h3 id="worked-example-ayeshas-problem-statement-refined">Worked example: Ayesha's problem statement, refined</h3>
+<p>Ayesha's first draft was: "Use deep learning to detect tomato diseases and help farmers." After two weeks of reading (Chapter 3), she rewrote it:</p>
+<blockquote>
+<p>"Tomato growers in Punjab lose an estimated 20–30% of yield to foliar diseases, and lab diagnosis takes 5–7 days. Published leaf-disease classifiers reach 92–96% accuracy on lab-condition images but report 65–75% on field photos [to be filled with real citations]. No published work evaluates these models on field photos from Pakistani farms. <strong>Objective:</strong> build an image classifier for three classes (healthy, early blight, late blight) that reaches ≥85% accuracy on a held-out set of 300 field photos from 10 Punjab farms. <strong>Comparison:</strong> a ResNet-50 baseline trained only on public lab images. <strong>Constraint:</strong> inference must run on a mid-range Android phone in under 2 seconds."</p>
+</blockquote>
+<p>Notice what this does: it justifies (losses, delay), names the gap (no evaluation on Pakistani field photos), states the objective and number, names the baseline, and sets a constraint. Her supervisor approved it in one meeting. The project now has rails.</p>
+<h3 id="problem-statements-for-different-kinds-of-contributions">Problem statements for different kinds of contributions</h3>
+<p>Not every paper proposes a new method, and the problem statement should reflect the kind of contribution you are making. For an <strong>application paper</strong> (Ayesha's kind), the statement emphasizes the new domain or condition: "evaluate method X on data/condition Y, where it has never been tested." For a <strong>comparison or benchmark paper</strong>, the statement emphasizes fairness: "compare the leading approaches A, B, and C on a unified benchmark with identical splits and metrics, which no prior work has done." For a <strong>methods paper</strong>, the statement emphasizes the deficiency being fixed: "existing methods fail under condition Z; we propose a modification and measure whether it closes the gap." The four components (context, gap, objective, success criterion) stay the same; what changes is where the novelty lives. Beginners often write a methods-style statement ("we propose a novel architecture") for what is really an application project — and then reviewers judge the architecture's novelty and find it thin. Match the statement to the contribution you can actually deliver. An honest application statement beats a grandiose methods statement every time.</p>
+<h3 id="getting-sign-off-the-problem-statement-meeting">Getting sign-off: the problem statement meeting</h3>
+<p>A problem statement is not finished when you like it; it is finished when your supervisor approves it in writing — an email, a signed page, a comment on the document. Supervisors see failure modes you cannot: the dataset you cannot access, the metric the community does not respect, the gap that was closed last year. Bring three things to that meeting: the statement itself, the one-page evidence for the gap (from your literature table), and your list of parked future-work items. Ask explicitly: "Is this the right scope? Is the metric acceptable? What would make you reject this project in month four?" The answers are a gift — they are the reviewer's objections, delivered early, when they are still cheap to address. If the evidence later forces the statement to change (it sometimes does — data may refuse to cooperate), that is fine: revise it, re-gather evidence, and get sign-off again. A problem statement is a living contract, not a prison. What it cannot be is vague — vagueness is just a deferred argument with your supervisor, and deferred arguments are always more expensive.</p>
+<blockquote>
+<p><strong>For your research:</strong> Write your problem statement now, in the four-part format, aiming for under 150 words. Then perform the "hostile reviewer test": imagine the toughest reviewer in your field reading it and list the three objections they would raise (vague metric? no comparison? gap not evidenced?). Rewrite to answer each objection. Repeat until you cannot find a new objection. A statement that survives your own hostility will survive review. Keep every draft — your thesis or paper's introduction will be built from the final one.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- A problem statement names the task, data, metric, test condition, and baseline — never just a method or a dream.
+- The gap must be specific and evidence-based: what did prior work not do, and why does it matter?
+- Choose your metric before experiments and never change it to flatter your results.
+- State constraints; they make the project interesting and control scope.
+- Define the minimum publishable unit and park everything else as future work.</p>
+<hr />
+<h2 id="chapter-3-literature-review-as-the-foundation">Chapter 3: Literature Review as the Foundation</h2>
+<p>A literature review is not a chore you do to satisfy your supervisor. It is the foundation of the entire project: it tells you what has been tried, what worked, what failed, and where the empty space is. A sloppy review means you will "discover" things that were published five years ago — the fastest route to rejection. A good review, by contrast, hands you your problem statement, your baselines, your datasets, and your metrics on a plate.</p>
+<h3 id="where-to-search-and-what-counts">Where to search and what counts</h3>
+<p>Start with <strong>Google Scholar</strong> for breadth. Then go to the venues that matter in your subfield: for AI, the big conferences (NeurIPS, ICML, ICLR, CVPR, ICCV, ECCV, ACL) and journals (IEEE Transactions, Pattern Recognition, Computers and Electronics in Agriculture for our running example). For applied work, domain journals matter as much as AI venues — an agriculture-AI paper belongs in an agriculture journal's conversation too. Your university library gives you access to IEEE Xplore, ScienceDirect, and Springer; learn to use them now, because paywalls are part of a researcher's life.</p>
+<p>What counts as a citable source? Peer-reviewed conference and journal papers first. Then reputable preprints (arXiv) — fine to read, but prefer the peer-reviewed version when it exists. Textbooks like Russell and Norvig [1] or Goodfellow et al. [5] for background concepts. Technical reports from known labs occasionally. What does <strong>not</strong> count: blog posts, Medium articles, undocumented GitHub repos, and vendor whitepapers. You may learn from them, but do not cite them as evidence. And never cite a paper you have not at least skimmed — reviewers can tell, and mis-cited papers are embarrassing when caught.</p>
+<h3 id="how-to-read-30-papers-without-drowning">How to read 30 papers without drowning</h3>
+<p>You do not read every paper word for word. Use the <strong>three-pass method</strong>. Pass one (5 minutes): read the title, abstract, figures, and conclusion. Decide: relevant or not? Pass two (20–30 minutes): read the introduction, method overview, key figures and tables, and results. You now understand the paper's claim and evidence. Pass three (only for the 5–8 most important papers): read everything, including details, and try to reproduce the key idea mentally. Most papers get passes one and two only. This is not laziness — it is triage, and every working researcher does it.</p>
+<p>While reading, take notes in a fixed template for each paper: problem addressed, method used, dataset, metric and result, limitation (stated or visible), and how it relates to your project. The <strong>limitation column is the gold mine</strong> — authors often bury the most useful sentence in their "limitations" or "future work" paragraph, and that sentence is frequently your research gap wearing a disguise.</p>
+<h3 id="the-summary-table-your-reviews-engine-room">The summary table: your review's engine room</h3>
+<p>Do not write your review as a list of paragraphs ("Paper A did X. Paper B did Y."). That is a bibliography with verbs — reviewers hate it. Instead, build a <strong>summary table</strong>: rows are papers, columns are problem, method, dataset, metric, key result, limitation. Once the table exists, the patterns jump out: everyone used the same dataset; nobody tested on field images; the best-reported accuracy clusters around 93% on lab data; two papers mention field performance dropping but did not investigate it. Your literature review chapter then writes itself as a story about these patterns, ending at the gap.</p>
+<p>Aim for 25–40 papers for a thesis-level review, 15–25 for a conference paper's related work. Quality beats quantity: ten deeply understood papers beat fifty skimmed ones. And keep the table alive — add papers as you find them during the project, because the experiments phase will surface new related work you missed.</p>
+<h3 id="finding-the-gap-four-reliable-patterns">Finding the gap: four reliable patterns</h3>
+<p>Genuine gaps usually take one of four shapes. Learn to recognize them:</p>
+<ol>
+<li><strong>The dataset gap.</strong> A method works on dataset A but has never been tested on dataset B, and there are reasons to expect different behavior. (Ayesha's gap: lab images vs. Pakistani field images.)</li>
+<li><strong>The condition gap.</strong> The method assumes conditions that fail in practice — clean images, balanced classes, abundant labels, powerful hardware. Your work tests or fixes the realistic condition.</li>
+<li><strong>The comparison gap.</strong> Papers each report their own numbers on their own setups, and nobody has compared the main approaches fairly on one benchmark. A careful comparison study is a legitimate contribution.</li>
+<li><strong>The deployment gap.</strong> The method is accurate but too slow, too big, or too fragile for real use. Making it practical — smaller, faster, robust — is real research, not "just engineering."</li>
+</ol>
+<p>Beware the fake gap: "nobody has combined model X with dataset Y." If there is no reason to expect the combination to matter, reviewers will ask "so what?" A gap needs a <strong>why</strong> — a reason the missing piece matters to someone.</p>
+<h3 id="organizing-and-citing-as-you-go">Organizing and citing as you go</h3>
+<p>Use a reference manager from day one — Zotero (free) or Mendeley. Every time you read a paper, save the PDF and the citation immediately. Nothing is more miserable than writing a paper with 30 citations assembled from memory at 2 a.m. Learn your venue's citation style early (this book uses IEEE numbered style [1], [2]) and keep a single <code>.bib</code> file or library for the whole project. When you write, cite claims the moment you make them; a paragraph with no citations in a related-work section is a paragraph that should not exist.</p>
+<h3 id="worked-example-ayeshas-review">Worked example: Ayesha's review</h3>
+<p>Ayesha searched Google Scholar for "plant leaf disease classification deep learning" and "PlantVillage field images," then followed citations forward and backward from the most-cited papers. Her summary table had 28 rows. The pattern was stark: 24 papers used the PlantVillage lab dataset; 3 used other lab datasets; exactly 1 attempted field images, reporting a 20-point accuracy drop, and none used images from Pakistan. Two papers noted in their limitations that "field robustness remains untested." She had her gap, her baselines (the two most-cited CNN approaches), her metric (accuracy on held-out field images, plus F1 for the minority disease class), and her dataset plan (public lab images + self-collected field images). The review took four weeks. It saved her from at least three dead ends she would otherwise have discovered by failing.</p>
+<h3 id="reading-critically-evaluate-dont-just-collect">Reading critically: evaluate, don't just collect</h3>
+<p>A summary table tells you what papers claim; critical reading tells you whether to believe them. For each important paper, ask: <strong>Was the evaluation fair?</strong> Did they compare against strong, well-tuned baselines, or strawmen? Did they test on a proper held-out set? <strong>Do the numbers support the story?</strong> Check whether the headline improvement survives the reported variation — a 1-point gain with ±2 points of noise is not a finding. <strong>Are the ablations convincing?</strong> If a paper claims component X matters but never tests the model without X, the claim is decoration. And watch for the <strong>citation telephone game</strong>: paper A reports a result with caveats, paper B cites it without the caveats, paper C cites B as established fact. When a claim matters to your project, trace it back to the original source and read the caveats yourself. Ayesha caught one of these: a widely cited "field accuracy" number turned out, in the original paper, to be accuracy on lab images with synthetic noise added — not field images at all. Her summary table flagged it, and her gap survived because she checked.</p>
+<h3 id="when-to-stop-reading-and-start-doing">When to stop reading and start doing</h3>
+<p>Literature review has diminishing returns, and perfectionists can read forever. Use the <strong>saturation rule</strong>: when new papers stop changing your summary table's patterns — same datasets, same methods, same reported ranges, same unaddressed gap — you have read enough to start. For most student projects this happens around 25–40 papers. Stopping does not mean the review is closed: keep a "new papers" habit of one search per month during experiments, because the field moves and a competitor may publish your gap. But the review's job at the start is to authorize action, not to be exhaustive. Ayesha stopped at 28 papers when three consecutive searches added rows but no new patterns. She started collecting data the following Monday. Six weeks later, a new preprint appeared on field robustness — she read it, added a row, cited it in related work, and adjusted one baseline. That is the healthy rhythm: a solid foundation, then maintenance.</p>
+<blockquote>
+<p><strong>For your research:</strong> This week, build a summary table with at least 15 papers in your area, using the columns: problem, method, dataset, metric, key result, limitation. Then write one paragraph answering: "What is the pattern, and where is the gap?" Show the table and the paragraph to your supervisor before you collect a single data point. If your supervisor cannot see the gap from your table, your review is not done. Remember: every claim in your eventual paper's related-work section must trace back to a paper you actually read — never invent citations, and never cite from abstracts alone.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- The literature review gives you the problem, baselines, datasets, and metrics — it is the project's foundation, not a formality.
+- Search Google Scholar plus your subfield's real venues; cite peer-reviewed work you have actually read.
+- Use the three-pass reading method and a fixed note template; the limitation column is where gaps hide.
+- Build a summary table, then write the review as a story about patterns ending at the gap.
+- Real gaps come in four shapes: dataset, condition, comparison, deployment — each needs a "why it matters."
+- Manage references from day one with Zotero or Mendeley; never invent or pad citations.</p>
+<hr />
+<h2 id="chapter-4-data-collection-labeling-and-ethics">Chapter 4: Data Collection, Labeling, and Ethics</h2>
+<p>If models are the engine of AI, data is the fuel — and most beginners put dirty fuel in the tank. Researchers consistently report spending half to two-thirds of project time on data: finding it, cleaning it, labeling it, and understanding it. This chapter covers how to do that work properly, including the ethics that reviewers and institutions increasingly demand.</p>
+<h3 id="start-with-existing-data-and-interrogate-it">Start with existing data — and interrogate it</h3>
+<p>Before collecting anything, exhaust existing sources. Public datasets (like PlantVillage for leaf images), government open-data portals, and datasets released with papers are free starting points. But never trust a dataset on reputation alone. <strong>Interrogate it</strong>: How was it collected? Under what conditions? Who labeled it, and how were disagreements resolved? What is the class balance? Are there near-duplicates between the supposed train and test portions? Download it, plot the class distribution, look at 50 random samples with your own eyes, and check image sizes, formats, and metadata. Ayesha did this with PlantVillage and found it clean but entirely lab-condition — white or grey backgrounds, single centered leaves. That finding shaped her whole project: the public data could train the model, but it could not test the real-world claim.</p>
+<p>Document everything you learn in a <strong>dataset sheet</strong>: source, collection method, size, class distribution, known limitations, license, and citation. This becomes the dataset paragraph of your paper, and reviewers increasingly expect it. If the dataset has a license, respect it — "publicly downloadable" is not the same as "free to republish."</p>
+<h3 id="collecting-your-own-data-plan-before-you-shoot">Collecting your own data: plan before you shoot</h3>
+<p>When existing data cannot answer your question, you collect your own. This is powerful — a well-built new dataset is itself a publishable contribution — but it must be planned. Write a <strong>collection protocol</strong> before you start: what exactly to capture, under what conditions, with what equipment, and how much you need. Ayesha's protocol specified: tomato leaves photographed with mid-range Android phones, in natural field light, at three times of day, across 10 farms, aiming for at least 100 photos per class, with each photo tagged by farm, date, and variety.</p>
+<p>Two rules save enormous pain. First, <strong>collect more than you think you need</strong> — you will discard 10–30% for blur, wrong framing, or ambiguous cases. Second, <strong>record metadata at capture time</strong>: farm, date, phone model, lighting. Metadata you skip now is metadata you cannot reconstruct later, and it is exactly what error analysis (Chapter 8) will need. A simple spreadsheet filled in the field beats a perfect database designed afterward.</p>
+<h3 id="labeling-where-quality-is-decided">Labeling: where quality is decided</h3>
+<p>Labels are the ground truth your model learns from, so label quality caps model quality. For Ayesha's project, each photo needed a label: healthy, early blight, or late blight. She could not label them herself — she is not a plant pathologist — so she partnered with the university's agriculture department, and an agronomist labeled each image. That expert involvement is worth stating in your paper; it is a credibility signal reviewers notice.</p>
+<p>Follow these labeling practices:
+- <strong>Write labeling guidelines first.</strong> One page with definitions and example photos for each class, including the hard cases ("yellowing from nutrient deficiency is NOT early blight"). Give it to every labeler.
+- <strong>Double-label a subset.</strong> Have two people independently label 10–20% of the data and measure agreement. Low agreement means your guidelines — or your class definitions — are unclear. Fix the guidelines, not the labelers.
+- <strong>Handle ambiguity honestly.</strong> Some photos will be genuinely uncertain. Create an "uncertain/exclude" bucket rather than forcing a guess. Forced guesses become label noise, and label noise becomes a model that confidently learns the wrong thing.
+- <strong>Keep the labelers blind to your hypothesis.</strong> If labelers know which photos are "supposed" to be hard, it biases them. This sounds fussy; it is standard scientific practice.</p>
+<p>Budget realistically: expert labeling is slow and sometimes costly. Ayesha's agronomist labeled 400 photos in about 12 hours spread over two weeks. Plan this into your timeline (Chapter 1) and be grateful, professional, and prompt with your collaborators.</p>
+<h3 id="splits-the-line-between-honest-and-dishonest-results">Splits: the line between honest and dishonest results</h3>
+<p>Split your data into <strong>train</strong> (model learns), <strong>validation</strong> (you tune hyperparameters and pick models), and <strong>test</strong> (final score, touched once). The deadly sin is <strong>leakage</strong>: information from the test set influencing training. The classic beginner version is testing on training data. The subtle version is splitting by photo instead of by farm: if photos from the same farm appear in both train and test, the model may learn farm-specific backgrounds rather than disease signs, and your test score will be a lie.</p>
+<p>Ayesha split <strong>by farm</strong>: 6 farms for training, 2 for validation, 2 held out for testing. Her test accuracy dropped compared to a naive random split — and that lower number was the honest one. When a reviewer asks "how did you split?", "by farm, to prevent background leakage" is an answer that builds trust. Also <strong>lock the test set early</strong> and do not peek at it during development. Every peek is a small leak; enough peeks and your test set becomes a second validation set.</p>
+<h3 id="ethics-consent-privacy-and-permission">Ethics: consent, privacy, and permission</h3>
+<p>AI ethics is not only about giant tech companies. If your data involves people, farms, or private property, you have obligations. Ayesha needed permission from farm owners to photograph on their land, and she explained in plain language what the photos were for. If your data includes people — faces, medical images, survey responses — you likely need <strong>informed consent</strong> and possibly approval from your institution's ethics board. Start that process early; boards are slow.</p>
+<p>Three practical rules: (1) <strong>Collect the minimum you need.</strong> Do not photograph the farmer's family because the camera was handy. (2) <strong>Anonymize.</strong> Strip names, GPS coordinates, and identifying details unless your research question requires them, and store data securely. (3) <strong>Be honest about use.</strong> If you told farmers the photos were for research, do not later sell them to a company. Your paper's ethics or data statement should describe consent and handling in two or three sentences — reviewers increasingly look for it, and its absence is noticed.</p>
+<h3 id="worked-example-ayeshas-dataset">Worked example: Ayesha's dataset</h3>
+<p>Final tally: 38,000 public lab images (PlantVillage tomato subset) for training support, plus 1,240 self-collected field photos from 10 farms. After expert labeling and discarding 180 ambiguous or blurry photos, she had 1,060 usable field images: 420 healthy, 350 early blight, 290 late blight. Split by farm into train/validation/test. The agronomist double-labeled 150 photos with a second expert; agreement was 94%, and disagreements were resolved by discussion and documented. Total data effort: six weeks. It was the longest single phase of her project — and the reason her later results meant something.</p>
+<h3 id="storing-and-versioning-data-practically">Storing and versioning data practically</h3>
+<p>Data needs the same version discipline as code. At minimum, keep a <code>data/</code> folder with subfolders per version (<code>v1-pilot/</code>, <code>v2-full/</code>) and a <code>README</code> in each describing what changed, when, and why. Never overwrite a dataset in place — the day you need to compare against last month's version, you will be glad the old one still exists. For larger projects, tools like <strong>DVC (Data Version Control)</strong> track data versions alongside git commits, so a given code commit points to the exact data it ran on. Whatever system you use, record a simple fingerprint for each version — the number of samples per class and a checksum or hash of the files — in your experiment log. Then any run's "data version" field (Chapter 6) is meaningful. And <strong>back up</strong>: keep at least two copies of irreplaceable collected data in different places (laptop plus external drive or cloud). Ayesha's field photos existed in three places from the day they were taken. Collected data is the one project asset that cannot be regenerated by re-running code — treat it as irreplaceable, because it is.</p>
+<h3 id="working-with-domain-experts-respect-earns-quality">Working with domain experts: respect earns quality</h3>
+<p>When your labels or problem understanding depend on experts — agronomists, doctors, engineers — remember that you are asking busy professionals for their scarcest resource: attention. Make it easy for them: bring the labeling guideline with examples, a simple interface (even a shared folder of images with a spreadsheet beats a clunky custom tool), and a realistic estimate of the time needed. Batch questions instead of interrupting daily. Show them early results — experts who see their labels producing a working model become invested collaborators rather than reluctant helpers. Discuss <strong>authorship and acknowledgment</strong> upfront with your supervisor: a domain expert who shaped the problem and validated labels has often earned more than a thank-you line. Ayesha's agronomist ended up as a co-author, and his field knowledge improved the paper's discussion section beyond anything she could have written alone. Finally, close the loop: share the finished paper and the demo with every expert and data provider. It is professional courtesy, and it keeps the door open for your next project.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before collecting data, write a one-page collection protocol (what, how, how much, metadata) and a one-page labeling guideline (class definitions + examples). Show both to your supervisor and, if applicable, your domain expert. Then do a <strong>pilot</strong>: collect and label 50 samples end-to-end, run them through your whole pipeline, and check that everything works. The pilot will reveal every flaw in your protocol while it is still cheap to fix. Document consent and permissions in writing — a short signed note from each data provider protects you and satisfies reviewers.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Interrogate any existing dataset before trusting it: collection method, labeling, balance, leakage, license.
+- Plan collection with a written protocol; record metadata at capture time; collect more than you need.
+- Label quality caps model quality: guidelines, expert labelers, double-labeling, honest handling of ambiguity.
+- Split by the right unit (farm, patient, speaker — not individual samples) to prevent leakage; lock the test set.
+- Handle ethics properly: permission, informed consent, minimum collection, anonymization, honest use.</p>
+<hr />
+<h2 id="chapter-5-baselines-first-why-simple-models-come-before-fancy-ones">Chapter 5: Baselines First — Why Simple Models Come Before Fancy Ones</h2>
+<p>Every beginner wants to start with the most powerful model they have heard of. Resist this. The professional move — the one that separates researchers from hobbyists — is to build the <strong>simplest reasonable baseline first</strong>, measure it carefully, and only then try anything fancier. This chapter explains why, and how to choose baselines that make your eventual results meaningful.</p>
+<h3 id="what-a-baseline-is-and-why-it-is-non-negotiable">What a baseline is and why it is non-negotiable</h3>
+<p>A baseline is a simple, well-understood method run on your problem before your "real" method. It answers the question every reviewer asks: "Is your fancy method actually better than the obvious thing?" Without a baseline, your 87% accuracy is a lonely number. With a baseline at 81%, your 87% is a six-point improvement — a claim. With a baseline at 86.5%, your 87% is noise — and you need to know that before you write the paper, not after a reviewer tells you.</p>
+<p>Baselines also debug your pipeline. If a simple logistic regression scores 50% on a three-class problem — barely above chance — something is broken: labels, data loading, or splits. If you had started with a 50-layer network, you would blame the architecture and waste weeks tuning. The baseline tells you the pipeline works, the data is learnable, and the problem is real. Géron's hands-on guide [2] makes the same point from the practitioner's side: start simple, establish the pipeline end to end, then improve.</p>
+<h3 id="choosing-good-baselines-the-ladder">Choosing good baselines: the ladder</h3>
+<p>Build a small ladder of baselines, from dumb to decent:</p>
+<ol>
+<li><strong>Trivial baselines.</strong> Majority-class predictor ("always guess healthy") and random guessing. These cost nothing and calibrate your metric — if your model cannot beat "always guess the majority class," stop and investigate.</li>
+<li><strong>Classical machine learning.</strong> Logistic regression, random forests, or SVMs on hand-crafted features (for images: color histograms, texture features), using scikit-learn [3]. These are fast, need little data, and are surprisingly strong.</li>
+<li><strong>Published prior work, re-run.</strong> Take the best method from your literature review and run it on your data as the authors described. This is the baseline reviewers care about most: "we beat the state of the art" only means something if you actually ran the state of the art.</li>
+<li><strong>Ablated versions of your own method.</strong> Once you have your method, baselines include your method with each new piece removed (Chapter 7 covers ablations properly).</li>
+</ol>
+<p>For Ayesha: trivial baseline (majority class: 40% accuracy), logistic regression on color histograms (68%), and a published ResNet-50 approach re-trained on her data (74% on field test). That ladder took two weeks. Everything afterward was measured against it.</p>
+<h3 id="how-many-baselines-are-enough">How many baselines are enough?</h3>
+<p>A common question: is two baselines enough, or do I need ten? The answer is coverage, not count. You need enough baselines that a reviewer cannot say "but did you try the obvious thing?" For most student projects, three to five well-chosen baselines cover the space: one trivial, one classical, and one to three serious contenders (re-run prior work plus ablated versions of your method). More than that, and you are spending paper pages and compute on diminishing returns; fewer, and the comparison looks thin. One more consideration: <strong>match the baselines to your claim</strong>. If your claim is "our method is more accurate," the baselines must be accuracy-competitive. If your claim is "same accuracy but 10× faster," you need a speed comparison table too — accuracy baselines alone do not support an efficiency claim. Write your claim first (it comes from the problem statement), then check that every word of it has a baseline behind it. Unbacked adjectives are where reviewers strike. When in doubt, include the baseline and let the table speak — an extra row costs little, but a missing obvious comparison costs credibility.</p>
+<h3 id="the-baseline-trap-weak-baselines-that-flatter-you">The baseline trap: weak baselines that flatter you</h3>
+<p>There is a dishonest version of this chapter, and reviewers know it: the <strong>strawman baseline</strong> — an intentionally weak or badly tuned baseline that makes your method look good. Examples: comparing against a published method but training it for far fewer epochs, using default hyperparameters for the baseline while tuning yours for weeks, or evaluating the baseline on harder data. This is one of the most common reasons papers get rejected, and experienced reviewers detect it quickly.</p>
+<p>The rule is <strong>symmetric effort</strong>: give baselines a fair, documented tuning effort. You do not need to tune them as obsessively as your method, but you must describe what you did — "baseline hyperparameters tuned via grid search on the validation set, same as our method" — so the comparison is credible. When your method barely beats a well-tuned baseline, that is still a result: report it honestly. A small honest win beats a large suspicious one.</p>
+<h3 id="what-baselines-teach-you-about-the-problem">What baselines teach you about the problem</h3>
+<p>Baselines are diagnostic instruments. Watch what they reveal: If classical ML reaches 80% of the deep model's score, your problem may not need deep learning — and "a simple model suffices" is itself a publishable finding. If all baselines fail on a specific subset (say, shaded leaves), you have found the hard core of the problem before spending a month on architecture search. If the trivial baseline scores suspiciously high, your metric or split is probably broken. Ayesha's logistic regression hitting 68% told her the color signal was strong — diseased leaves really do look different in color space — which later justified her hypothesis that color augmentation would help.</p>
+<h3 id="worked-example-ayeshas-baseline-week">Worked example: Ayesha's baseline week</h3>
+<p>Ayesha gave herself a strict two-week baseline budget. Week one: data pipeline (loading, augmentation, splits) plus trivial and classical baselines. Week two: re-running the published ResNet-50 baseline from her literature review, following the paper's described settings, tuned lightly on her validation farms. Results on the held-out test farms: majority class 40%, logistic regression 68%, ResNet-50 74%. She wrote these numbers in her experiment log, committed the code, and froze the test set. Only then did she allow herself to think about improvements. Her supervisor's comment: "Now whatever you build, we'll know if it worked."</p>
+<h3 id="baselines-beyond-classification">Baselines beyond classification</h3>
+<p>The baseline habit applies to every task type, not just classification. For <strong>regression</strong> (predicting a number, like crop yield), the trivial baselines are predicting the training mean or median for every input — your model must beat "always guess the average." The classical step is linear regression or a random forest. For <strong>ranking or retrieval</strong>, the trivial baseline is random ordering and the classical step is a simple TF-IDF or nearest-neighbor approach. For <strong>generation or forecasting</strong>, naive baselines like "repeat the last value" are famously hard to beat and deeply informative when they win. The principle never changes: start with the dumbest thing that could work, then the standard classical method, then published prior work. Whatever your task, ask: "What would a competent non-ML practitioner try first?" That is your baseline. If your sophisticated method cannot beat it, you have learned something important — either the task needs rethinking or the sophistication is misplaced.</p>
+<h3 id="documenting-baseline-effort-for-the-paper">Documenting baseline effort for the paper</h3>
+<p>Baselines do not just live in your log; they live in your paper's method section, and reviewers scrutinize them. Write one short paragraph per serious baseline covering three things: <strong>what it is</strong> (architecture or algorithm, with citation), <strong>how it was trained</strong> (data, epochs, key hyperparameters), and <strong>how it was tuned</strong> ("hyperparameters selected by grid search over {…} on the validation set, matching the tuning budget of our method"). That last clause is the anti-strawman shield — it tells the reviewer the comparison was fair. If a baseline comes from a published paper, say whether you re-ran it or quote their reported number, and if you quote, confirm the dataset and metric match yours exactly (Chapter 8 covers this trap). Ayesha's paper had a compact "Baselines" paragraph: majority-class, logistic regression on color histograms (C tuned on validation), and the published ResNet-50 re-trained with the authors' described settings plus a small learning-rate search. Three sentences each. No reviewer questioned her comparisons — the documentation answered before they could ask.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before your next training run, implement the trivial baseline (majority class / random) and one classical baseline on your data today. If either surprises you — trivial baseline too high, classical baseline at chance — stop and debug your pipeline before touching any neural network. Write the 

@@ -1,0 +1,434 @@
+<h1 id="gradient-descent-explained-simply">Gradient Descent Explained Simply</h1>
+<p><strong>Book 8 of 10 — AstolixGen Learning Series (Detailed Edition)</strong> · For researcher and publication students</p>
+<p><img alt="Cover" src="/learn/images/media-generation-book-08-cover-detailed-0-6ddf5286-5e9e-49e2-857f-1128d56627d7.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>Almost every machine learning model you will ever train is trained by some version of one algorithm: gradient descent. Whether you are fitting a regression line to survey data, fine-tuning a transformer for Urdu text, or training a small neural network for crop-disease detection, the same loop runs underneath: measure how wrong the model is, compute the gradient, and take a small step downhill. This book unpacks that loop completely — the intuition, the mathematics you actually need, the variants, the hyperparameters, and the failure modes.</p>
+<p>This book is written for MS/PhD students and early researchers who want more than "just call <code>optimizer.step()</code>." You will be able to hand-compute gradient descent steps, choose an optimizer and learning rate with reasons you can defend, diagnose a stuck training run, and — critically — report your optimization setup in a paper so that a reviewer and a reader can reproduce your work.</p>
+<p><strong>Learning objectives:</strong>
+- Explain what optimization means in machine learning and what a loss function measures
+- Define the gradient and explain why stepping opposite to it reduces the loss
+- Carry out batch, stochastic, and mini-batch gradient descent by hand on small problems
+- Compare learning rates numerically and explain why too large diverges and too small crawls
+- Explain momentum and Nesterov acceleration and show how they speed convergence
+- Compute AdaGrad, RMSprop, and Adam updates step by step, including Adam's bias correction
+- Design learning rate schedules and warmup phases, and follow a practical tuning workflow from defaults to multi-seed final runs
+- Diagnose plateaus, ravines, saddle points, and other convergence problems, and apply fixes
+- Describe second-order methods honestly: what they offer and why deep learning rarely uses them
+- Write a reproducible optimization section for a research paper that satisfies reviewers</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Definition (one line)</th>
+<th>Example</th>
+<th>Use in research</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Optimization</td>
+<td>Finding the parameters that minimize (or maximize) an objective function</td>
+<td>Fitting a line to house-price data by minimizing error</td>
+<td>Every model you train is an optimization problem; name your objective explicitly in your paper</td>
+</tr>
+<tr>
+<td>Loss function</td>
+<td>A number measuring how wrong the model's predictions are</td>
+<td>Mean squared error on house prices</td>
+<td>Choose a loss matched to your task; reviewers judge whether it fits</td>
+</tr>
+<tr>
+<td>Parameter (weight)</td>
+<td>A tunable number inside the model, adjusted during training</td>
+<td>Slope and intercept of the fitted line</td>
+<td>Report your model's parameter count; it speaks to complexity and compute cost</td>
+</tr>
+<tr>
+<td>Gradient</td>
+<td>The vector of partial derivatives; points in the direction of steepest increase of the loss</td>
+<td>Slope of the loss curve at the current weights</td>
+<td>Understanding gradients lets you diagnose why training is stuck</td>
+</tr>
+<tr>
+<td>Learning rate</td>
+<td>The step-size multiplier on the negative gradient</td>
+<td>η = 0.01 versus η = 1.0</td>
+<td>Report the exact value and schedule; it is the first thing a reviewer checks for reproducibility</td>
+</tr>
+<tr>
+<td>Batch gradient descent</td>
+<td>Uses the entire dataset for every single update</td>
+<td>10,000 images averaged into one gradient</td>
+<td>Stable updates; a useful baseline in small-data experiments</td>
+</tr>
+<tr>
+<td>Stochastic gradient descent</td>
+<td>Uses one randomly chosen example per update</td>
+<td>One image per update step</td>
+<td>Fast steps on large data; the noise can help escape sharp minima</td>
+</tr>
+<tr>
+<td>Mini-batch gradient descent</td>
+<td>Uses a small random subset per update</td>
+<td>32 images per update step</td>
+<td>The standard choice; balances stability, speed, and GPU efficiency</td>
+</tr>
+<tr>
+<td>Momentum</td>
+<td>Carries a running average of past gradients to accelerate consistent directions</td>
+<td>A ball rolling downhill gaining speed</td>
+<td>Speeds training on ravines; the standard add-on to SGD</td>
+</tr>
+<tr>
+<td>Nesterov momentum</td>
+<td>Momentum that first looks ahead, then computes the gradient</td>
+<td>Steering before braking</td>
+<td>Often converges faster than plain momentum; used in many baselines</td>
+</tr>
+<tr>
+<td>AdaGrad</td>
+<td>Scales each parameter's learning rate by its accumulated past gradients</td>
+<td>Rare word features get bigger steps</td>
+<td>Good for sparse data (e.g., text); the rate can decay too fast</td>
+</tr>
+<tr>
+<td>RMSprop</td>
+<td>AdaGrad with an exponentially decaying average of squared gradients</td>
+<td>Fixes AdaGrad's rapid decay</td>
+<td>Strong default for recurrent networks and non-stationary problems</td>
+</tr>
+<tr>
+<td>Adam</td>
+<td>Momentum plus adaptive per-parameter rates, with bias correction</td>
+<td>The default optimizer in most deep learning papers</td>
+<td>Start here; report β₁, β₂, and ε, not just the word "Adam"</td>
+</tr>
+<tr>
+<td>Learning rate schedule</td>
+<td>A rule that changes the learning rate during training</td>
+<td>Halve the rate every 10 epochs</td>
+<td>Schedules squeeze out final accuracy; report the exact rule</td>
+</tr>
+<tr>
+<td>Warmup</td>
+<td>Starting with a tiny learning rate that ramps up over early epochs</td>
+<td>0 → 0.01 over the first 5 epochs</td>
+<td>Stabilizes large-batch training of transformers and deep nets</td>
+</tr>
+<tr>
+<td>Local minimum</td>
+<td>A point lower than everything nearby, but not necessarily the global best</td>
+<td>A small dip in the loss landscape</td>
+<td>In deep networks, saddle points worry researchers more than local minima</td>
+</tr>
+<tr>
+<td>Saddle point</td>
+<td>Gradient is zero but the point is a minimum in some directions and a maximum in others</td>
+<td>A mountain pass</td>
+<td>The main convergence obstacle in high dimensions; noise and momentum help</td>
+</tr>
+<tr>
+<td>Second-order method</td>
+<td>Uses curvature (the Hessian matrix) in addition to the gradient</td>
+<td>Newton's method converging in one step on a quadratic</td>
+<td>Rarely used in deep learning, but relevant for small models and theory papers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Roadmap of chapter connections.</strong> Chapter 1 frames training as optimization; Chapter 2 gives you the gradient, the compass for the whole book. Chapters 3 and 4 turn the compass into three algorithms — batch, stochastic, mini-batch — and Chapter 5 tunes the most important dial, the learning rate. Chapters 6 and 7 add intelligence to the steps (momentum, then adaptive methods), while Chapter 8 controls the dial over time (schedules and warmup). Chapter 9 assembles everything into a tuning workflow you can follow on Monday morning. Chapter 10 is the troubleshooting guide for when the workflow fails, Chapter 11 looks honestly at the more expensive alternatives, and Chapter 12 shows you how to write all of this up so your paper is reproducible.</p>
+<hr />
+<h2 id="chapter-1-optimization-in-machine-learning-the-big-picture">Chapter 1: Optimization in Machine Learning — The Big Picture</h2>
+<h3 id="training-is-just-optimization-wearing-a-lab-coat">Training is just optimization wearing a lab coat</h3>
+<p>When you "train" a machine learning model, you are solving an optimization problem. The model has knobs — parameters, usually called weights — and the data tells you how good each knob setting is through a single number: the loss. Training means turning the knobs until the loss is as small as possible. That is all. Everything else in this book is detail about how to turn the knobs well.</p>
+<p>This framing matters for your research because every claim you make about a model — "it achieves 94% accuracy," "it trains twice as fast" — is a claim about an optimization outcome. If you cannot describe what was optimized, how, and how well, your results are not interpretable.</p>
+<h3 id="the-three-ingredients">The three ingredients</h3>
+<p>Every optimization problem in machine learning has the same three ingredients:</p>
+<ol>
+<li>
+<p><strong>Parameters (θ).</strong> The numbers the algorithm is allowed to change. In a line model y = wx + b, the parameters are w and b. In a neural network, they are millions of weights and biases. We write them as a vector θ to keep things general.</p>
+</li>
+<li>
+<p><strong>A loss function L(θ).</strong> A formula that takes a parameter setting and returns one number: how bad the model is. Also called the objective function or cost function. Examples: mean squared error for regression, cross-entropy for classification. The loss is computed on the training data.</p>
+</li>
+<li>
+<p><strong>An optimizer.</strong> The procedure that picks new parameter values, over and over, to drive the loss down. Gradient descent and its variants are the optimizers this book covers.</p>
+</li>
+</ol>
+<p>Notice what is <em>not</em> in the list: accuracy. Accuracy is what you care about, but optimizers need a smooth, differentiable number to work with, and accuracy is a staircase — it jumps in discrete steps, so it has no useful gradient. This is why you minimize cross-entropy loss while <em>reporting</em> accuracy. They usually move together, but they are different instruments: the loss is the steering wheel, accuracy is the dashboard.</p>
+<h3 id="a-concrete-picture-fitting-a-line">A concrete picture: fitting a line</h3>
+<p>Suppose you want to predict house prices from area. You choose the model y = wx (price proportional to area, no intercept, to keep it simple) and the mean squared error loss:</p>
+<p>L(w) = (1/n) Σ (wxᵢ − yᵢ)²</p>
+<p>With three houses — (100 m², 100), (200 m², 200), (300 m², 300) in some units — the loss becomes L(w) = (28/9)(w − 1)², which is a perfect U-shape (a parabola) with its bottom at w = 1. Training is now a one-dimensional treasure hunt: find the w that sits at the bottom of the U.</p>
+<h3 id="worked-example-evaluating-candidate-parameters-by-hand">Worked example: evaluating candidate parameters by hand</h3>
+<p>Take L(w) = (w − 3)², a parabola bottoming out at w = 3. Before we learn any algorithm, let's just <em>evaluate</em> it at a few guesses, the way a brute-force search would:</p>
+<ul>
+<li>w = 0 → L = (0 − 3)² = 9</li>
+<li>w = 2 → L = (2 − 3)² = 1</li>
+<li>w = 3 → L = 0 ← the minimum</li>
+<li>w = 4 → L = (4 − 3)² = 1</li>
+</ul>
+<p>Two observations that will matter later. First, the loss surface has a shape — here a bowl — and the optimizer's job is to walk to the bottom of it. Second, brute-force guessing works in one dimension but is hopeless with a million parameters: you cannot grid-search a million-dimensional space. You need a <em>guided</em> walk, one that uses local information about which direction is downhill. That guidance is the gradient, the subject of Chapter 2.</p>
+<h3 id="why-optimization-is-hard-in-deep-learning">Why optimization is hard in deep learning</h3>
+<p>In the examples above, the loss surface was a friendly bowl. Real neural network loss surfaces are not. They live in millions of dimensions, they are non-convex (full of hills, valleys, and flat plains), and you cannot visualize them. Three facts keep researchers humble:</p>
+<ul>
+<li>There is no known efficient algorithm that guarantees finding the <em>global</em> minimum of a deep network's loss. We settle for good local solutions.</li>
+<li>The loss you minimize (training loss) is not quite the thing you care about (test performance). Optimize too aggressively and you overfit — you memorize the training data instead of learning the pattern.</li>
+<li>Computing the exact gradient over the full dataset can be enormously expensive, which is why we use approximations (Chapter 4).</li>
+</ul>
+<p>None of this stops gradient descent from working remarkably well in practice. But it explains why the <em>details</em> — learning rates, batch sizes, schedules — matter so much, and why papers report them.</p>
+<h3 id="the-vocabulary-reviewers-expect">The vocabulary reviewers expect</h3>
+<p>When you write a paper, use these terms precisely. <em>Training</em> is the whole process. <em>An epoch</em> is one full pass over the training data. <em>An iteration</em> (or step) is one parameter update. <em>Convergence</em> means the parameters have settled — the loss is no longer decreasing meaningfully. A <em>hyperparameter</em> is a setting you choose before training (learning rate, batch size) as opposed to a <em>parameter</em>, which the optimizer learns. Mixing these up in a paper signals inexperience to a reviewer, so get them straight now.</p>
+<h3 id="convex-vs-non-convex-why-some-problems-are-easy">Convex vs. non-convex: why some problems are easy</h3>
+<p>Not all loss surfaces are equally hostile. A <strong>convex</strong> function is a bowl in the strong sense: the line segment between any two points on its graph lies above the graph. The function x² is convex; so is |x|; and so is the mean-squared-error loss of linear regression. Convexity buys a powerful guarantee: every local minimum is the global minimum. Gradient descent cannot get trapped in a second-rate dip because there are no second-rate dips — wherever the gradient reaches zero, you have found the best possible answer.</p>
+<p>This is why classical machine learning (linear regression, logistic regression, support vector machines) comes with convergence guarantees: with an appropriate learning rate, batch gradient descent <em>will</em> find the global minimum. If your research uses a convex model, say so in the paper — it upgrades your claims from "we found a good solution" to "we found the optimal solution," and reviewers respect the distinction.</p>
+<p>Deep networks are <strong>non-convex</strong>: their loss surfaces have many minima of different depths, plus saddle points (Chapter 10). No efficient algorithm guarantees the global minimum. Here is the signature of non-convexity, computed by hand. Take f(x) = x⁴ − 4x². Its derivative is f′(x) = 4x³ − 8x = 4x(x² − 2), which is zero at x = 0 and x = ±√2 ≈ ±1.414. The points ±1.414 are two equally deep minima (f = −4); x = 0 is a local maximum sitting between them.</p>
+<p>Run gradient descent with η = 0.1 from x₀ = 1: f′(1) = −4, so x₁ = 1 + 0.4 = 1.4. Then f′(1.4) = 4(1.4)(1.96 − 2) = 5.6 × (−0.04) = −0.224, and x₂ = 1.4 + 0.0224 = 1.4224 — settling toward +1.414. Now start instead at x₀ = −1: f′(−1) = 4, x₁ = −1.4, and the walk converges to −1.414. Same algorithm, same function, different starting point, different minimum. That cannot happen with a convex function.</p>
+<p>One comforting fact for deep learning: modern networks are so overparameterized that most of their local minima turn out to be roughly equally good (Chapter 10). So the practical takeaway is calibration, not despair: for non-convex deep learning, stop asking "did I find the global minimum?" and start asking "did I find a minimum that generalizes well?" And fix your random seeds (Chapter 12) — since the starting point partly decides the destination, an honest paper reports results across several of them.</p>
+<h3 id="the-optimizationgeneralization-gap">The optimization–generalization gap</h3>
+<p>Here is a subtlety that trips up many beginners: the optimizer minimizes the loss on the <em>training</em> data, but you care about performance on <em>unseen</em> data. These are different objectives, and driving the first to zero does not guarantee the second. A model that memorizes every training example — loss exactly zero — can fail completely on new inputs. This is <strong>overfitting</strong>, and it is why optimization success and research success are not the same thing.</p>
+<p>The standard defense is a three-way data split: train on the training set, make decisions (early stopping, hyperparameter choices) on the <strong>validation</strong> set, and report final numbers on the <strong>test</strong> set — which you touch exactly once, at the end. Think of it as three roles: the training set teaches, the validation set advises, the test set judges. A classic symptom of overfitting is a training loss that keeps falling while the validation loss starts rising — the model is still "optimizing" but no longer learning anything useful. Early stopping (Chapter 9) halts training at the validation minimum.</p>
+<p>For your research mindset, remember: this book teaches you to minimize loss efficiently, but a good researcher always asks "loss on <em>which</em> data?" An optimizer can only descend the surface you give it. Choosing the right surface — the right loss, the right data split, the right stopping point — is where machine learning becomes a science rather than an exercise in curve-fitting.</p>
+<blockquote>
+<p><strong>For your research:</strong> In your paper's methodology section, state the optimization problem in one sentence: "We minimize the cross-entropy loss over the network parameters θ using mini-batch gradient descent." That single sentence tells the reader the loss, the parameters, and the optimizer. Then Chapter 12 of this book will show you the full reporting checklist. Start collecting these details from day one of your experiments — reconstructing them after submission is painful and error-prone.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Training = choosing parameters θ to minimize a loss function L(θ); everything else is technique.
+- The loss is the steering wheel (smooth, differentiable); accuracy is the dashboard (what you report).
+- Brute-force search cannot work in high dimensions; you need gradient-guided steps.
+- Epoch, iteration, convergence, hyperparameter vs. parameter — use these terms exactly.
+- Deep learning optimization has no global-minimum guarantees; we aim for good, generalizing solutions.</p>
+<hr />
+<h2 id="chapter-2-gradients-intuitively-slopes-directions-and-why-they-matter">Chapter 2: Gradients, Intuitively — Slopes, Directions, and Why They Matter</h2>
+<h3 id="the-slope-is-the-whole-trick">The slope is the whole trick</h3>
+<p>Stand on a hillside in fog. You want to reach the valley floor but cannot see more than a meter ahead. What do you do? You feel the slope under your feet and walk downhill. That is gradient descent. The <em>gradient</em> is the mathematical version of "feeling the slope": at any point, it tells you which direction is steepest uphill and how steep it is. Walk the opposite way and you go downhill — guaranteed, at least for a small step.</p>
+<p>Formally, for a function of one variable f(x), the gradient is just the derivative f′(x): the slope of the curve at x. For a function of many variables L(θ₁, θ₂, …, θₙ), the gradient ∇L is the vector of partial derivatives (∂L/∂θ₁, …, ∂L/∂θₙ). Each entry says: "if you nudge this one parameter a tiny bit, holding the others fixed, the loss changes by this much per unit nudge."</p>
+<h3 id="sign-and-size-reading-a-gradient">Sign and size: reading a gradient</h3>
+<p>A gradient carries two pieces of information, and both matter:</p>
+<ul>
+<li><strong>Sign (direction).</strong> A positive derivative means the function is increasing as you move right — so to decrease it, move left. A negative derivative means move right. The update rule "step = −(learning rate) × gradient" is just this: go against the sign.</li>
+<li><strong>Magnitude (steepness).</strong> A large gradient means the slope is steep — you are far from flat ground, and (with a fixed learning rate) you will take a large step. A tiny gradient means you are on nearly flat ground, so steps become tiny. This is elegant: the algorithm automatically takes big strides on steep slopes and tiptoes near the bottom.</li>
+</ul>
+<p>This self-adjusting step size is why plain gradient descent works at all, and it is also why it can be slow near the minimum (Chapter 10).</p>
+<h3 id="where-do-gradients-come-from-in-practice">Where do gradients come from in practice?</h3>
+<p>You will almost never compute gradients by hand for a real model. The chain rule from calculus, applied mechanically through a computation graph, gives every partial derivative — this automation is called <strong>backpropagation</strong>, and frameworks like PyTorch and TensorFlow do it for you. But "the framework handles it" is not an excuse to skip understanding: when training fails, the gradient is the first diagnostic. "Vanishing gradients" (gradients near zero in early layers) and "exploding gradients" (enormous gradients) are among the most common failure modes in deep learning, and you cannot fix what you cannot picture.</p>
+<h3 id="worked-example-one-gradient-step-fully-by-hand">Worked example: one gradient step, fully by hand</h3>
+<p>Take f(x) = x², the simplest bowl, with its minimum at x = 0. The derivative is f′(x) = 2x.</p>
+<p>Start at x = 4. The gradient there is f′(4) = 8. Reading it: positive and large — the function is rising steeply to the right, so we should move left, and by a good amount.</p>
+<p>Apply one gradient descent step with learning rate η = 0.1:</p>
+<p>x_new = x − η · f′(x) = 4 − 0.1 × 8 = 4 − 0.8 = 3.2</p>
+<p>Check the result: f(4) = 16, f(3.2) = 10.24. The loss fell from 16 to 10.24 in a single step. The negative gradient pointed downhill, and following it worked.</p>
+<p>Now read the <em>new</em> gradient: f′(3.2) = 6.4. Still positive, so keep moving left — but smaller than 8, so the next step (0.64) will be smaller than the first (0.8). You can see the self-adjusting behavior already: as x approaches 0, the gradient shrinks toward 0 and the steps shrink with it, so the walk naturally slows down as it arrives. That is the entire mechanism of gradient descent, and everything in the rest of this book is a refinement of it.</p>
+<h3 id="the-multi-dimensional-picture">The multi-dimensional picture</h3>
+<p>With two parameters, the loss is a surface — a landscape with hills and valleys — and the gradient at a point is an arrow lying on that landscape, pointing in the direction of steepest ascent. The update θ ← θ − η∇L(θ) moves against the arrow. With a million parameters you cannot draw the landscape, but the arithmetic is identical: each parameter gets nudged opposite its partial derivative. One subtlety worth knowing: the negative gradient is the steepest descent direction only for <em>infinitesimally</em> small steps; for any finite step it is merely a good downhill direction. That gap between "steepest" and "good" is where learning rates, momentum, and curvature all live.</p>
+<h3 id="partial-derivatives-the-gradient-with-more-than-one-parameter">Partial derivatives: the gradient with more than one parameter</h3>
+<p>In one dimension the gradient is a single slope. With two parameters — say a line model y = wx + b with loss L(w, b) = (w − 3)² + (b + 1)², whose minimum sits at w = 3, b = −1 — the gradient is a vector of two partial derivatives: ∂L/∂w = 2(w − 3) and ∂L/∂b = 2(b + 1). Each partial derivative asks one question: "holding the other parameter fixed, how fast does the loss change if I nudge this one?"</p>
+<p>Evaluate at (w, b) = (0, 0): ∂L/∂w = −6, ∂L/∂b = 2, so ∇L = (−6, 2). Reading it: increasing w decreases the loss fast (negative slope — move w up); increasing b increases the loss (positive slope — move b down). One gradient descent step with η = 0.1 updates <em>both simultaneously</em>: w₁ = 0 − 0.1 × (−6) = 0.6; b₁ = 0 − 0.1 × 2 = −0.2.</p>
+<p>Check the result: L(0, 0) = 9 + 1 = 10. L(0.6, −0.2) = (0.6 − 3)² + (−0.2 + 1)² = 5.76 + 0.64 = 6.4. Down from 10 to 6.4 in a single step, with each parameter walking its own downhill direction at its own pace — w moved 0.6 because its slope was steep, b moved only 0.2 because its slope was gentle.</p>
+<p>That is the whole secret of high-dimensional optimization: nothing conceptually new happens at a million parameters. The gradient is a million-entry vector, each entry is one parameter's private slope, and the update nudges every parameter opposite its own slope in a single vector operation. You cannot draw the million-dimensional landscape, but you do not need to — the arithmetic is identical to the two-parameter case above, just longer. Frameworks compute all million partial derivatives in one backward pass, which is why backpropagation was such a breakthrough. And when Chapter 7 gives each parameter its own learning rate, it is simply letting each of these million private slopes set its own pace.</p>
+<h3 id="numerical-gradients-the-debugging-tool">Numerical gradients: the debugging tool</h3>
+<p>Analytic gradients (from calculus or backpropagation) are fast but bug-prone — one wrong sign in a hand-derived gradient and training silently fails. <strong>Numerical gradients</strong> estimate the slope directly from function values using finite differences:</p>
+<p>f′(x) ≈ (f(x + h) − f(x − h)) / (2h),   with h tiny (e.g., 0.001)</p>
+<p>Test it on f(x) = x² at x = 4, where the true derivative is 8: f(4.001) = 16.008001, f(3.999) = 15.992001. Difference: 0.016; divided by 0.002 → 8.0. Matches exactly (to rounding). This technique, called <strong>gradient checking</strong>, is how you verify a backpropagation implementation: compare its analytic gradients against numerical estimates on a tiny model. If they agree to ~10⁻⁵, your backward pass is correct.</p>
+<p>Why not always use numerical gradients? Cost: each partial derivative needs two function evaluations, so a million-parameter model needs two million forward passes per gradient — absurd when backpropagation does it in one. Numerical gradients are a diagnostic instrument, not an engine: use them once, on a small model, to certify your gradients, then switch them off. Every deep learning framework's test suite does exactly this, and so should you whenever you implement a custom layer or loss.</p>
+<h3 id="a-note-on-notation">A note on notation</h3>
+<p>Papers and textbooks use a compact notation that is worth learning early. Parameters are usually written as a vector θ (theta), the loss as L(θ) or J(θ), the gradient as ∇L(θ) (read "nabla L" or "grad L"), and the learning rate as η (eta) or α (alpha). The update θ ← θ − η∇L(θ) is read as "theta gets theta minus eta times the gradient of L." Superscripts like θ⁽ᵗ⁾ sometimes denote the parameters at step t. None of this is difficult — it is just shorthand — but fluency with it lets you read any optimization paper's method section without friction. When you write your own paper, define your symbols once ("we denote the parameters by θ ∈ ℝᵈ") and then use them consistently; reviewers notice sloppy or shifting notation.</p>
+<blockquote>
+<p><strong>For your research:</strong> When you read that a paper "trains with backpropagation," translate it: backpropagation computes the gradient, and an optimizer (covered in Chapters 3–7) uses it to update the parameters. In your own writing, never say "we trained using backpropagation" as if backpropagation were the optimizer — it is the gradient computer. Name the optimizer separately (e.g., "gradients were computed by backpropagation; parameters were updated with Adam"). Reviewers notice this distinction.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- The gradient = the slope (derivative) in 1-D, the vector of partial derivatives in n-D; it points steepest uphill.
+- Step = −η × gradient: the sign picks the downhill direction, the magnitude scales the stride.
+- Steps shrink automatically near the minimum because the gradient shrinks — a built-in braking system.
+- Backpropagation computes gradients; the optimizer decides the steps. They are different jobs.
+- Vanishing and exploding gradients are the classic gradient pathologies to watch for.</p>
+<hr />
+<h2 id="chapter-3-batch-gradient-descent-step-by-step">Chapter 3: Batch Gradient Descent, Step by Step</h2>
+<p><img alt="Figure 1: Gradient descent descending the loss surface" src="/learn/images/media-generation-book-08-fig1-0-95612364-32b4-4e93-bc35-c21a36168a36.webp" /></p>
+<h3 id="the-honest-full-data-algorithm">The honest, full-data algorithm</h3>
+<p>Batch gradient descent (often just called "gradient descent") is the textbook version: compute the gradient of the loss using <em>every single training example</em>, then take one step. Repeat until the loss stops improving. There is no randomness, no approximation — each step follows the true downhill direction of the training loss.</p>
+<p>The update rule for parameters θ, learning rate η, and a dataset of n examples is:</p>
+<p>θ ← θ − η · (1/n) Σᵢ ∇Lᵢ(θ)</p>
+<p>where Lᵢ is the loss on example i. The (1/n) averaging keeps the gradient's scale independent of dataset size, so the same learning rate behaves similarly whether you have a hundred examples or a hundred thousand.</p>
+<h3 id="why-it-is-beautiful-and-why-it-is-slow">Why it is beautiful and why it is slow</h3>
+<p>Batch gradient descent has one great virtue: every step is trustworthy. Because the gradient is exact, the loss decreases monotonically on well-behaved problems, and the algorithm's behavior is deterministic — run it twice, get the same trajectory. That determinism makes it wonderful for teaching, debugging, and small research datasets.</p>
+<p>Its flaw is cost. If you have a million training examples, each single step requires a million forward-backward passes. You might take only a handful of steps per hour. Worse, much of that computation is redundant: after seeing 10,000 examples, the gradient direction barely changes, yet you keep paying for the remaining 990,000. This inefficiency is what stochastic methods (Chapter 4) fix.</p>
+<h3 id="the-algorithm-spelled-out">The algorithm, spelled out</h3>
+<ol>
+<li>Initialize the parameters θ (usually small random values; zeros can cause symmetry problems in neural networks).</li>
+<li>Compute the loss and its gradient averaged over the entire training set.</li>
+<li>Update: θ ← θ − η∇L(θ).</li>
+<li>Repeat steps 2–3 until the loss stops decreasing (convergence) or you run out of patience (a fixed number of epochs).</li>
+</ol>
+<p>That is the whole algorithm. Three lines of arithmetic, repeated.</p>
+<h3 id="worked-example-fitting-a-line-with-three-points-by-hand">Worked example: fitting a line with three points, by hand</h3>
+<p>Data: (x, y) = (1, 1), (2, 2), (3, 3). Model: y = wx (one parameter, no intercept — the true answer is clearly w = 1). Loss: mean squared error,</p>
+<p>L(w) = (1/3)[(w·1 − 1)² + (w·2 − 2)² + (w·3 − 3)²] = (28/9)(w − 1)².</p>
+<p>Differentiate (or trust the algebra): dL/dw = (2/3)Σ(wxᵢ − yᵢ)xᵢ = (28/3)(w − 1).</p>
+<p><strong>Setup:</strong> start w₀ = 0, learning rate η = 0.05.</p>
+<p><strong>Step 1.</strong> Gradient at w₀ = 0: (28/3)(0 − 1) = −28/3 ≈ −9.333. Negative → move right (increase w).
+w₁ = 0 − 0.05 × (−9.333) = 0.4667.
+Loss check: L(0) = 28/9 ≈ 3.111; L(0.4667) = (28/9)(0.4667 − 1)² = 3.111 × 0.2844 ≈ 0.885. Down from 3.111 to 0.885 — a real improvement.</p>
+<p><strong>Step 2.</strong> Gradient at w₁ = 0.4667: (28/3)(0.4667 − 1) = 9.333 × (−0.5333) ≈ −4.978.
+w₂ = 0.4667 − 0.05 × (−4.978) = 0.4667 + 0.2489 = 0.7156.
+Loss: L(0.7156) = 3.111 × (0.7156 − 1)² = 3.111 × 0.0809 ≈ 0.252.</p>
+<p><strong>Step 3.</strong> Gradient at w₂: 9.333 × (0.7156 − 1) ≈ −2.654.
+w₃ = 0.7156 + 0.05 × 2.654 = 0.8483.
+Loss: L ≈ 3.111 × (0.1517)² ≈ 0.0716.</p>
+<p>Trajectory: w: 0 → 0.4667 → 0.7156 → 0.8483 → … → 1. Loss: 3.111 → 0.885 → 0.252 → 0.072 → … → 0. Each step uses all three points, each step is deterministic, and the loss falls smoothly. This is batch gradient descent working exactly as advertised.</p>
+<h3 id="convergence-when-do-you-stop">Convergence: when do you stop?</h3>
+<p>In theory, you stop when the gradient is (near) zero. In practice, you stop when the loss stops improving by a meaningful amount — say, less than 0.001 change over several epochs — or when a fixed epoch budget is spent, or when validation performance starts degrading (early stopping, Chapter 9). For convex problems like linear regression, batch gradient descent with a sensible learning rate is guaranteed to converge to the global minimum; for deep networks, it converges to <em>some</em> minimum, and which one depends on initialization and the learning rate.</p>
+<h3 id="how-fast-does-batch-gd-converge-the-contraction-factor">How fast does batch GD converge? The contraction factor</h3>
+<p>Look again at this chapter's trajectory: 0 → 0.4667 → 0.7156 → 0.8483, homing in on w = 1. There is hidden clockwork here. The update was w ← w − η·(28/3)(w − 1). Subtract 1 from both sides and factor: (w − 1) ← (w − 1)·(1 − 28η/3). The <em>error</em> (w − 1) is multiplied by a constant factor every step. With η = 0.05, that factor is 1 − 28×0.05/3 = 1 − 0.4667 = 0.5333.</p>
+<p>Verify against the trajectory: error at w₀ is −1; ×0.5333 → −0.5333 (w₁ = 0.4667 ✓); ×0.5333 → −0.2844 (w₂ = 0.7156 ✓); ×0.5333 → −0.1517 (w₃ = 0.8483 ✓). Every step shrinks the remaining error to 53% of its previous value. This is called <em>linear convergence</em>, and it is the typical speed of gradient descent on well-behaved convex problems: steady, geometric, predictable.</p>
+<p>Now watch the factor as η grows. With η = 0.1 the factor is 1 − 0.9333 = 0.0667: the error nearly vanishes each step — dramatically faster. With η = 0.107 the factor is ≈ 0: one-step convergence, a lucky strike resembling Newton's method (Chapter 11). With η = 0.3 the factor is 1 − 2.8 = −1.8: the error <em>grows</em> 1.8× per step with alternating sign — divergence, exactly the explosion from Chapter 5.</p>
+<p>So the learning rate does not just scale steps; it sets the contraction factor, and there is a hard wall where the factor's magnitude exceeds 1. Bigger η means faster convergence right up to the wall — which is why tuning the learning rate (Chapter 9) is really a search for the largest <em>stable</em> η. On convex problems the wall sits at η &lt; 2/L, where L is the steepest curvature of the loss; here the curvature is 28/3 ≈ 9.33, giving η &lt; 0.214 — consistent with η = 0.3 diverging and η = 0.1 flying. Chapter 5 will make this stability boundary intuitive on a simpler function.</p>
+<h3 id="initialization-where-the-walk-begins">Initialization: where the walk begins</h3>
+<p>Every optimization run starts somewhere, and the starting point matters — especially in non-convex landscapes (Chapter 1), where it partly decides which minimum you reach. In this chapter's example, w₀ = 0 was convenient and harmless. In neural networks, initialization deserves real thought.</p>
+<p>The naive choice — all zeros — is actually broken for neural networks. If two hidden neurons start with identical weights, they receive identical gradients forever, update identically, and remain clones of each other: the network wastes capacity learning the same feature twice. This is the <strong>symmetry problem</strong>, and the fix is <strong>random initialization</strong>: small random values that break the symmetry so each neuron can learn something different.</p>
+<p>"Small" matters too. Huge initial weights saturate activations (Chapter 10's plateaus) and produce enormous initial gradients; tiny weights produce vanishing signals. The standard schemes — <strong>Xavier</strong> (for tanh/sigmoid networks) and <strong>He</strong> (for ReLU networks) — set the random scale based on each layer's size so signals neither explode nor vanish as they propagate. In practice you will rarely initialize by hand — frameworks do it — but you must <em>report</em> the scheme (Chapter 12), because the starting point is part of the experiment. And when a training run behaves strangely, re-running with a different seed is a legitimate diagnostic: if the problem disappears, it was the initialization, not your method.</p>
+<h3 id="determinism-the-debugging-superpower">Determinism: the debugging superpower</h3>
+<p>Batch gradient descent has one more virtue worth appreciating: with a fixed initialization, it is completely deterministic — no shuffling, no sampling noise. Run it twice and you get bit-identical trajectories. That makes it a superb debugging tool. When you implement a new model or loss function, first train it with full-batch gradient descent on a small dataset and check that the loss decreases smoothly and monotonically. If it does not, the bug is in your model or loss code — not in optimizer noise, because there is none. Only after the deterministic version behaves should you switch on the stochastic machinery of mini-batches. Many experienced researchers keep a tiny full-batch "smoke test" in their codebase permanently: if a code change breaks it, the change is guilty until proven innocent.</p>
+<blockquote>
+<p><strong>For your research:</strong> Batch gradient descent is the right baseline when your dataset is small (hundreds to a few thousand examples) — common in early-stage research with custom-collected data. Its determinism is a feature: with a fixed seed and full-batch updates, your results are exactly reproducible, which makes it ideal for ablation studies where you must isolate the effect of one change. If a reviewer asks "is the improvement from your method or from optimizer noise?", a full-batch baseline gives you a clean answer.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Batch GD: exact gradient over the full dataset, one trustworthy step per iteration, fully deterministic.
+- Update: θ ← θ − η · (1/n)Σ∇Lᵢ(θ); the average keeps learning rates comparable across dataset sizes.
+- Strengths: stable, reproducible, guaranteed progress on convex problems. Weakness: one step costs a full dataset pass.
+- Stop when the loss plateaus, the epoch budget is spent, or validation error rises.
+- Use it as a clean, noise-free baseline on small research datasets.</p>
+<hr />
+<h2 id="chapter-4-stochastic-and-mini-batch-gradient-descent">Chapter 4: Stochastic and Mini-Batch Gradient Descent</h2>
+<h3 id="the-insight-that-made-deep-learning-practical">The insight that made deep learning practical</h3>
+<p>Batch gradient descent computes the perfect gradient and then moves once — like reading an entire library before writing a single sentence. Stochastic gradient descent (SGD) flips this: read one page, write a sentence, read another page, write another sentence. Each step uses a <em>noisy estimate</em> of the true gradient, but you take thousands of steps in the time batch GD takes one, and the noise averages out.</p>
+<p>Formally, instead of the full average (1/n)Σ∇Lᵢ, SGD picks a single random example (or a small random subset — a <em>mini-batch</em>) and uses its gradient as the update direction:</p>
+<p>θ ← θ − η · ∇Lᵢ(θ)        (single example i, chosen at random)</p>
+<p>The expected value of this noisy gradient equals the true gradient, so on average you are still walking downhill. But any individual step may point slightly uphill. The path zigzags instead of gliding — and that turns out to be fine, even helpful.</p>
+<h3 id="sgd-vs-mini-batch-the-practical-distinction">SGD vs. mini-batch: the practical distinction</h3>
+<ul>
+<li><strong>Pure SGD</strong> (one example per step): maximum steps per second, maximum noise. Rarely used in its pure form today, but the name "SGD" stuck as the umbrella term.</li>
+<li><strong>Mini-batch GD</strong> (e.g., 32, 64, 128, 256 examples per step): the modern standard. Averaging over a mini-batch reduces the noise, and — crucially — matrix operations on a batch run far more efficiently on GPUs than one example at a time. A batch of 64 costs barely more wall-clock time than a batch of 1 on a GPU.</li>
+</ul>
+<p>Mini-batch size is therefore both a statistical choice (how noisy are my gradient estimates?) and a hardware choice (what fits in GPU memory and keeps the GPU busy?). Common starting points: 32 for small models and limited memory, 128–256 for standard vision models, larger for big distributed setups (with learning rate adjustments, Chapter 8).</p>
+<h3 id="shuffling-a-small-detail-with-a-big-effect">Shuffling: a small detail with a big effect</h3>
+<p>Always shuffle your training data before each epoch. If your dataset is ordered — all the cats first, then all the dogs — then consecutive mini-batches are biased, and the optimizer will oscillate: it learns "everything is a cat" for a while, then unlearns it. Shuffling makes each mini-batch a fair sample of the whole dataset. This is one of those details that costs nothing and prevents mysterious training failures.</p>
+<h3 id="the-noise-is-a-feature-sometimes">The noise is a feature (sometimes)</h3>
+<p>The zigzag of SGD does something batch GD cannot: it can bounce <em>out</em> of shallow local minima and sharp, narrow valleys. Imagine the loss landscape has a small pothole on the side of the main valley. Batch GD slides into the pothole and stays there — the exact gradient inside a minimum is zero. SGD's noisy steps can hop over the pothole's rim and continue down the main valley. Researchers believe this noise is part of why SGD-trained models often <em>generalize</em> better than batch-trained ones: the noise steers the optimizer toward broader, flatter minima, which tend to perform better on unseen data. This is an active research area, not settled law — but it is a respectable argument to make in a paper's discussion section, with citations.</p>
+<h3 id="worked-example-one-sgd-step-vs-one-batch-step-side-by-side">Worked example: one SGD step vs. one batch step, side by side</h3>
+<p>Reuse Chapter 3's problem: points (1,1), (2,2), (3,3), model y = wx, start w₀ = 0, η = 0.05.</p>
+<p><strong>Batch step (from Chapter 3):</strong> gradient = average over all three points = −9.333; w₁ = 0.4667. Cost: 3 gradient computations for 1 update.</p>
+<p><strong>SGD step:</strong> pick one random example, say (x, y) = (2, 2). Single-example loss: (wx − y)² = (2w − 2)². Its gradient: 2(2w − 2)·2 = 8(w − 1). At w₀ = 0: 8(−1) = −8.
+w₁ = 0 − 0.05 × (−8) = 0.40. Cost: 1 gradient computation for 1 update.</p>
+<p>Compare: batch moved to 0.4667, SGD to 0.40 — close, but not identical. SGD's step was based on one-third of the evidence. Now imagine the next SGD step picks (3, 3): gradient = 2(3w − 3)·3 = 18(w − 1); at w = 0.40: 18(−0.6) = −10.8; w₂ = 0.40 + 0.05 × 10.8 = 0.94. Two cheap SGD steps reached 0.94 — closer to the true answer (w = 1) than batch GD got in three full-data steps (0.8483), at a total cost of 2 gradient computations versus 9. This is the economic miracle of SGD: slightly wrong directions, vastly more of them, for far less compute.</p>
+<p>The catch, visible if you continue: SGD's path wiggles. Later steps will overshoot and correct, hovering around w = 1 rather than gliding into it. In practice you tame the wiggle by decaying the learning rate (Chapter 8) or using momentum (Chapter 6).</p>
+<h3 id="how-batch-size-affects-your-research-results">How batch size affects your research results</h3>
+<p>Batch size is a hyperparameter you must report (Chapter 12), and it interacts with everything:</p>
+<ul>
+<li><strong>Too small (e.g., 1–8):</strong> very noisy gradients; training is unstable; batch normalization layers (if you use them) compute poor statistics.</li>
+<li><strong>Too large (e.g., 4096+ on a small dataset):</strong> each epoch has few updates; you may need to raise the learning rate to compensate (the "linear scaling rule": double the batch, double the learning rate, roughly); generalization can suffer.</li>
+<li><strong>Just right:</strong> enough noise to escape sharp minima, enough averaging for stable progress, and sized to fill your GPU.</li>
+</ul>
+<p>A practical rule: start with 32 or 64, the batch size that fits comfortably in your GPU memory, and change it only if you have a reason.</p>
+<h3 id="counting-updates-the-arithmetic-of-an-epoch">Counting updates: the arithmetic of an epoch</h3>
+<p>One epoch always processes every training example once — but the number of <em>updates</em> per epoch depends entirely on the batch size: updates per epoch = dataset size ÷ batch size. This little division explains the economics of modern training.</p>
+<p>Take a dataset of 50,000 images and a budget of 100 epochs:</p>
+<ul>
+<li><strong>Batch GD</strong> (batch = 50,000): 1 update per epoch → 100 updates total. Each update costs 50,000 gradient computations, so the run costs 5,000,000 gradient computations for 100 parameter updates.</li>
+<li><strong>Mini-batch</strong> (batch = 128): 50,000 ÷ 128 ≈ 391 updates per epoch → 39,100 updates total, for the same 5,000,000 gradient computations.</li>
+<li><strong>Pure SGD</strong> (batch = 1): 50,000 updates per epoch → 5,000,000 updates total, same compute again.</li>
+</ul>
+<p>Same total computation, but 100 vs. 39,100 vs. 5,000,000 updates. Since each update moves the parameters, mini-batch methods extract roughly 391× more progress per unit of compute than batch GD on this dataset. And the wall-clock story is even better: a GPU processes 128 examples in barely more time than 1, because the matrix operations parallelize. Batch GD pays the full data cost for a single step; mini-batch amortizes it over hundreds of steps.</p>
+<p>Two practical consequences. First, "number of epochs" is a misleading way to compare methods with different batch sizes — compare <em>number of updates</em> or <em>total examples processed</em> instead. Second, very large batches (say 8,192) give you only ~6 updates per epoch on this dataset; each epoch then contains so few learning opportunities that you typically must raise the learning rate to compensate (Chapter 5's linear scaling rule) — and even then, the reduced gradient noise can hurt generalization (Chapter 4's noise discussion).</p>
+<h3 id="batch-size-and-learning-rate-move-together">Batch size and learning rate move together</h3>
+<p>Batch size and learning rate are not independent knobs — they interact through the gradient noise. A larger batch gives a cleaner gradient estimate, which tolerates (and usually needs) a larger learning rate; a small batch's noisy gradients demand caution. The rough practical rule, called the <strong>linear scaling rule</strong>, is: if you multiply the batch size by k, multiply the learning rate by k as well.</p>
+<p>Concrete example: you tuned batch = 128 with η = 0.01 and training is stable. You upgrade to a bigger GPU and try batch = 1024 (8× larger). The linear scaling rule suggests η = 0.08. In practice the rule holds well up to moderate batch sizes; beyond that (thousands of examples), it breaks down and you need warmup (Chapter 8) or more careful tuning — very large batches change the training dynamics qualitatively, not just quantitatively.</p>
+<p>The reverse direction matters for debugging: if you <em>shrink</em> the batch (say 256 → 32 to fit a bigger model in memory) and training suddenly destabilizes, the first thing to try is shrinking the learning rate proportionally (η → η/8) before touching anything else. Many "my model broke when I changed the batch size" mysteries are really learning-rate mismatches in disguise.</p>
+<blockquote>
+<p><strong>For your research:</strong> When comparing your method against baselines, keep the batch size identical across all runs. Batch size changes the number of updates per epoch, the gradient noise, and sometimes the effective regularization — so a comparison at different batch sizes is not a fair comparison. Reviewers in ML venues increasingly check this. If hardware forces different batch sizes (e.g., your model is bigger), say so explicitly and use gradient accumulation to match the effective batch size.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- SGD uses one example (or a mini-batch) per update: noisy gradient estimates, but far more updates per unit of compute.
+- Mini-batch (32–256) is the modern standard: balances noise reduction with GPU efficiency.
+- Always shuffle each epoch; ordered data creates biased, oscillating updates.
+- Gradient noise can help escape sharp minima and may improve generalization — a legitimate discussion point.
+- Batch size is a reported hyperparameter; keep it fixed across comparisons or justify the difference.</p>
+<hr />
+<h2 id="chapter-5-the-learning-rate-the-single-most-important-hyperparameter">Chapter 5: The Learning Rate — The Single Most Important Hyperparameter</h2>
+<p><img alt="Figure 2: Step sizes — too big, too small, just right" src="/learn/images/media-generation-book-08-fig2-0-6c13b9c6-1618-4a7d-a4e2-6235529fa5f8.webp" /></p>
+<h3 id="one-number-rules-them-all">One number rules them all</h3>
+<p>If this book had to be reduced to one sentence of practical advice, it would be: <em>get the learning rate right and most other things matter less.</em> The learning rate η controls how far you step along the negative gradient. Every optimizer in Chapters 6–7 still has a learning rate (sometimes hidden inside adaptive machinery), and every training failure you will ever debug will at some point make you ask: "is my learning rate wrong?"</p>
+<p>The update is always, at its core: θ ← θ − η × (something like the gradient). Too small an η and training takes forever; too large and training explodes. There is usually a sweet spot spanning perhaps one or two orders of magnitude (e.g., 0.001 to 0.1 for SGD, or 0.0001 to 0.01 for Adam), and finding it is the highest-value tuning you can do.</p>
+<h3 id="the-three-regimes-crawling-gliding-exploding">The three regimes: crawling, gliding, exploding</h3>
+<p>Picture the ball-and-valley image from this book's cover (a ball rolling toward the lowest point of a curved valley):</p>
+<ul>
+<li><strong>η too small:</strong> the ball inches forward. Each step reduces the loss by a whisker. Training "works" but needs thousands of epochs; worse, it can get stuck in the first shallow dip it finds because it never builds enough momentum to roll through. You waste compute and may conclude your model is bad when really your steps were timid.</li>
+<li><strong>η just right:</strong> the ball rolls smoothly down, perhaps with a little oscillation across the valley, settling into the bottom. Loss decreases steadily, maybe with small wiggles.</li>
+<li><strong>η too large:</strong> the ball leaps across the valley, lands high on the opposite slope, leaps back even higher — each bounce bigger than the last. The loss explodes to infinity (or NaN, "not a number," in your logs). This is <em>divergence</em>, and it is unmistakable: your loss curve shoots upward instead of downward.</li>
+</ul>
+<p>Between "just right" and "too large" there is a subtler regime: steps that oscillate without converging — bouncing across the valley at constant height. The loss neither decreases nor explodes. The fix is the same: reduce η.</p>
+<h3 id="worked-example-three-learning-rates-on-fx-x2-computed-by-hand">Worked example: three learning rates on f(x) = x², computed by hand</h3>
+<p>Function f(x) = x², gradient 2x, start x₀ = 4. The update is x_{k+1} = x_k − η·2x_k = x_k(1 − 2η). Watch what the factor (1 − 2η) does.</p>
+<p><strong>η = 0.1 (too small, cautious):</strong>
+- x₁ = 4 × 0.8 = 3.2, f = 10.24
+- x₂ = 3.2 × 0.8 = 2.56, f = 6.55
+- x₃ = 2.56 × 0.8 = 2.048, f = 4.19
+Steady 20% shrinkage per step. It converges — but slowly; after 3 steps we are still at f = 4.19, far from 0.</p>
+<p><strong>η = 0.9 (large but surviving):</strong>
+- x₁ = 4 × (−0.8) = −3.2, f = 10.24
+- x₂ = −3.2 × (−0.8) = 2.56, f = 6.55
+- x₃ = 2.56 × (−0.8) = −2.048, f = 4.19
+The sign flips every step — the ball bounces across the valley — but |x| still shrinks 20% per step. Same loss values as η = 0.1! Oscillating yet converging. This is the edge of stability.</p>
+<p><strong>η = 1.1 (too large, diverging):</strong>
+- x₁ = 4 × (−1.2) = −4.8, f = 23.04
+- x₂ = −4.8 × (−1.2) = 5.76, f = 33.18
+- x₃ = 5.76 × (−1.2) = −6.912, f = 47.78
+Each bounce is 20% <em>bigger</em>. The loss explodes: 16 → 23 → 33 → 48 → …. In a real training log this looks like the loss suddenly shooting to astronomical values or NaN.</p>
+<p>The boundary here is η = 1.0 (where |1 − 2η| = 1). In general, the maximum stable learning rate depends on the steepest curvature of your loss surface — steeper valleys need smaller steps. You cannot compute this boundary for a neural network, which is why we tune empirically (Chapter 9).</p>
+<h3 id="why-the-learning-rate-interacts-with-everything">Why the learning rate interacts with everything</h3>
+<ul>
+<li><strong>Batch size:</strong> larger batches give cleaner gradients, so you can often use a larger learning rate (the linear scaling rule of thumb).</li>
+<li><strong>Model depth:</strong> deeper networks have more extreme curvature; they often need smaller learning rates or warmup (Chapter 8).</li>
+<li><strong>Optimizer:</strong> adaptive methods (Chapter 7) are less sensitive to the exact learning rate, but they still have one, and it still matters.</li>
+<li><strong>Loss scale:</strong> if your loss values are huge (say, 10⁶), the gradients are huge too, and the same η behaves very differently. Normalizing inputs and using standard losses keeps η in familiar ranges.</li>
+</ul>
+<h3 id="reading-a-loss-curve-like-a-doctor-reads-an-x-ray">Reading a loss curve like a doctor reads an X-ray</h3>
+<ul>
+<li>Loss decreases smoothly → η is fine; maybe try larger to train faster.</li>
+<li>Loss decreases but very slowly → η likely too small; try 3–10× larger.</li>
+<li>Loss oscillates wildly or plateaus high → η likely too large; try 3–10× smaller.</li>
+<li>Loss becomes NaN or explodes → η far too large (or a bug); reduce drastically and check for numerical issues.</li>
+<li>Loss drops fast then flatlines early → possibly fine; try a schedule (Chapter 8) to squeeze further.</li>
+</ul>
+<p>Change the learning rate in multiples (×3 or ×10), not in small nudges — its effect is logarithmic. Tuning 0.01 → 0.012 is a waste of an experiment; tuning 0.01 → 0.1 teaches you something.</p>
+<h3 id="the-stability-limit-explained">The stability limit, explained</h3>
+<p>In this chapter's worked example, the boundary between convergence and divergence sat exactly at η = 1.0. That number was not a coincidence — it came from the function's curvature. Here is the general rule, stated simply: <strong>the learning rate must be smaller than 2 divided by the steepest curvature of the loss surface.</strong> Curvature is measured by the second derivative: for f(x) = x² it is f″ = 2 everywhere, so the rule gives η &lt; 2/2 = 1.0 — precisely the boundary we observed.</p>
+<p>The intuition: on the steepest slope, one gradient step changes x by η·(slope). If that change overshoots the minimum by <em>more</em> than the distance you started from, the next step overshoots even further, and you diverge. The factor (1 − 2η) from the worked example is this overshoot made visible: its magnitude must stay below 1, i.e., η &lt; 1.</p>
+<p>For a neural network the curvature is different in every direction and changes as training proceeds — the sharpest direction sets the limit. This is why ravines (Chapter 10) are so punishing: the steep walls demand a tiny learning rate, which then crawls along the gentle floor. It also explains two practical facts: (1) you cannot compute the stability limit for a real network, so the learning-rate range test (Chapter 9) probes it empirically; and (2) adaptive methods (Chapter 7) help precisely because they rescale each direction by its own curvature, effectively giving every direction its own stability limit.</p>
+<h3 id="learning-rate-scales-differ-by-optimizer-dont-transplant-values">Learning-rate scales differ by optimizer — don't transplant values</h3>
+<p>A common beginner error: reading that "SGD works well with η = 0.1" and plugging 0.1 into Adam. Typical working ranges are wildly different: SGD with momentum lives around 0.001–0.5, while Adam lives around 0.0001–0.01, with 0.001 the famous default. These are not interchangeable.</p>
+<p>The reason goes back to Chapter 7's key property: Adam's update is approximately ±α <em>regardless of gradient magnitude</em>, because the momentum term is normalized by the square root of the second moment. An Adam step of α = 0.1 would move <em>every parameter</em> by ~0.1 per step — an enormous, reckless stride. SGD's step of η = 0.1, by contrast, is scaled by the actual gradient, which near convergence is tiny. So Adam's α and SGD's η are different currencies: α is roughly "step size per update," while η is "step size per unit gradient."</p>
+<p>Practical consequences: when switching optimizers, re-tune the learning rate from scratch using that optimizer's typical range — never copy the value across. And when reading papers, interpret the learning rate <em>relative to its optimizer</em>: "Adam, α = 0.01" is aggressive; "SGD, η = 0.01" is conservative. Reviewers make this adjustment instinctively; now you can too.</p>
+<blockquote>
+<p><strong>For your research:</strong> The learning rate is the first hyperparameter a reviewer will look for in your paper, and "we used Adam with default settings" is increasingly seen as insufficient. Report the initial value, any schedule, and — if you tuned it — the range you searched and how you chose the final value (e.g., "we searched η ∈ {1e-4, 3e-4, 1e-3, 3e-3} on the validation set and selected 1e-3"). This one paragraph preempts the most common reproducibility complaint. And when your experiments fail, check the learning rate before blaming the model architecture — in the author's experience reviewing student work, the learning rate is the culprit more often than the model.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- The learning rate is the highest-leverage hyperparameter; tune it before anything else.
+- Too small: slow crawling, possible premature sticking. Too large: oscillation, then divergence to NaN.
+- Tune in multiples (×3, ×10), not small nudges — the effect is logarithmic.
+- The stability boundary depends on the loss surface's steepest curvature; it must be found empirically.
+- Learn to diagnose η from the loss curve's shape: smooth drop, slow crawl, wild oscillation, or explosion.</p>
+<hr />
+<h2 id="chapter-6-momentum-and-nesterov-accelerated-gradient">Chapter 6: Momentum and Nesterov Accelerated Gradient</h2>
+<h3 id="giving-the-ball-mass">Giving the ball mass</h3>
+<p>Plain gradient descent has no memory: each step looks only at the current slope. Imagine rolling a ball down a long, gentle valley — it should pick up speed. Or picture a narrow ravine (steep walls, gentle floor): plain GD bounces from wall to wall, wasting motion, while a heavy ball would plow straight along the floor. <em>Momentum</em> gives the optimizer this physical intuition by adding a velocity term that accumulates past gradients.</p>
+<p>The update, with momentum coefficient β (typically 0.9):</p>
+<p>v ← β·v + ∇L(θ)        (update the velocity: mostly old velocity, plus new gradient)
+θ ← θ − η·v            (step using the velocity, not just the current gradient)</p>
+<p>Equivalently, some textbooks write v ← β·v + η·∇L(θ); the two forms differ only in how η is scaled. What matters: the velocity is an exponentially decaying average of past gradients. Directions that persist across steps (the valley floor) accumulate and accelerate; directions that alternate (the ravine walls) cancel out. The result: faster travel along consistent slopes, damped oscillation across them.</p>
+<h3 id="why-09-is-the-default">Why β = 0.9 is the default</h3>
+<p>With β = 0.9, the velocity effectively averages the last ~10 gradients (since 0.9¹⁰ ≈ 0.35, older terms fade). This gives a terminal velocity about 10× the single-step size in a constant-gradient region — a 10× speedup on long gentle slopes, for free. β = 0.99 averages ~100 steps (more smoothing, slower to react); β = 0.5 barely remembers anything. In practice 0.9 works so reliably that most researchers never change it — one less thing to tune.</p>
+<h3 id="worked-example-momentum-vs-plain-gd-hand-computed">Worked example: momentum vs. plain GD, hand-computed</h3>
+<p>Function f(x) = x², gradient 2x, start x₀ = 4, v₀ = 0, η = 0.1, β = 0.9. Compare with plain GD from Chapter 5 (which went 4 → 3.2 → 2.56 → 2.048).

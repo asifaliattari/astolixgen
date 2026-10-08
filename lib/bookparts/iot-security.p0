@@ -1,0 +1,236 @@
+<h1 id="iot-security-basics">IoT Security Basics</h1>
+<p><strong>Book 37 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover" src="/learn/images/media-generation-book-37-iot-security-cover-0-6b84b88c-4bc6-4726-bee2-bb650d0d95b7.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>Insecure IoT devices have taken down DNS providers (Mirai, 2016), spied through cameras, and poisoned industrial processes. Security is not a feature you add later — in IoT it's a system property spanning hardware, firmware, network, and cloud. This book builds the full threat model: device hardening, secure boot, TLS on constrained devices, MQTT/CoAP security, updates, and privacy. You'll learn to evaluate IoT security experimentally and write the threat-model sections reviewers expect.</p>
+<p><strong>Learning objectives:</strong>
+- Build a threat model for an IoT system (assets, attackers, vectors)
+- Harden devices: secure boot, unique credentials, minimal attack surface
+- Deploy TLS/mTLS on constrained hardware with measured costs
+- Secure MQTT/CoAP ingestion (auth, ACLs, payload signing)
+- Design secure firmware update (OTA) pipelines
+- Handle keys, certificates, and revocation at fleet scale
+- Evaluate security experimentally and write it up</p>
+<hr />
+<h2 id="chapter-1-why-iot-security-fails-the-hall-of-shame">Chapter 1: Why IoT Security Fails — The Hall of Shame</h2>
+<p><strong>Mirai (2016):</strong> a worm that enslaved 600,000+ cameras/DVRs using 60 factory default passwords, then DDoSed Dyn (taking down Twitter, Netflix, GitHub). Root cause: default credentials + Telnet open. <strong>Stuxnet (2010):</strong> sabotaged centrifuges via USB and stolen certificates — the industrial IoT nightmare. <strong>Countless cameras:</strong> Shodan-indexed devices with no password, streaming homes to the internet.</p>
+<p>The pattern: manufacturers optimize for cost and time-to-market; security is invisible to buyers until catastrophe. Default passwords, unencrypted protocols, no update mechanism, debug interfaces left open. As a researcher, your job is to measure these failures, propose fixes, and quantify the costs — the community needs evidence, not just warnings.</p>
+<p><strong>Example:</strong> A 2023 scan of a university campus found 41 MQTT brokers, 6 with anonymous access, 2 publishing building-control topics. The remediation (TLS + ACLs, one weekend) became a case-study paper.</p>
+<p><strong>For your research:</strong> Measurement studies of real-world IoT insecurity (scans, with proper authorization and ethics) are high-impact. Always get permission; unauthorized scanning is illegal in many jurisdictions.</p>
+<p><strong>Key takeaway:</strong> Default creds, cleartext protocols, no updates — measure real failures, propose measured fixes.</p>
+<hr />
+<h2 id="chapter-2-threat-modeling-assets-attackers-vectors">Chapter 2: Threat Modeling — Assets, Attackers, Vectors</h2>
+<p>A threat model names: <strong>assets</strong> (sensor data integrity? device control? user privacy? safety?), <strong>attackers</strong> (curious neighbor? botnet herder? nation-state? — be realistic about capability), <strong>vectors</strong> (network, physical access, supply chain, cloud APIs), and <strong>impact</strong> (what's the worst case?).</p>
+<p>Use STRIDE per component: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. For each data flow in your architecture diagram, ask all six. This systematic pass is what separates a security section from hand-waving.</p>
+<p><strong>Example threat model (farm irrigation):</strong> Assets: water control (over-irrigation wastes $), sensor data integrity. Attackers: prankster neighbor (low skill), botnet (automated). Vectors: Wi-Fi (weak password?), MQTT broker (anonymous?), physical (valve tampering). Worst case: attacker opens all valves for a week → $2,000 water bill + crop loss. Mitigations follow directly: WPA3, broker TLS+ACLs, valve command authentication, flow-meter anomaly alerts.</p>
+<p><strong>For your research:</strong> A threat-model table (component × STRIDE × mitigation) is an expected artifact in IoT security papers. Reviewers check completeness.</p>
+<p><strong>Key takeaway:</strong> Assets → attackers → vectors → STRIDE per flow → mitigations. Tabulate it.</p>
+<hr />
+<h2 id="chapter-3-device-hardening-boot-credentials-surface">Chapter 3: Device Hardening — Boot, Credentials, Surface</h2>
+<p><strong>Secure boot:</strong> the device verifies firmware signatures at startup (chain of trust from immutable ROM). Without it, anyone with physical access owns the device permanently. <strong>Unique credentials:</strong> per-device passwords/certificates provisioned at manufacture — no defaults, ever. <strong>Minimal attack surface:</strong> disable Telnet/SSH/debug UART in production; close unused ports; the device should expose exactly its function and nothing else.</p>
+<p><strong>Physical security:</strong> assume attackers touch the device. Disable JTAG/SWD or require authentication; encrypt sensitive flash contents; consider tamper-evident enclosures for high-value targets. Perfect physical security is impossible — design so a captured device yields minimal fleet-wide secrets (unique keys per device, no master passwords in firmware).</p>
+<p><strong>Example:</strong> A sensor fleet audit: 3 findings — shared MQTT password in all firmware (one leak = fleet compromise), debug UART active (firmware dump in 5 min), no secure boot. Fixes: per-device certificates, UART disabled in prod builds, secure boot enabled. Cost: 2 engineer-weeks + $0.30/unit for provisioning.</p>
+<p><strong>For your research:</strong> Firmware-analysis studies (extracting firmware, finding hardcoded secrets) are classic publishable work — with proper legal/ethical boundaries (your own devices or authorized targets).</p>
+<p><strong>Key takeaway:</strong> Secure boot + unique credentials + minimal surface + no fleet-wide secrets.</p>
+<hr />
+<h2 id="chapter-4-cryptography-on-constrained-devices">Chapter 4: Cryptography on Constrained Devices</h2>
+<p>What fits on an MCU: <strong>AES-128</strong> (encryption, ~µs on Cortex-M with hardware accel), <strong>SHA-256/HMAC</strong> (integrity), <strong>ECC P-256</strong> (signatures/key exchange — RSA-2048 is too heavy for most MCUs), <strong>ChaCha20-Poly1305</strong> (where AES hardware is absent). <strong>TLS 1.2/1.3</strong> with ECC cipher suites runs on ESP32-class devices; on Cortex-M4 it's possible (mbedTLS) but handshake-heavy.</p>
+<p><strong>Key management</strong> is harder than algorithms: where are keys stored (secure element like ATECC608A vs flash — the former resists extraction), how are they provisioned (factory injection), rotated, and revoked? A perfect cipher with a leaked key is worthless.</p>
+<p><strong>Example measurements (ESP32, mbedTLS):</strong> TLS 1.2 ECDHE handshake: 1.8 s, 42 mJ; session resumption: 0.3 s, 8 mJ. Lesson: use session resumption/tickets for frequent reconnects — the handshake, not the record encryption, is the cost.</p>
+<p><strong>For your research:</strong> Crypto-cost measurements on your target MCU (handshake time/energy, throughput) are standard, expected, citable results. Compare suites; report with/without hardware acceleration.</p>
+<p><strong>Key takeaway:</strong> ECC + AES-GCM/ChaCha20 fit MCUs; the handshake dominates cost — measure it, use resumption.</p>
+<hr />
+<h2 id="chapter-5-securing-mqtt-and-coap">Chapter 5: Securing MQTT and CoAP</h2>
+<p><strong>MQTT:</strong> TLS on port 8883 (never 1883 in production), per-device credentials or client certificates, topic ACLs (least privilege per device — Book 31), payload signing (HMAC) for integrity even if the broker is compromised, and broker hardening (no anonymous, updated version). <strong>CoAP:</strong> DTLS for transport security; OSCORE (RFC 8613) for object-level security that survives proxies — important because CoAP often traverses translating gateways where DTLS terminates.</p>
+<p><strong>End-to-end vs hop-by-hop:</strong> TLS protects device→broker, but the broker sees plaintext. If the broker is untrusted (or just defense-in-depth), add payload-level encryption (AES-GCM with per-device keys) so the broker routes opaque blobs.</p>
+<p><strong>Example:</strong> Medical sensor deployment: mTLS (client certificates) to the broker + AES-GCM payload encryption with keys in a secure element + topic ACLs. Broker compromise reveals nothing; device compromise affects one device. The layered design was the paper's core contribution.</p>
+<p><strong>For your research:</strong> Compare "TLS only" vs "TLS + payload encryption" on overhead and threat coverage — a clean, useful evaluation.</p>
+<p><strong>Key takeaway:</strong> TLS + per-device auth + ACLs + payload signing/HMAC; consider end-to-end encryption past the broker.</p>
+<hr />
+<h2 id="chapter-6-secure-firmware-updates-ota">Chapter 6: Secure Firmware Updates (OTA)</h2>
+<p>An IoT device without secure updates is a future botnet member. Requirements: <strong>signed images</strong> (ECC signature verified by bootloader), <strong>version anti-rollback</strong> (monotonic version counter — don't let attackers reinstall old vulnerable firmware), <strong>encrypted transport</strong> (TLS), <strong>atomic install</strong> (A/B partitions — failed update boots the old image, never bricks), and <strong>update authorization</strong> (only your signing key's images install).</p>
+<p><strong>The update server</strong> is critical infrastructure: compromise it and you own the fleet. Sign offline (air-gapped key), publish signatures + images, devices verify. Monitor update success rates — a fleet stuck on old firmware is a vulnerability inventory.</p>
+<p><strong>Example:</strong> A/B partitioned ESP32 fleet: update downloads to partition B, verifies signature, boots B, confirms health, marks stable. A bad update rolled back automatically on 12 of 200 devices (brownout during flash) — zero bricks, full telemetry on the failure.</p>
+<p><strong>For your research:</strong> OTA security analyses (evaluating real vendors' update mechanisms against the requirements list) are impactful — several CVEs and papers came from exactly this.</p>
+<p><strong>Key takeaway:</strong> Signed + anti-rollback + A/B + offline signing keys; monitor fleet update state.</p>
+<hr />
+<h2 id="chapter-7-keys-certificates-and-pki-at-fleet-scale">Chapter 7: Keys, Certificates, and PKI at Fleet Scale</h2>
+<p>Fleet PKI: an offline <strong>root CA</strong>, an online <strong>intermediate CA</strong> for issuance, per-device certificates provisioned at manufacture (or via EST enrollment on first boot), and a <strong>revocation</strong> story (CRL or OCSP — or short-lived certificates that expire instead of being revoked, simpler for IoT).</p>
+<p><strong>Provisioning</strong> is the operational crux: injecting unique keys in the factory without leaking them (HSM-backed provisioning stations, audited). <strong>EST (RFC 7030)</strong> and <strong>CMP</strong> automate enrollment; for smaller fleets, pre-provisioned certificates on secure elements are simpler.</p>
+<p><strong>Example:</strong> 10,000-sensor PKI: offline root, intermediate on HSM, per-device ECC certs in ATECC608A at manufacture, 5-year validity, revocation via denylist pushed in firmware updates. Provisioning added 11 seconds per unit on the line — measured and reported.</p>
+<p><strong>For your research:</strong> PKI-for-IoT experience reports (costs, pitfalls, measured overhead) are rare and valuable — practitioners cite them.</p>
+<p><strong>Key takeaway:</strong> Offline root, per-device certs, a revocation story, measured provisioning cost.</p>
+<hr />
+<h2 id="chapter-8-privacy-data-minimization-and-beyond">Chapter 8: Privacy — Data Minimization and Beyond</h2>
+<p>IoT privacy principles: <strong>minimize</strong> (collect only what's needed — a temperature sensor doesn't need a microphone), <strong>process locally</strong> (TinyML/edge filtering keeps raw data on-device), <strong>limit retention</strong> (delete raw when aggregates suffice), <strong>anonymize</strong> for research (but know that sensor traces can re-identify — 4 spatio-temporal points identify 95% of individuals in mobility data; treat "anonymized" claims skeptically).</p>
+<p><strong>Regulatory:</strong> GDPR (EU), and sectoral rules (health data). For research: ethics approval, informed consent, data management plans, and the right to erasure — design these in, not on.</p>
+<p><strong>Example:</strong> An occupancy study used PIR + CO₂ (no cameras, no microphones) by design — the privacy-preserving sensor choice was a stated contribution, and ethics approval took 2 weeks instead of 6 months.</p>
+<p><strong>For your research:</strong> A privacy analysis section (what's collected, why, alternatives considered, retention, anonymization limits) is increasingly required — write it before reviewers ask.</p>
+<p><strong>Key takeaway:</strong> Minimize, localize, limit retention; treat anonymization claims skeptically; bake in ethics.</p>
+<hr />
+<h2 id="chapter-9-network-segmentation-and-monitoring">Chapter 9: Network Segmentation and Monitoring</h2>
+<p><strong>Segment</strong> IoT devices from everything else: separate VLAN/SSID, firewall rules (devices talk only to the broker, never the internet or each other), and for critical systems, data diodes or unidirectional gateways. <strong>Monitor:</strong> baseline normal traffic per device (a temperature sensor sending 10 KB/day that suddenly sends 10 MB is compromised — alert on it), IDS signatures for IoT malware (Mirai variants have known patterns), and broker-side anomaly detection (impossible travel for device certs, topic-access violations).</p>
+<p><strong>Example:</strong> A campus IoT VLAN: 300 devices, allowlist firewall (broker:8883 only), NetFlow anomaly alerts. Detected a compromised camera within 20 minutes via traffic spike — contained by VLAN isolation before it scanned the LAN.</p>
+<p><strong>For your research:</strong> Network-behavior baselining papers (what's normal per device class, detection rates for injected attacks) are solid applied-security contributions.</p>
+<p><strong>Key takeaway:</strong> Segment (VLAN, allowlists), baseline per-device traffic, alert on deviation.</p>
+<hr />
+<h2 id="chapter-10-evaluating-iot-security-methods-that-convince">Chapter 10: Evaluating IoT Security — Methods That Convince</h2>
+<p>Security evaluations that convince: <strong>threat-model coverage</strong> (every STRIDE item addressed or explicitly accepted as residual risk), <strong>penetration testing</strong> (documented methodology, scope, findings, fixes — your own systems), <strong>fuzzing</strong> (parsers, protocol handlers — report crashes found and fixed), <strong>formal-ish verification</strong> where feasible (model-check critical state machines), and <strong>cost measurement</strong> (security overhead in latency/energy/memory — always quantify).</p>
+<p><strong>Red-team honestly:</strong> hire or role-play an attacker with defined capabilities; report what they achieved. "We could not break X in Y hours with Z capabilities" is a meaningful (if bounded) claim.</p>
+<p><strong>Example:</strong> A smart-lock evaluation: threat model → firmware extraction (found hardcoded key — fixed) → protocol fuzzing (2 crashes — fixed) → relay-attack test (vulnerable — added distance bounding discussion as limitation). Published with all findings including the unfixed limitation — credibility through honesty.</p>
+<p><strong>For your research:</strong> Publish negative results and residual risks. Security papers that claim perfect security are not believed; papers with honest limitations are.</p>
+<p><strong>Key takeaway:</strong> Threat coverage + pentest + fuzzing + measured costs + honest residual risks = convincing security evaluation.</p>
+<hr />
+<h2 id="chapter-11-standards-and-frameworks">Chapter 11: Standards and Frameworks</h2>
+<p>Know the landscape: <strong>NISTIR 8259</strong> (IoT device cybersecurity baseline), <strong>ETSI EN 303 645</strong> (consumer IoT security — now effectively mandatory in the EU/UK), <strong>NIST SP 800-213</strong> (federal IoT guidance), <strong>OWASP IoT Top 10</strong> (practical checklist), <strong>IEC 62443</strong> (industrial). Map your system against one: "compliant with ETSI EN 303 645 provisions 5.1–5.13 except X (justified)" is a strong compliance statement.</p>
+<p><strong>Example:</strong> A consumer sensor product mapped to ETSI EN 303 645: 12/13 provisions met; the exception (no automatic updates for a battery device with 10-year life) justified with a compensating control (signed manual updates + vulnerability monitoring). The mapping table was an appendix reviewers praised.</p>
+<p><strong>For your research:</strong> Standards-mapping appendices turn engineering work into auditable contributions.</p>
+<p><strong>Key takeaway:</strong> Map to NISTIR 8259 / ETSI 303 645; justify every exception.</p>
+<hr />
+<h2 id="chapter-12-your-iot-security-study-from-audit-to-paper">Chapter 12: Your IoT Security Study — From Audit to Paper</h2>
+<p>Template:</p>
+<ol>
+<li><strong>Target:</strong> Your own system (or authorized) — define scope.</li>
+<li><strong>Threat model:</strong> Assets, attackers, STRIDE table.</li>
+<li><strong>Method:</strong> Chosen evaluations (pentest, fuzzing, measurements) with methodology.</li>
+<li><strong>Findings:</strong> Categorized by severity, each with evidence.</li>
+<li><strong>Fixes:</strong> Implemented mitigations with measured costs.</li>
+<li><strong>Residual risks:</strong> Honestly stated.</li>
+<li><strong>Standards mapping:</strong> Against ETSI/NIST baseline.</li>
+<li><strong>Artifact:</strong> Configs, test harnesses (sanitized), measurement data.</li>
+<li><strong>Writing:</strong> IEEE format; findings tables with severity; costs quantified.</li>
+</ol>
+<p>Ethics/legal: only test authorized systems; disclose vulnerabilities responsibly (vendor notification, coordinated disclosure timelines) before publishing.</p>
+<p><strong>For your research:</strong> Responsible disclosure + published analysis is the gold standard — it protects users and builds your reputation.</p>
+<p><strong>Key takeaway:</strong> Scope → threat model → evaluation → findings → fixes → residual risks → disclosure = the security paper pipeline.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Core idea</th>
+<th>Research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Failures</td>
+<td>Mirai pattern</td>
+<td>Authorized measurement studies</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Threat modeling</td>
+<td>STRIDE per flow</td>
+<td>Expected artifact table</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Hardening</td>
+<td>Secure boot, unique creds</td>
+<td>Firmware-analysis papers</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Crypto on MCU</td>
+<td>ECC, handshake costs</td>
+<td>Suite cost measurements</td>
+</tr>
+<tr>
+<td>5</td>
+<td>MQTT/CoAP sec</td>
+<td>mTLS, ACLs, payload enc</td>
+<td>Layered-design evaluations</td>
+</tr>
+<tr>
+<td>6</td>
+<td>OTA</td>
+<td>Signed, anti-rollback, A/B</td>
+<td>Vendor-mechanism analyses</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Fleet PKI</td>
+<td>Offline root, provisioning</td>
+<td>Experience reports</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Privacy</td>
+<td>Minimize, localize</td>
+<td>Required privacy sections</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Segmentation</td>
+<td>VLANs, baselines</td>
+<td>Detection-rate studies</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Evaluation</td>
+<td>Pentest, fuzz, honest limits</td>
+<td>Convincing security claims</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Standards</td>
+<td>NISTIR 8259, ETSI 303 645</td>
+<td>Mapping appendices</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Study template</td>
+<td>Audit → paper pipeline</td>
+<td>Disclosure ethics</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] R. Roman, P. Najera, and J. Lopez, "Securing the Internet of Things," Computer, vol. 44, no. 9, pp. 51–58, 2011.
+[2] R. Roman, J. Zhou, and J. Lopez, "On the features and challenges of security and privacy in distributed Internet of Things," Computer Networks, vol. 57, no. 10, pp. 2266–2279, 2013.
+[3] M. Antonakakis et al., "Understanding the Mirai Botnet," in Proc. 26th USENIX Security Symposium, 2017.
+[4] N. Neshenko, E. Bou-Harb, J. Crichigno, G. Kaddoum, and N. Ghani, "Demystifying IoT Security: An Exhaustive Survey on IoT Vulnerabilities and a First Empirical Look on Internet-Scale IoT Exploitations," IEEE Communications Surveys &amp; Tutorials, vol. 21, no. 3, 2019.
+[5] ETSI, "ETSI EN 303 645 V2.1.1: Cyber Security for Consumer Internet of Things," 2020.
+[6] NIST, "NISTIR 8259A: IoT Device Cybersecurity Capability Core Baseline," 2020.
+[7] A. Banks and R. Gupta, "MQTT Version 3.1.1," OASIS Standard, Oct. 2014.
+[8] Z. Shelby, K. Hartke, and C. Bormann, "The Constrained Application Protocol (CoAP)," RFC 7252, 2014.
+[9] G. Selander et al., "Object Security for Constrained RESTful Environments (OSCORE)," RFC 8613, 2019.
+[10] H. B. McMahan et al., "Communication-Efficient Learning of Deep Networks from Decentralized Data," in Proc. 20th AISTATS, 2017. (for federated privacy context)</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Threat model</strong> — structured description of assets, attackers, vectors</li>
+<li><strong>STRIDE</strong> — Spoofing, Tampering, Repudiation, Info disclosure, DoS, Elevation</li>
+<li><strong>Secure boot</strong> — verified firmware startup chain</li>
+<li><strong>mTLS</strong> — mutual TLS; both sides authenticate</li>
+<li><strong>ACL</strong> — access control list</li>
+<li><strong>HMAC</strong> — keyed hash for integrity/authentication</li>
+<li><strong>OTA</strong> — over-the-air firmware update</li>
+<li><strong>Anti-rollback</strong> — preventing downgrade to vulnerable firmware</li>
+<li><strong>PKI</strong> — public key infrastructure</li>
+<li><strong>Secure element</strong> — tamper-resistant key storage chip</li>
+<li><strong>VLAN</strong> — virtual LAN for network segmentation</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Build a STRIDE table for a smart door lock (4 components × 6 threats, with mitigations).</li>
+<li>Why are default passwords a fleet-wide vulnerability? What replaces them?</li>
+<li>Compare RSA-2048 and ECC P-256 for an MCU: which fits and why? What do you measure?</li>
+<li>Design topic ACLs for a 3-tier system (sensors, gateway, dashboard). Show least privilege.</li>
+<li>Explain why TLS alone doesn't protect against a compromised broker. What's the fix?</li>
+<li>List the five OTA requirements and what breaks if each is missing.</li>
+<li>Sketch a fleet PKI: root, intermediate, provisioning, revocation. Where's the HSM?</li>
+<li>Your occupancy study uses cameras. Redesign it for privacy — what changes, what do you lose?</li>
+<li>Write firewall allowlist rules for an IoT VLAN with one MQTT broker.</li>
+<li>Draft the findings table (severity, evidence, fix, residual risk) for an audit of your own project.</li>
+</ol>
+<hr />
+<p><em>End of Book 37. Next: Book 38 — From Prototype to Product: IoT Deployment.</em></p>

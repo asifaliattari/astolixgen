@@ -143,13 +143,14 @@ export const services: Service[] = [
   {
     slug: "data-analytics",
     name: "Data & Analytics",
-    short: "From messy spreadsheets to dashboards and reporting systems.",
+    short: "From messy spreadsheets to Power BI dashboards and reporting systems.",
     description: [
       "Most small businesses already have the data they need — it's trapped in spreadsheets, inboxes and disconnected tools. We clean it, structure it and turn it into dashboards and automated reports that decision-makers actually open.",
-      "Our analytics work is practical: Google Sheets automation for teams that live in Sheets, and proper dashboards when you outgrow them.",
+      "Our analytics work is practical: Google Sheets automation for teams that live in Sheets, and proper Power BI dashboards — with data modeling, DAX measures and Power Query pipelines — when you outgrow them.",
     ],
     offerings: [
       "Data analysis & cleanup",
+      "Power BI dashboards (data modeling, DAX, Power Query)",
       "Google Sheets automation (formulas, scripts, pipelines)",
       "Business dashboards (KPIs, sales, operations)",
       "Automated reporting systems",
@@ -501,10 +502,25 @@ export const team = [
   },
   {
     slug: "taha-siddiqui",
-    name: "Taha Siddiqui",
+    name: "Taha Ahmed",
     role: "Co-founder, AstolixGen · Founder, BlackInkMotion",
     linkedin: "https://www.linkedin.com/in/taha-siddiqui-dev/",
     initials: "TS",
+    aka: "Taha Siddiqui",
+    whatsapp: "https://wa.me/12148968568",
+    whatsappDisplay: "+1 (214) 896-8568",
+    spotlight: {
+      kicker: "Education platform",
+      title: "CoreEd — learn by building",
+      intro:
+        "Taha runs CoreEd, a YouTube education platform with step-by-step series on modern development — from building AI agents with Python and FastAPI to full project management systems with Node.js. Practical, project-based learning in the same spirit as AstolixGen's field work.",
+      sections: [],
+      videos: [
+        { youtubeId: "20-KuOImK0s", title: "FastAPI with Agentic AI — Build AI Agents with Python" },
+        { youtubeId: "Zvig_ey2plo", title: "Project Management System — Node.js" },
+      ],
+      cta: { label: "Visit CoreEd on YouTube", href: "https://www.youtube.com/@CoreEd-qp2jh" },
+    },
     bio: [
       "Taha Siddiqui is a co-founder of AstolixGen and the founder of BlackInkMotion, an AI video production and motion design studio creating cinematic brand films, commercials and visual storytelling for ambitious brands.",
       "At AstolixGen, Taha bridges creative technology and artificial intelligence — leading how the company's work is documented, explained and shared with the world, from field-visit documentaries in rural KPK to educational content that makes AI click for beginners.",
@@ -522,6 +538,64 @@ export const team = [
     role: "Co-founder, AstolixGen",
     linkedin: "https://www.linkedin.com/in/sharmeen-asif-654727373/",
     initials: "SA",
+    spotlight: {
+      kicker: "Research desk",
+      title: "From curious student to published researcher",
+      intro:
+        "Sharmeen's corner of AstolixGen is research: asking sharp questions, testing ideas properly, and publishing so others can build on the work. This is her field guide for anyone who wants to follow that path — students especially.",
+      sections: [
+        {
+          heading: "What the research focuses on",
+          paragraphs: [
+            "Applied artificial intelligence: how modern AI techniques — from classical machine learning to large language models — can solve real problems in education, business and everyday life. The emphasis is always on work that can be reproduced, measured and honestly reported.",
+          ],
+        },
+        {
+          heading: "The researcher's toolkit",
+          bullets: [
+            "Python — the working language of AI research (NumPy, pandas, scikit-learn)",
+            "PyTorch / TensorFlow — deep learning frameworks for experiments",
+            "Jupyter Notebooks — exploratory analysis you can share and rerun",
+            "Overleaf (LaTeX) — writing papers with proper math and citations",
+            "Zotero / Mendeley — organizing the papers you read",
+            "Google Scholar — tracking citations and finding related work",
+            "GitHub — publishing code so results can be reproduced",
+          ],
+        },
+        {
+          heading: "Your first publication — step by step",
+          bullets: [
+            "Beginner: build foundations — Python, statistics, and one ML course. Read 2–3 papers a week; start with surveys before diving into technical papers.",
+            "Beginner: reproduce — pick a published result and reimplement it. Reproducing teaches you more than reading ever will.",
+            "Intermediate: find a gap — while reading, note what authors list as limitations or future work. That's where your contribution hides.",
+            "Intermediate: run small experiments — change one thing at a time, log everything, and be honest about negative results.",
+            "Advanced: write it up — follow the IMRaD structure (Introduction, Methods, Results, Discussion). Clear writing beats clever writing.",
+            "Advanced: submit, revise, resubmit — rejection with reviewer feedback is normal and makes the work stronger. Every published researcher has a drawer of rejections.",
+          ],
+        },
+        {
+          heading: "Advice for students",
+          bullets: [
+            "Start reading papers early — even if you understand 30% at first, that compounds fast.",
+            "Join a reading group or find one mentor who publishes; feedback loops beat solo grinding.",
+            "Your thesis is a project, not a monument — pick a question small enough to finish, then finish it well.",
+            "Document as you go: lab notebooks (even digital ones) save you during thesis writing.",
+          ],
+        },
+        {
+          heading: "Where to publish and share",
+          bullets: [
+            "arXiv — preprint server; share your work fast and get early feedback",
+            "IEEE Xplore / ACM Digital Library — the major peer-reviewed venues for CS & AI",
+            "Conferences & workshops — present, get questioned, meet collaborators",
+            "Google Scholar profile — make your work findable and track citations",
+            "ResearchGate — share preprints and connect with other researchers",
+          ],
+        },
+      ],
+      videos: [],
+      note: "Sharmeen's own publication list is being compiled and will appear here soon.",
+    },
     bio: [
       "Sharmeen Asif is a co-founder of AstolixGen, bringing academic depth in artificial intelligence to the team's practical work.",
       "She is pursuing her MS in Artificial Intelligence at Bahria University, Karachi, and is actively engaged in research and publications — keeping AstolixGen's solutions grounded in current science, not just current hype.",
@@ -535,13 +609,14 @@ export const team = [
   {
     slug: "ishtiaq-khan",
     name: "Ishtiaq Khan",
-    role: "Co-founder, AstolixGen",
+    role: "Co-founder · HR Manager, AstolixGen",
     linkedin: "https://www.linkedin.com/in/ishtiaq-khan2603/",
     initials: "IK",
     bio: [
-      "Ishtiaq Khan is a co-founder of AstolixGen, part of the founding team building practical AI, automation and digital solutions from Karachi, Pakistan.",
-      "As a co-founder, he shares the company's mission of delivering honest, working technology — and of carrying AI and IT education to communities that need it most.",
+      "Ishtiaq Khan is a co-founder of AstolixGen and its HR Manager — the person who builds and looks after the team behind the technology.",
+      "Beyond the company, Ishtiaq is an active member of a Thalassemia awareness team, volunteering his time to spread understanding of the condition, the importance of screening, and support for affected families.",
+      "He shares AstolixGen's founding mission: honest, working technology — and carrying AI and IT education to the communities that need it most.",
     ],
-    highlights: ["Co-founder, AstolixGen"],
+    highlights: ["Co-founder & HR Manager, AstolixGen", "Thalassemia awareness volunteer"],
   },
 ];

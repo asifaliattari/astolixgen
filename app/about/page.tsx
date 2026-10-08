@@ -165,7 +165,7 @@ export default function AboutPage() {
                     {m.initials}
                   </div>
                   <h3 className="mt-4 font-display text-lg font-semibold text-white">{m.name}</h3>
-                  <p className="mt-1 text-sm text-slate-400">Co-Founder</p>
+                  <p className="mt-1 text-sm text-slate-400">{m.role.replace(", AstolixGen", "")}</p>
                   <p className="mt-3 text-xs font-medium text-accent">View profile →</p>
                 </Link>
               </Reveal>

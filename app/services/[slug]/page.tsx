@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Reveal from "@/components/Reveal";
+import InstantDashboard from "@/components/InstantDashboard";
 import { company, services } from "@/lib/data";
 
 export function generateStaticParams() {
@@ -91,6 +92,15 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
           </Reveal>
         </div>
       </section>
+
+      {/* Interactive demo — data analytics only */}
+      {service.slug === "data-analytics" && (
+        <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
+          <Reveal>
+            <InstantDashboard />
+          </Reveal>
+        </section>
+      )}
 
       {/* Other services */}
       <section className="border-t border-white/5">

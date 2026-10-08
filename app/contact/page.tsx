@@ -39,6 +39,11 @@ export default function ContactPage() {
                 value={company.phone}
                 href={`tel:${company.phone.replace(/\s/g, "")}`}
               />
+              <ContactRow
+                label="WhatsApp (Taha Ahmed)"
+                value="+1 (214) 896-8568"
+                href="https://wa.me/12148968568"
+              />
               <ContactRow label="Email" value={company.email} href={`mailto:${company.email}`} />
               <ContactRow label="Location" value={company.location} />
             </div>

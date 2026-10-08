@@ -1,0 +1,666 @@
+<h1 id="esp32-projects-for-beginners">ESP32 Projects for Beginners</h1>
+<p><strong>Book 30 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="ESP32 beginner guide cover illustration" src="/learn/images/media-generation-book-30-cover-0-3aa755e2-f517-43e7-b59e-65af12007e82.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>The ESP32 is the single most useful piece of hardware a researcher can learn in 2026 if your work touches sensing, measurement, automation, or the Internet of Things. It is a tiny, inexpensive microcontroller with built-in Wi-Fi and Bluetooth that you can program in the same Arduino language used by millions of hobbyists — and it is powerful enough to run real research prototypes: weather stations, air-quality monitors, smart-agriculture nodes, occupancy sensors, and data-logging experiments.</p>
+<p>This book takes you from zero to a complete, working Wi-Fi sensor node that publishes real data. Every chapter follows the same pattern: you will understand <em>why</em> something works, wire it up, upload a complete working program (called a <strong>sketch</strong>), see exactly what should appear in the Serial Monitor, and learn how to fix it when it does not work. The chapters build on each other, so work through them in order.</p>
+<p>You do not need prior electronics experience. You need an ESP32 development board (any common devkit), a USB cable that carries data (not a charge-only cable), a few jumper wires, a breadboard, a push button, and a DHT22 or DHT11 temperature/humidity sensor. Everything else is explained here.</p>
+<p><strong>Learning objectives:</strong></p>
+<h3 id="how-to-use-this-book">How to use this book</h3>
+<p>Work the chapters in order — each assumes the previous one's working setup. A realistic pace is one chapter per sitting, two to three sittings per week:</p>
+<ul>
+<li><strong>Week 1:</strong> Chapters 1–3 (orientation, toolchain, first upload). End the week with a blinking board you understand.</li>
+<li><strong>Week 2:</strong> Chapters 4–6 (buttons, sensors, Wi-Fi). End the week reading live temperature and signal strength.</li>
+<li><strong>Week 3:</strong> Chapters 7–8 (MQTT, HTTP). End the week with data leaving the building to your phone and a test endpoint.</li>
+<li><strong>Week 4:</strong> Chapters 9–11 (deep sleep, OTA, troubleshooting). End the week with a battery-efficient, wirelessly updatable node — and the ability to fix it.</li>
+<li><strong>Week 5:</strong> Chapter 12 (capstone). Deploy the full sensor node, run the 24-hour test, and write the deployment report. That report is a draft methodology section.</li>
+</ul>
+<p>Keep a lab notebook from Chapter 2 onward: wiring diagrams (phone photos are fine), library versions, error texts and fixes, and calibration constants. Researchers are distinguished from hobbyists less by what they build than by what they record.</p>
+<p>By the end of this book, you will be able to:</p>
+<ol>
+<li>Describe what the ESP32 is, how it differs from an Arduino Uno or ESP8266, and when to choose it for a project.</li>
+<li>Install and configure the Arduino IDE with ESP32 board support, drivers, and required libraries.</li>
+<li>Write, upload, and debug a first sketch, and use the Serial Monitor to observe program behavior.</li>
+<li>Read digital inputs reliably, including push buttons with software debouncing.</li>
+<li>Read analog sensors and digital sensor modules (DHT11/DHT22), and convert raw readings into physical units.</li>
+<li>Connect the ESP32 to a Wi-Fi network, diagnose connection problems, and measure signal strength.</li>
+<li>Publish sensor data with MQTT using the standard PubSubClient pattern (connect, publish, keep-alive loop).</li>
+<li>Send data to a cloud endpoint with HTTP POST and interpret status codes and responses.</li>
+<li>Use deep sleep and timer wake-up to cut power consumption for battery-powered deployments.</li>
+<li>Explain and set up over-the-air (OTA) firmware updates so deployed nodes never need a USB cable again.</li>
+<li>Diagnose and fix the 20 most common ESP32 errors using a systematic troubleshooting method.</li>
+<li>Design, build, and document a complete end-to-end Wi-Fi temperature/humidity sensor node suitable as a research prototype or methodology chapter.</li>
+</ol>
+<hr />
+<h2 id="chapter-1-meet-the-esp32">Chapter 1: Meet the ESP32</h2>
+<h3 id="what-it-is">What it is</h3>
+<p>The ESP32 is a family of low-cost, low-power <strong>microcontrollers</strong> designed by Espressif Systems, a company based in Shanghai. A microcontroller is a complete tiny computer on a single chip: it has a processor, memory, and input/output pins, but no operating system like your laptop. You load one program onto it, and it runs that program forever — reading sensors, switching things on and off, and talking to the internet.</p>
+<p>The original ESP32 chip (released in 2016) contains two processor cores (a dual-core Xtensa LX6 running up to 240 MHz), about 520 KB of internal SRAM, built-in Wi-Fi and Bluetooth radios, and a rich set of peripherals: analog-to-digital converters (ADC), digital-to-analog converters (DAC), capacitive touch inputs, PWM outputs, and hardware support for common sensor protocols (I2C, SPI, UART). For perspective, that is roughly an order of magnitude more processing power and memory than the classic Arduino Uno's 8-bit ATmega328P running at 16 MHz with 2 KB of SRAM. The ESP32 is still a microcontroller, not a single-board computer like a Raspberry Pi — it cannot run Linux or a web browser — but for sensing and control tasks it is far more than enough.</p>
+<p>Espressif has since released a whole family: the ESP32-S2 and ESP32-S3 (newer, USB-native, the S3 adds AI acceleration features), the ESP32-C3 and ESP32-C6 (RISC-V based, with the C6 adding newer Wi-Fi standards), and the ESP32-H2 (focused on low-power wireless protocols). When this book says "ESP32" without qualification, it means the original ESP32 or any devkit board based on the family — the Arduino code you will write works across them with only minor differences.</p>
+<h3 id="modules-chips-and-devkit-boards">Modules, chips, and devkit boards</h3>
+<p>Beginners sometimes get confused by the three layers of "ESP32":</p>
+<ul>
+<li><strong>The chip</strong> (e.g., ESP32-D0WD) — the bare silicon. You will never handle this directly.</li>
+<li><strong>The module</strong> (e.g., ESP32-WROOM-32) — the chip plus flash memory, the radio antenna circuitry, and a metal shield, soldered as one unit. This is what actually goes on boards.</li>
+<li><strong>The devkit board</strong> (e.g., ESP32 DevKitC, or the many third-party "NodeMCU-32S" style boards) — the module plus a USB-to-serial chip, a voltage regulator, a reset and boot button, and rows of pins you can plug wires into. <strong>This is what you buy and what this book assumes.</strong></li>
+</ul>
+<p>Any common ESP32 devkit board works with this book. Board layouts differ slightly between manufacturers (pin labels, which GPIO has the built-in LED), so every chapter includes a "check your board" reminder wherever a specific pin is named.</p>
+<h3 id="why-researchers-choose-it">Why researchers choose it</h3>
+<p>Five reasons the ESP32 shows up constantly in published IoT and sensing work:</p>
+<ol>
+<li><strong>Wi-Fi and Bluetooth are built in.</strong> Older Arduino boards need an add-on shield for networking. On the ESP32, wireless is on the chip, which means your sensor node needs no extra hardware to reach the internet.</li>
+<li><strong>It is cheap.</strong> A devkit board typically costs a few US dollars, so deploying ten or fifty sensor nodes for a field experiment is affordable — a decisive factor in agriculture, environmental, and smart-campus studies.</li>
+<li><strong>The Arduino ecosystem works with it.</strong> Espressif and the community maintain an Arduino "core" for the ESP32, so you program it with the same <code>setup()</code> / <code>loop()</code> structure and the same libraries as an Arduino. The learning curve is gentle and the forum knowledge base is enormous.</li>
+<li><strong>It sips power in deep sleep.</strong> In deep-sleep mode the ESP32 draws only a few microamps, waking on a timer to take a reading and transmit it. A node can run for months on a battery — essential for field deployments where nobody can change batteries weekly.</li>
+<li><strong>It is documented.</strong> Espressif publishes full datasheets and a technical reference manual, and the hardware behavior (ADC characteristics, sleep modes, strapping pins) is specified rather than guessed. Reviewers of your paper can verify your claims.</li>
+</ol>
+<h3 id="esp32-vs-arduino-uno-vs-esp8266">ESP32 vs. Arduino Uno vs. ESP8266</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Arduino Uno</th>
+<th>ESP8266</th>
+<th>ESP32</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Processor</td>
+<td>8-bit, 16 MHz</td>
+<td>32-bit, 80/160 MHz</td>
+<td>Dual-core 32-bit, up to 240 MHz</td>
+</tr>
+<tr>
+<td>Memory (SRAM)</td>
+<td>2 KB</td>
+<td>~80 KB</td>
+<td>~520 KB</td>
+</tr>
+<tr>
+<td>Wi-Fi</td>
+<td>No (needs shield)</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Bluetooth</td>
+<td>No</td>
+<td>No</td>
+<td>Yes (Classic + BLE)</td>
+</tr>
+<tr>
+<td>Analog inputs</td>
+<td>6 (10-bit)</td>
+<td>1 (10-bit)</td>
+<td>Many (12-bit)</td>
+</tr>
+<tr>
+<td>Typical use</td>
+<td>Learning, simple control</td>
+<td>Simple Wi-Fi projects</td>
+<td>Sensing, IoT, research prototypes</td>
+</tr>
+</tbody>
+</table>
+<p>The ESP8266 (and its famous NodeMCU board) was the previous generation's favorite. It is still fine for the simplest Wi-Fi tasks, but the ESP32 costs nearly the same while offering more pins, more analog inputs, Bluetooth, two cores, and better power management. For any new project — and especially for research where you may add sensors later — choose the ESP32.</p>
+<h3 id="the-anatomy-of-an-arduino-sketch-for-esp32">The anatomy of an Arduino sketch for ESP32</h3>
+<p>Every program you write in this book has the same skeleton:</p>
+<pre><code class="language-cpp">void setup() {
+  // Runs ONCE when the board powers on or resets.
+  // Configure pins, start serial, connect Wi-Fi here.
+}
+
+void loop() {
+  // Runs over and over, forever.
+  // Read sensors, make decisions, send data here.
+}
+</code></pre>
+<p>That is the entire mental model: <code>setup()</code> prepares, <code>loop()</code> repeats. Everything else in this book is detail hung on that frame. When your program misbehaves, the first diagnostic question is always: "Is the problem in <code>setup()</code> (it never starts correctly) or in <code>loop()</code> (it starts but does something wrong repeatedly)?"</p>
+<h3 id="a-note-on-pins-and-the-check-your-board-rule">A note on pins and the "check your board" rule</h3>
+<p>ESP32 devkit boards expose general-purpose input/output pins labeled <strong>GPIO</strong> with a number (GPIO 2, GPIO 15, and so on). In code you refer to pins by these GPIO numbers, not by their physical position on the board. Two warnings that will save you hours across this book:</p>
+<ul>
+<li><strong>Not every GPIO is equal.</strong> A few pins (often called <em>strapping pins</em>) are sampled at boot to decide how the chip starts; holding them at the wrong level during reset can stop the board booting. Others are connected to the on-board flash memory and must be left alone. Chapter 11 lists the exact symptoms, and the Learning Dashboard gives you a safe-pin quick reference. The rule: if a pin behaves strangely at boot, move your device to a different pin.</li>
+<li><strong>The built-in LED moves between boards.</strong> On many widely sold devkit boards it is on GPIO 2, but some boards put it elsewhere or omit it. Chapter 3 shows you how to verify in seconds.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> When you write up hardware in a paper's methodology section, never write just "an ESP32." Write the module (e.g., ESP32-WROOM-32), the devkit board name and manufacturer if known, the Arduino-ESP32 core version, and the exact GPIO-to-sensor mapping in a table. This is what makes your experiment reproducible — and reproducibility is what separates a demo from a publication.</p>
+</blockquote>
+<h3 id="a-closer-look-inside-the-chip">A closer look inside the chip</h3>
+<p>It helps to know roughly what is on the silicon, because several later behaviors (ADC quirks, deep-sleep memory loss, dual-core options) follow directly from the hardware.</p>
+<ul>
+<li><strong>Two CPU cores.</strong> The original ESP32 has two 32-bit Xtensa LX6 cores. The Arduino core runs your sketch on core 1 by default and reserves core 0 for the Wi-Fi/Bluetooth stack and system tasks. You can ignore the second core entirely as a beginner — but know it exists, because advanced projects (Chapter 9's "next steps") can pin heavy work to the free core.</li>
+<li><strong>Memory in three flavors.</strong> About 520 KB of <strong>SRAM</strong> holds your running program's variables (wiped on reset and deep sleep). <strong>Flash</strong> (typically 4 MB on devkit boards) stores your program permanently. A tiny <strong>RTC memory</strong> region survives deep sleep — Chapter 9 uses it for counters. When the IDE says "Global variables use 13,320 bytes," it is talking about SRAM.</li>
+<li><strong>Peripherals.</strong> Beyond the ADC: capacitive <strong>touch</strong> inputs (several GPIOs can sense a finger touch with no extra hardware), two <strong>DAC</strong> outputs (true analog voltage out), hardware PWM on any pin, and I2C/SPI/UART controllers for talking to sensor chips, displays, and SD cards. You will not need most of these in this book, but they are why the ESP32 keeps up as projects grow.</li>
+</ul>
+<p>All of this is specified in Espressif's ESP32 Series Datasheet and Technical Reference Manual — the primary sources listed in this book's references. When in doubt about a hardware limit, the datasheet outranks any forum post.</p>
+<h3 id="buying-your-board-a-short-checklist">Buying your board: a short checklist</h3>
+<p>Any common ESP32 devkit works, but these details affect your daily experience:</p>
+<ul>
+<li><strong>USB connector:</strong> newer boards use USB-C, older ones micro-USB. Either is fine — match the cables you own.</li>
+<li><strong>USB-serial chip:</strong> boards with the CP2102 (Silicon Labs) tend to have the most trouble-free drivers across operating systems; CH340 boards are cheaper and work fine once the driver is installed. The chip is printed in tiny text near the USB port.</li>
+<li><strong>Pin count:</strong> 30-pin "narrow" boards fit a breadboard with one free row per side (easier wiring); 38-pin "wide" boards cover both breadboard power rails (tighter but more pins broken out).</li>
+<li><strong>WROOM vs. WROVER modules:</strong> WROVER modules add extra PSRAM (more RAM for cameras/displays). For sensor nodes, WROOM is plenty.</li>
+<li><strong>Built-in LED and buttons:</strong> confirm the board has EN (reset) and BOOT buttons — both are used constantly in this book.</li>
+</ul>
+<h3 id="powering-the-board">Powering the board</h3>
+<p>Three legitimate ways, in order of preference for beginners: (1) the USB port (5 V, easiest, powers everything including the 3.3 V regulator); (2) the <strong>VIN</strong> pin with a 5 V supply (for installations where USB is awkward); (3) the <strong>3.3 V</strong> pin with a regulated 3.3 V source (advanced — bypasses the regulator, so your supply must be clean). Never feed 5 V into the 3.3 V pin or into a GPIO. For battery projects, start from Chapter 9's power math before choosing a cell.</p>
+<h3 id="honest-limits-what-the-esp32-cannot-do">Honest limits: what the ESP32 cannot do</h3>
+<p>A balanced introduction admits the boundaries — knowing them prevents doomed designs:</p>
+<ul>
+<li><strong>No operating system.</strong> There is no Linux, no filesystem browser, no multitasking shell — just your one program. If you need video processing, complex GUIs, or heavy computation, pair the ESP32 with a Raspberry Pi (ESP32 senses, Pi thinks) rather than forcing it.</li>
+<li><strong>ADC accuracy is modest.</strong> The 12-bit ADC is fine for trends and thresholds but noisy for precision measurement. Laboratory-grade accuracy needs an external ADC chip.</li>
+<li><strong>Wi-Fi is power-hungry.</strong> The radio dominates the energy budget — every connected second costs battery. This is why Chapters 9 and 12 obsess over minimizing awake time.</li>
+<li><strong>Security is your job.</strong> The ESP32 <em>can</em> do TLS, encrypted storage, and secure boot, but none of it is automatic. Prototypes on open brokers and unencrypted HTTP are fine for learning; production deployments need the hardening the dashboard's next-steps list points to.</li>
+<li><strong>2.4 GHz spectrum is crowded.</strong> In dense apartments or conference halls, interference causes exactly the flaky behavior Chapter 6's RSSI survey detects. The ESP32 cannot escape physics — placement and antennas matter.</li>
+</ul>
+<p>None of these disqualify the ESP32 for research sensing; they define where its competence ends and where your engineering begins.</p>
+<h3 id="if-you-are-coming-from-the-esp8266">If you are coming from the ESP8266</h3>
+<p>Migration is mostly painless: <code>WiFi</code>, <code>PubSubClient</code>, and <code>HTTPClient</code> code ports almost unchanged, and GPIO numbers differ so check the pinout. What you gain: more analog inputs, Bluetooth, dual cores, touch pins, DAC, and proper deep-sleep options. What to unlearn: ESP8266's <code>analogRead</code> range is 0–1023 (10-bit) vs. ESP32's 0–4095 — scale any ported thresholds by 4, and re-test rather than assuming.</p>
+<p><strong>Key takeaways:</strong>
+- The ESP32 is a dual-core 32-bit microcontroller with built-in Wi-Fi and Bluetooth, far more capable than an Arduino Uno and nearly the same price as the older ESP8266.
+- Buy a devkit board (module + USB + regulator + pins); any common one works with this book.
+- Every sketch is <code>setup()</code> once + <code>loop()</code> forever — learn that frame and every chapter fits into it.
+- GPIO numbers are logical, not physical; check your board's labeling and avoid strapping/flash pins for general use.</p>
+<hr />
+<h2 id="chapter-2-setting-up-the-arduino-ide-and-installing-esp32-support">Chapter 2: Setting Up the Arduino IDE and Installing ESP32 Support</h2>
+<h3 id="what-you-are-installing">What you are installing</h3>
+<p>Three pieces of software turn your computer into an ESP32 workstation:</p>
+<ol>
+<li><strong>The Arduino IDE</strong> (version 2.x) — the editor where you write sketches, plus the Upload button that compiles your code and flashes it to the board.</li>
+<li><strong>The ESP32 board support package</strong> (the "Arduino-ESP32 core") — teaches the IDE how to compile for the ESP32's processor and which upload settings each board needs.</li>
+<li><strong>A USB-to-serial driver</strong> — lets your computer talk to the chip on the devkit board that translates USB into serial signals. Many boards use a CP210x chip (Silicon Labs) or a CH340 chip; the driver depends on which one your board has.</li>
+</ol>
+<p>You will also install <strong>libraries</strong> (reusable code packages) as chapters need them: the DHT sensor library in Chapter 5, PubSubClient in Chapter 7. Libraries are installed from inside the IDE, not downloaded by hand.</p>
+<h3 id="step-1-install-the-arduino-ide">Step 1 — Install the Arduino IDE</h3>
+<p>Download Arduino IDE 2.x from the official Arduino website (arduino.cc → Software) for your operating system and run the installer. Open it once to confirm it launches. You do not need an Arduino account.</p>
+<h3 id="step-2-add-the-esp32-board-package-url">Step 2 — Add the ESP32 board package URL</h3>
+<p>The IDE learns about third-party boards from a JSON index file. Espressif publishes the official index; add it:</p>
+<ol>
+<li>Open <strong>File → Preferences</strong> (on macOS: <strong>Arduino IDE → Settings</strong>).</li>
+<li>Find <strong>"Additional boards manager URLs"</strong> and paste:
+   <code>https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json</code></li>
+<li>Click OK.</li>
+</ol>
+<p>This URL is published in Espressif's official Arduino-ESP32 documentation. If you have other board URLs there already, separate them with commas.</p>
+<h3 id="step-3-install-the-esp32-core">Step 3 — Install the ESP32 core</h3>
+<ol>
+<li>Open <strong>Tools → Board → Boards Manager</strong> (or click the board icon in the left sidebar).</li>
+<li>Search for <strong>"esp32"</strong>.</li>
+<li>Install the entry titled <strong>"esp32 by Espressif Systems"</strong> (version 2.x or newer).</li>
+<li>Wait for the download to finish — it is large (several hundred MB) because it includes the compiler toolchain.</li>
+</ol>
+<h3 id="step-4-install-the-usb-to-serial-driver-if-needed">Step 4 — Install the USB-to-serial driver (if needed)</h3>
+<p>Plug your ESP32 devkit into your computer with a <strong>data-capable USB cable</strong>. (This is the single most common setup failure: many cheap cables are charge-only and carry no data. If the board's power LED lights but no new serial port appears, swap the cable first.)</p>
+<ul>
+<li><strong>Check for a port:</strong> In the IDE, open <strong>Tools → Port</strong>. You should see a new entry (e.g., <code>COM3</code> on Windows, <code>/dev/ttyUSB0</code> on Linux, <code>/dev/cu.SLAB_USBtoUART</code> or <code>/dev/cu.wchusbserial...</code> on macOS).</li>
+<li><strong>If no port appears:</strong> look at the small black chip near the USB connector on your board. If it says CP2102/CP2104, install the "CP210x USB to UART Bridge" driver from Silicon Labs. If it says CH340/CH341, install the CH340 driver from the manufacturer's site. Then unplug and replug the board.</li>
+</ul>
+<h3 id="step-5-select-your-board-and-port">Step 5 — Select your board and port</h3>
+<ol>
+<li><strong>Tools → Board → ESP32 Arduino → "ESP32 Dev Module"</strong> is the safe generic choice that works with almost every devkit board. (If your board matches a named entry, you may select it, but "ESP32 Dev Module" is fine.)</li>
+<li><strong>Tools → Port →</strong> select the port that appeared when you plugged the board in.</li>
+<li>Leave the other Tools-menu settings at their defaults for now: Upload Speed 921600, CPU Frequency 240 MHz, Flash Size 4 MB. Defaults work.</li>
+</ol>
+<h3 id="step-6-verify-with-a-compile-check">Step 6 — Verify with a compile check</h3>
+<p>You do not need to upload anything yet. Open <strong>File → Examples → 01.Basics → BareMinimum</strong>, then click the checkmark (<strong>Verify</strong>). The bottom console should end with something like:</p>
+<pre><code>Sketch uses 206xxx bytes (15%) of program storage space. Maximum is 1310720 bytes.
+Global variables use 13320 bytes (4%) of dynamic memory, leaving 314360 bytes for local variables. Maximum is 327680 bytes.
+</code></pre>
+<p>Those exact numbers vary by core version; the point is that compilation succeeds with no red error text. If it does, your toolchain is healthy and Chapter 3's first upload should work.</p>
+<h3 id="installing-libraries-you-will-do-this-in-later-chapters">Installing libraries (you will do this in later chapters)</h3>
+<p>The pattern, for reference: <strong>Sketch → Include Library → Manage Libraries</strong>, search by name, click Install. Always install the library the chapter names (there are lookalikes), and note the version number — Chapter 12's capstone asks you to record versions for reproducibility.</p>
+<h3 id="troubleshooting-setup-problems">Troubleshooting setup problems</h3>
+<ul>
+<li><strong>Boards Manager shows no "esp32" entry:</strong> the Additional Boards Manager URL was mistyped or the IDE needs a restart. Re-check the URL character by character.</li>
+<li><strong>Port menu is grayed out:</strong> no serial device detected — cable, driver, or USB port. Try another cable and another USB port; avoid unpowered USB hubs for the first attempt.</li>
+<li><strong>"Access denied" / permission errors on Linux:</strong> your user needs dialout-group access to serial ports (<code>sudo usermod -a -G dialout $USER</code>, then log out and back in).</li>
+<li><strong>Antivirus blocks the upload tool:</strong> rare, but some security software quarantines the uploader binary. Whitelist the Arduino15 packages folder.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> Record your full toolchain in your lab notes from day one: IDE version, ESP32 core version, board selection, and later each library name and version. "Arduino IDE 2.3.4, esp32 core 3.x, ESP32 Dev Module" in a methodology section lets any reader reproduce your firmware environment exactly. Journals increasingly expect this level of detail for embedded work.</p>
+</blockquote>
+<h3 id="tour-of-the-tools-menu-what-each-setting-means">Tour of the Tools menu (what each setting means)</h3>
+<p>After selecting <strong>ESP32 Dev Module</strong>, the Tools menu shows options that look intimidating. You only need to understand five:</p>
+<ul>
+<li><strong>Upload Speed:</strong> how fast the IDE talks to the board during flashing. 921600 (default) is fastest; drop to 115200 if uploads fail on a long or cheap cable.</li>
+<li><strong>CPU Frequency:</strong> 240 MHz (default) is full speed; 80 MHz saves power in battery experiments. Leave at 240 MHz unless Chapter 9 tells you otherwise.</li>
+<li><strong>Flash Size:</strong> 4 MB matches most devkit boards. Only change this if your board's documentation says otherwise.</li>
+<li><strong>Partition Scheme:</strong> how the 4 MB flash is divided between program space and file storage. "Default" is fine; OTA projects later may want "Minimal SPIFFS" or OTA-capable schemes — Chapter 10 explains why.</li>
+<li><strong>PSRAM:</strong> "Disabled" unless your board has a WROVER module with extra RAM.</li>
+</ul>
+<p>A useful habit: if a sketch that compiled yesterday suddenly fails after you explored menus, check that these are back at defaults before debugging anything else.</p>
+<h3 id="keeping-the-core-updated-and-when-not-to">Keeping the core updated (and when not to)</h3>
+<p>Espressif releases new core versions regularly with bug fixes. Update via <strong>Boards Manager</strong> when you start a <em>new</em> project — but never mid-project. A core update can change timing-sensitive behavior just enough to break a working deployment. Chapter 12's capstone asks you to freeze and record versions for exactly this reason: reproducible firmware means a frozen toolchain.</p>
+<h3 id="one-ide-many-machines">One IDE, many machines</h3>
+<p>If you work on a lab computer and a laptop, export your setup: <strong>File → Preferences</strong> shows the sketchbook location (back it up), and Library Manager lists installed versions. Some researchers keep a text file — <code>ide-setup.txt</code> — with IDE version, core version, board URL, and library versions, so any machine becomes a build machine in minutes. Commit that file next to your firmware in version control.</p>
+<h3 id="driver-deep-dive-per-operating-system">Driver deep-dive per operating system</h3>
+<p>Chapter 2's driver step deserves detail, because "no port" is where most beginners stall:</p>
+<ul>
+<li><strong>Windows:</strong> open Device Manager → Ports (COM &amp; LPT). A healthy board appears as "USB Serial Port (COMx)" or "Silicon Labs CP210x". A yellow warning icon means the driver is missing — install the vendor driver, then unplug/replug. Note the COM number; the IDE's Tools → Port must match it.</li>
+<li><strong>macOS:</strong> the port appears as <code>/dev/cu.SLAB_USBtoUART</code> (CP210x) or <code>/dev/cu.wchusbserial...</code> (CH340). On recent macOS versions, unsigned drivers are blocked — approve the driver in System Settings → Privacy &amp; Security after installing, then reboot.</li>
+<li><strong>Linux:</strong> the port is <code>/dev/ttyUSB0</code> (or <code>ttyACM0</code>). Beyond the <code>dialout</code> group from Chapter 2, some distributions need the <code>brltty</code> service removed — it aggressively grabs serial devices for braille displays and is a notorious ESP32 blocker (<code>sudo apt remove brltty</code> on Ubuntu-based systems).</li>
+</ul>
+<h3 id="the-getchipinfo-diagnostic-sketch">The GetChipInfo diagnostic sketch</h3>
+<p>Once you can upload, run this once and save the output — it fingerprints your exact hardware, which ends all "which board do I have?" confusion:</p>
+<pre><code class="language-cpp">// Chip fingerprint: run once, save the output in your lab notes.
+
+#include &quot;esp_system.h&quot;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  esp_chip_info_t info;
+  esp_chip_info(&amp;info);
+
+  Serial.print(&quot;Chip model: &quot;);
+  Serial.println(info.model == CHIP_ESP32 ? &quot;ESP32&quot; : &quot;ESP32 variant&quot;);
+  Serial.print(&quot;Cores: &quot;);
+  Serial.println(info.cores);
+  Serial.print(&quot;Revision: &quot;);
+  Serial.println(info.revision);
+  Serial.print(&quot;Flash size: &quot;);
+  Serial.print(spi_flash_get_chip_size() / (1024 * 1024));
+  Serial.println(&quot; MB&quot;);
+  Serial.print(&quot;MAC address: &quot;);
+  Serial.println(WiFi.macAddress());
+  Serial.print(&quot;Free heap: &quot;);
+  Serial.print(ESP.getFreeHeap());
+  Serial.println(&quot; bytes&quot;);
+}
+
+void loop() {}
+</code></pre>
+<p><strong>Expected output</strong> (values vary by board):</p>
+<pre><code>Chip model: ESP32
+Cores: 2
+Revision: 3
+Flash size: 4 MB
+MAC address: 24:6F:28:A1:B2:C3
+Free heap: 295312 bytes
+</code></pre>
+<p>The MAC address is globally unique to your board — it is the same value the MQTT chapters use to build unique client IDs. The free-heap line is your early-warning gauge: if it shrinks steadily across hours of runtime, you have a memory leak (Chapter 11's territory).</p>
+<h3 id="the-ide-tour-features-beginners-miss">The IDE tour: features beginners miss</h3>
+<p>A few IDE capabilities pay off immediately:</p>
+<ul>
+<li><strong>Auto-format (Ctrl/Cmd+T):</strong> fixes indentation instantly. Run it before asking anyone to read your code.</li>
+<li><strong>Find in sketch (Ctrl/Cmd+F):</strong> essential when renaming a pin used in six places.</li>
+<li><strong>Verbose output</strong> (Preferences → "Show verbose output during compilation/upload"): when an upload fails mysteriously, verbose logs reveal the exact command and response — include the relevant lines in forum posts.</li>
+<li><strong>Multiple Serial Monitor windows:</strong> the IDE 2.x monitor is per-window; keep one monitor open while editing by detaching it, so you never lose the log when recompiling.</li>
+<li><strong>Sketchbook organization:</strong> one folder per project, descriptive names (<code>greenhouse-node-v1</code>, not <code>sketch_oct8a</code>). The IDE requires the folder name to match the <code>.ino</code> filename — renaming means renaming the folder too.</li>
+</ul>
+<h3 id="backing-up-your-work">Backing up your work</h3>
+<p>Enable the sketchbook backup habit now: copy your sketchbook folder to cloud storage or, better, initialize a Git repository per project. <code>git init</code>, commit working versions with messages ("v1.0 - bench-tested MQTT publish"), and tag releases. When Chapter 12 asks for an archived firmware file, a tagged Git commit <em>is</em> the archive — and <code>git diff</code> answers "what changed between the working version and this broken one?" faster than any memory.</p>
+<h3 id="when-the-ide-is-not-enough-portable-installs-and-arduino-cli">When the IDE is not enough: portable installs and Arduino CLI</h3>
+<p>Two situations outgrow the standard install:</p>
+<ul>
+<li><strong>Lab computers without admin rights:</strong> download the IDE's ZIP (not the installer) from arduino.cc, extract it to a USB stick or your user folder, and run it portably — no admin needed. Point its sketchbook to a folder you own. The board-manager URL and core install work identically.</li>
+<li><strong>Arduino CLI:</strong> for automation (CI pipelines, flashing ten boards identically), the command-line <code>arduino-cli</code> compiles and uploads without the GUI: <code>arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1</code> and <code>arduino-cli upload -p /dev/ttyUSB0</code>. Researchers scripting reproducible builds eventually migrate here; the IDE remains the right learning tool.</li>
+</ul>
+<p>Either way, the toolchain components are the same three from this chapter's opening — IDE/CLI, ESP32 core, USB driver. Understand the pieces and every environment becomes familiar.</p>
+<p><strong>Key takeaways:</strong>
+- Install the IDE, add Espressif's board-manager URL, install the "esp32 by Espressif Systems" core, and fix the USB-serial driver if no port appears.
+- Use a data-capable USB cable — charge-only cables are the #1 silent setup failure.
+- "ESP32 Dev Module" + the correct Port is the generic board selection that works for most devkits.
+- Verify the toolchain with a BareMinimum compile before you ever press Upload.</p>
+<hr />
+<h2 id="chapter-3-your-first-sketch-blink-and-serial-monitor">Chapter 3: Your First Sketch: Blink and Serial Monitor</h2>
+<h3 id="the-plan">The plan</h3>
+<p>You will upload a sketch that blinks the board's built-in LED once per second and prints <code>LED ON</code> / <code>LED OFF</code> messages to the Serial Monitor. This single exercise tests your entire chain: code → compile → upload → execution → observation. Every later chapter assumes this chain works, so do not skip it.</p>
+<h3 id="wiring">Wiring</h3>
+<p>None. The built-in LED is already on the board, and the USB cable carries both power and the serial messages. This is the only chapter with zero wiring — enjoy it.</p>
+<h3 id="the-sketch">The sketch</h3>
+<p>Type this into a new sketch (or open it from the examples and modify). Read the comments; they explain each line's job.</p>
+<pre><code class="language-cpp">// Blink + Serial hello world for ESP32.
+// Blinks the built-in LED and reports each change over serial.
+
+const int LED_PIN = 2;   // Built-in LED on many ESP32 devkit boards.
+                         // CHECK YOUR BOARD: some boards use a different
+                         // pin, or have no built-in LED at all.
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);      // Tell the ESP32 this pin will drive an output.
+  Serial.begin(115200);          // Open the serial port at 115200 baud.
+  delay(1000);                   // Give the Serial Monitor a moment to connect.
+  Serial.println(&quot;ESP32 blink starting...&quot;);
+  Serial.print(&quot;Built-in LED on GPIO &quot;);
+  Serial.println(LED_PIN);
+}
+
+void loop() {
+  digitalWrite(LED_PIN, HIGH);   // LED on
+  Serial.println(&quot;LED ON&quot;);
+  delay(1000);                  // wait 1 second
+
+  digitalWrite(LED_PIN, LOW);   // LED off
+  Serial.println(&quot;LED OFF&quot;);
+  delay(1000);                  // wait 1 second
+}
+</code></pre>
+<p>Three ideas to absorb here, because they recur in every later chapter:</p>
+<ul>
+<li><strong><code>pinMode(pin, OUTPUT)</code></strong> configures a GPIO as an output before you use it. Forgetting <code>pinMode</code> is a classic beginner bug — the pin then floats and does nothing predictable.</li>
+<li><strong><code>Serial.begin(115200)</code></strong> must run before any <code>Serial.print</code>. The number is the <strong>baud rate</strong> (bits per second); the Serial Monitor must be set to the same value or you see gibberish.</li>
+<li><strong><code>delay(1000)</code></strong> pauses for 1000 milliseconds. Simple and fine for learning; later chapters replace it with non-blocking timing where responsiveness matters.</li>
+</ul>
+<h3 id="uploading">Uploading</h3>
+<ol>
+<li>Select <strong>Tools → Board → ESP32 Dev Module</strong> and <strong>Tools → Port →</strong> your board's port (from Chapter 2).</li>
+<li>Click <strong>Upload</strong> (the right-arrow icon). The IDE compiles, then you will see <code>Connecting...</code> in the console.</li>
+<li><strong>If the upload stalls at <code>Connecting...</code>:</strong> press and <em>hold</em> the <strong>BOOT</strong> button on the board, and while holding it, the upload should proceed; release BOOT once you see <code>Writing...</code>. Many devkit boards need this manual step because their auto-reset circuitry is marginal. (Chapter 11 explains why.)</li>
+<li>Success ends with <code>Hard resetting via RTS pin...</code> and the board reboots into your program.</li>
+</ol>
+<h3 id="opening-the-serial-monitor-and-what-you-should-see">Opening the Serial Monitor and what you should see</h3>
+<p>Click the magnifying-glass icon (Serial Monitor), and set the baud-rate dropdown (bottom right) to <strong>115200</strong>. Press the <strong>EN/RST</strong> button on the board once to reboot cleanly. You should see:</p>
+<pre><code>ESP32 blink starting...
+Built-in LED on GPIO 2
+LED ON
+LED OFF
+LED ON
+LED OFF
+...
+</code></pre>
+<p>with each pair about one second apart, and the physical LED blinking in sync. That is the whole victory: your code is running on the chip.</p>
+<h3 id="reading-the-boot-messages-bonus-diagnostics">Reading the boot messages (bonus diagnostics)</h3>
+<p>When the ESP32 resets, before your sketch starts it prints a few lines like <code>rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)</code> followed by configuration lines. You do not need to understand them now, but notice they exist: when something goes wrong later, the <em>absence</em> of your sketch's first <code>Serial.println</code> combined with repeating boot text tells you the board is <strong>crash-looping</strong> (resetting over and over) — one of the most important diagnostic patterns in Chapter 11.</p>
+<h3 id="troubleshooting">Troubleshooting</h3>
+<ul>
+<li><strong>LED does not blink but serial messages appear:</strong> your board's built-in LED is on a different GPIO (or absent). The program is actually working — connect an external LED (with a ~220 Ω resistor in series) between another GPIO and GND, change <code>LED_PIN</code>, and re-upload. Chapter 4's button wiring shows the breadboard technique.</li>
+<li><strong>Serial Monitor shows gibberish (<code>⸮⸮⸮</code>):</strong> baud mismatch. Set the monitor to 115200 to match <code>Serial.begin(115200)</code>.</li>
+<li><strong>Serial Monitor shows nothing at all:</strong> wrong port selected, cable issue, or the sketch never uploaded (check the console for upload errors first).</li>
+<li><strong><code>A fatal error occurred: Failed to connect to ESP32</code>:</strong> hold BOOT during upload (step 3 above); also try lowering <strong>Tools → Upload Speed</strong> to 115200.</li>
+<li><strong>Upload succeeds but the old program still runs:</strong> you uploaded to the wrong port (two boards plugged in?) — check <strong>Tools → Port</strong>.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> The Serial Monitor is your first scientific instrument. Get into the habit of printing a startup banner with a program name and version (<code>Serial.println("Field node firmware v0.1")</code>), and timestamping important events. When a field deployment misbehaves months later, these logs are the only witness you have. Chapter 12's capstone uses this discipline throughout.</p>
+</blockquote>
+<h3 id="what-actually-happens-when-you-press-upload">What actually happens when you press Upload</h3>
+<p>Demystifying this saves real debugging time later:</p>
+<ol>
+<li><strong>Compile:</strong> your <code>.ino</code> file plus the Arduino core libraries are compiled into a binary firmware image. Errors here are <em>your code's</em> fault (syntax, missing libraries).</li>
+<li><strong>Reset into download mode:</strong> the IDE toggles the serial control lines to reboot the chip into its ROM bootloader, which listens for flashing commands. Failures here are <em>hardware/connection</em> faults — the <code>Failed to connect</code> family from the troubleshooting section.</li>
+<li><strong>Write:</strong> the image is transferred to flash, sector by sector (<code>Writing at 0x00010000...</code>). Interrupt this (unplug the cable) and the flash holds a half-written image — the board will crash-loop until you re-flash cleanly.</li>
+<li><strong>Hard reset:</strong> the chip reboots into your program.</li>
+</ol>
+<p>Knowing these stages tells you where to look: red text during stage 1 is code; hanging at "Connecting..." is stage 2; garbage after a successful write is stage 4 (your program crashing — Chapter 11, error #7).</p>
+<h3 id="talking-back-reading-serial-input">Talking back: reading Serial input</h3>
+<p>Serial is bidirectional. This small sketch echoes what you type and toggles the LED on command — your first taste of <em>control</em>, which Chapter 7 extends over MQTT:</p>
+<pre><code class="language-cpp">// Serial command receiver: type &quot;on&quot; / &quot;off&quot; in the Serial Monitor.
+
+const int LED_PIN = 2;
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(115200);
+  Serial.println(&quot;Type 'on' or 'off' and press Enter.&quot;);
+  Serial.println(&quot;(Set the Serial Monitor line ending to 'Newline'.)&quot;);
+}
+
+void loop() {
+  if (Serial.available()) {                 // any incoming text?
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();                             // drop whitespace/newline
+    cmd.toLowerCase();
+    if (cmd == &quot;on&quot;) {
+      digitalWrite(LED_PIN, HIGH);
+      Serial.println(&quot;LED is ON&quot;);
+    } else if (cmd == &quot;off&quot;) {
+      digitalWrite(LED_PIN, LOW);
+      Serial.println(&quot;LED is OFF&quot;);
+    } else {
+      Serial.println(&quot;Unknown command. Try 'on' or 'off'.&quot;);
+    }
+  }
+}
+</code></pre>
+<p>Two details beginners miss: set the Serial Monitor's <strong>line-ending</strong> dropdown to "Newline" so <code>readStringUntil('\n')</code> terminates, and note <code>cmd.trim()</code> — invisible carriage-return characters are a classic source of "but I typed it right!" bugs.</p>
+<h3 id="bonus-the-serial-plotter">Bonus: the Serial Plotter</h3>
+<p><strong>Tools → Serial Plotter</strong> draws numeric serial output as live graphs. Change the loop to <code>Serial.println(analogRead(34));</code> with the LDR circuit (or just leave the pin floating to see noise), open the Plotter at 115200 baud, and watch the waveform as you shade the sensor. Researchers use exactly this technique for quick-look signal inspection before committing to logged experiments.</p>
+<h3 id="your-first-non-blocking-blink-delay-vs-millis">Your first non-blocking blink: <code>delay()</code> vs. <code>millis()</code></h3>
+<p><code>delay()</code> freezes the entire processor — during a <code>delay(1000)</code>, the ESP32 cannot read buttons, service MQTT, or handle OTA. For one LED it is fine; for every later chapter it is a liability. Here is the same blink rewritten so the processor stays free — study it, because Chapters 4, 7, and 12 all depend on this pattern:</p>
+<pre><code class="language-cpp">// Non-blocking blink: identical behavior, zero delay() calls.
+
+const int LED_PIN = 2;
+const unsigned long BLINK_INTERVAL = 1000;
+
+int ledState = LOW;
+unsigned long previousToggle = 0;
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  unsigned long now = millis();
+  if (now - previousToggle &gt;= BLINK_INTERVAL) {
+    previousToggle = now;                 // reset the timer
+    ledState = (ledState == LOW) ? HIGH : LOW;
+    digitalWrite(LED_PIN, ledState);
+    Serial.println(ledState == HIGH ? &quot;LED ON&quot; : &quot;LED OFF&quot;);
+  }
+  // The processor is free here to do other work between blinks.
+}
+</code></pre>
+<p>The logic: remember <em>when</em> you last acted, and each loop pass ask "has enough time passed?" The subtraction <code>now - previousToggle</code> even survives the <code>millis()</code> rollover (every ~49 days) because unsigned arithmetic wraps correctly. From here on, treat <code>delay()</code> as a prototyping shortcut and <code>millis()</code> timing as the production technique.</p>
+<h3 id="code-style-comments-that-help-future-you">Code style: comments that help future-you</h3>
+<p>Every sketch in this book is commented in the same style: a header block (what it does, wiring, libraries), then one-line comments on non-obvious lines. Adopt three rules: comment the <em>why</em>, not the <em>what</em> (<code>// DHT22 needs 2 s between reads</code> beats <code>// delay 2000</code>); keep a change log at the top of evolving sketches (<code>// v1.2 - increased publish interval to 60 s</code>); and never commit credentials to shared code — mark them <code>// &lt;-- EDIT</code> so future-you (and collaborators) know what to change per deployment.</p>
+<h3 id="blink-lab-three-variations-with-solutions">Blink lab: three variations (with solutions)</h3>
+<p>Prove you own the pattern by building these. Solutions follow — attempt first.</p>
+<p><strong>Lab A — Alternating two LEDs.</strong> Wire a second LED (with 220 Ω resistor) between GPIO 15 and GND. Blink them alternately: built-in on while external off, then swap, 500 ms each.</p>
+<p><strong>Lab B — Fading LED.</strong> The ESP32 has no true <code>analogWrite</code> like the Uno; it uses the LEDC PWM peripheral, but the Arduino core provides <code>analogWrite()</code> compatibility on most pins. Fade the external LED smoothly up and down:</p>
+<pre><code class="language-cpp">// Solution B: fade with PWM.
+const int LED_PIN = 15;
+void setup() { pinMode(LED_PIN, OUTPUT); }
+void loop() {
+  for (int b = 0; b &lt;= 255; b += 5) { analogWrite(LED_PIN, b); delay(20); }
+  for (int b = 255; b &gt;= 0; b -= 5) { analogWrite(LED_PIN, b); delay(20); }
+}
+</code></pre>
+<p><strong>Lab C — SOS beacon.</strong> Blink SOS in Morse on the built-in LED (dot = 200 ms on, dash = 600 ms on, 200 ms gap between symbols, 1 s gap between letters), printing each symbol to serial.</p>
+<pre><code class="language-cpp">// Solution C: SOS beacon.
+const int LED_PIN = 2;
+void blinkSymbol(int ms, const char* name) {
+  digitalWrite(LED_PIN, HIGH); Serial.println(name); delay(ms);
+  digitalWrite(LED_PIN, LOW);  delay(200);
+}
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(115200);
+}
+void loop() {
+  for (int i = 0; i &lt; 3; i++) blinkSymbol(200, &quot;dot&quot;);    // S
+  delay(800);
+  for (int i = 0; i &lt; 3; i++) blinkSymbol(600, &quot;dash&quot;);   // O
+  delay(800);
+  for (int i = 0; i &lt; 3; i++) blinkSymbol(200, &quot;dot&quot;);    // S
+  delay(2000);
+}
+</code></pre>
+<p>Lab C introduces <strong>functions</strong> (<code>blinkSymbol</code>) — named, reusable blocks that take parameters. From here on, every chapter organizes code into functions (<code>connectWiFi()</code>, <code>publishReading()</code>), and the capstone is readable because of it. If you can write Lab C from scratch without peeking, Chapter 4 will feel easy.</p>
+<p><strong>Key takeaways:</strong>
+- Blink + Serial tests the full toolchain: write → compile → upload → run → observe.
+- <code>pinMode</code>, <code>digitalWrite</code>, <code>Serial.begin</code>/<code>Serial.println</code>, <code>delay</code> — these five calls carry you through half of embedded programming.
+- Match the Serial Monitor baud rate to <code>Serial.begin()</code> or you get gibberish.
+- If upload stalls at <code>Connecting...</code>, hold the BOOT button until writing starts.
+- Repeating boot text with no sketch output = crash loop; learn to recognize it.</p>
+<hr />
+<h2 id="chapter-4-digital-input-buttons-and-debouncing">Chapter 4: Digital Input: Buttons and Debouncing</h2>
+<h3 id="digital-signals-the-two-state-world">Digital signals: the two-state world</h3>
+<p>A <strong>digital input</strong> pin reads only two states: HIGH (voltage near 3.3 V on the ESP32) or LOW (voltage near 0 V). Push buttons, PIR motion sensors, door switches, and rain-drop digital outputs all speak this language. Your job is to wire the button so that pressing it forces a clean HIGH→LOW or LOW→HIGH transition, and to read it without being fooled by electrical noise.</p>
+<h3 id="the-floating-pin-trap-and-the-internal-pull-up">The floating-pin trap and the internal pull-up</h3>
+<p>A GPIO configured as <code>INPUT</code> with nothing connected does not read a neat 0 — it <strong>floats</strong>, picking up stray electromagnetic noise and returning random HIGH/LOW values. The fix is a <strong>pull-up</strong> (or pull-down) resistor that gently holds the pin at a known level until the button overrides it. The ESP32 has built-in pull-up resistors you enable in software, so no extra component is needed:</p>
+<pre><code class="language-cpp">pinMode(BUTTON_PIN, INPUT_PULLUP);
+</code></pre>
+<p>With <code>INPUT_PULLUP</code>, the pin idles HIGH. Wire the button between the GPIO pin and GND; pressing it connects the pin to ground, so it reads LOW. <strong>Pressed = LOW</strong> feels backwards at first, but it is the standard, reliable pattern — memorize it.</p>
+<h3 id="wiring-the-button">Wiring the button</h3>
+<p>You need: a push button, two jumper wires, and a breadboard (plus the USB cable already connected).</p>
+<ol>
+<li>Plug the button across the breadboard's center groove so its legs sit in separate rows.</li>
+<li>Connect one button leg to <strong>GPIO 15</strong> with a jumper wire. (GPIO 15 is a widely safe general-purpose input on most devkit boards; avoid the strapping-sensitive boot pins listed in the dashboard until you know your board.)</li>
+<li>Connect the diagonally opposite button leg to <strong>GND</strong>.</li>
+<li>No resistor is needed — <code>INPUT_PULLUP</code> handles it.</li>
+</ol>
+<p>Double-check: one side of the button goes to the GPIO, the other side to GND, and the two wires must be on electrically <em>different</em> legs of the button (legs on the same side of many tactile buttons are internally connected — if the button seems to do nothing, rotate it 90°).</p>
+<h3 id="the-sketch-counting-presses-with-debouncing">The sketch: counting presses with debouncing</h3>
+<p>A mechanical button does not make one clean contact when pressed — the metal contacts <strong>bounce</strong>, opening and closing several times over a few milliseconds. Without handling this, one press counts as 3–8 presses. The standard cure is <strong>debouncing</strong>: ignore any change that happens within ~50 ms of the previous accepted change.</p>
+<pre><code class="language-cpp">// Button press counter with software debouncing (ESP32).
+// Wiring: button between GPIO 15 and GND, using the internal pull-up.
+
+const int BUTTON_PIN = 15;
+const unsigned long DEBOUNCE_DELAY = 50;  // milliseconds
+
+int pressCount = 0;
+int lastStableState = HIGH;    // idle state with pull-up
+int lastReading = HIGH;
+unsigned long lastDebounceTime = 0;
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println(&quot;Button counter ready. Press the button!&quot;);
+}
+
+void loop() {
+  int reading = digitalRead(BUTTON_PIN);
+
+  // If the reading changed, restart the debounce timer.
+  if (reading != lastReading) {
+    lastDebounceTime = millis();
+  }
+
+  // If the reading has been stable longer than the debounce delay,
+  // accept it as the real state.
+  if ((millis() - lastDebounceTime) &gt; DEBOUNCE_DELAY) {
+    if (reading != lastStableState) {
+      lastStableState = reading;
+      // Count only the press (HIGH -&gt; LOW), not the release.
+      if (lastStableState == LOW) {
+        pressCount++;
+        Serial.print(&quot;Button pressed! Count = &quot;);
+        Serial.println(pressCount);
+      }
+    }
+  }
+
+  lastReading = reading;
+}
+</code></pre>
+<p>Two professional habits are embedded here:</p>
+<ul>
+<li><strong><code>millis()</code> instead of <code>delay()</code> for timing.</strong> <code>millis()</code> returns milliseconds since boot; comparing timestamps lets the loop keep running (reading the button continuously) instead of freezing. This non-blocking pattern becomes essential in Chapters 7–8, where the program must service the network while watching sensors.</li>
+<li><strong>Edge detection, not level detection.</strong> We count the <em>transition</em> HIGH→LOW (the press), not "the button is currently LOW" — otherwise holding the button would count hundreds of presses.</li>
+</ul>
+<h3 id="serial-monitor-expected-output">Serial Monitor: expected output</h3>
+<pre><code>Button counter ready. Press the button!
+Button pressed! Count = 1
+Button pressed! Count = 2
+Button pressed! Count = 3
+</code></pre>
+<p>Each physical press adds exactly one. Rapid deliberate presses each register; a single press never jumps by more than one.</p>
+<h3 id="troubleshooting_1">Troubleshooting</h3>
+<ul>
+<li><strong>Count increases without touching the button:</strong> the pin is floating — you forgot <code>INPUT_PULLUP</code>, or the GND wire is loose. A floating input is the #1 cause of "phantom" triggers.</li>
+<li><strong>One press counts multiple times:</strong> debounce delay too short or missing; increase <code>DEBOUNCE_DELAY</code> to 80–100 ms for cheap buttons.</li>
+<li><strong>Pressing does nothing:</strong> button legs wired to the same internal contact (rotate the button 90°), wrong GPIO number in code, or the wire is in the wrong breadboard row (check continuity of your rows — breadboard power rails sometimes have a gap in the middle).</li>
+<li><strong>Works on USB power but not on battery later:</strong> a weak supply browns out during Wi-Fi bursts; not a button problem — see Chapter 11.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> Buttons are the simplest <strong>event source</strong>, and event-driven thinking underlies real deployments: a PIR motion sensor on a digital pin is just a button pressed by a warm body. When you publish sensor-node work, describe inputs as <em>events with timestamps</em> — "motion events were logged with millisecond timestamps via interrupt-safe polling" reads far better than "we checked the sensor." This chapter's <code>millis()</code> timestamp pattern is the seed of proper data logging.</p>
+</blockquote>
+<h3 id="polling-vs-interrupts-two-ways-to-watch-a-pin">Polling vs. interrupts: two ways to watch a pin</h3>
+<p>So far we <strong>poll</strong> the button: <code>loop()</code> checks it thousands of times per second. Polling is simple and perfectly fine here. The alternative is an <strong>interrupt</strong>: you tell the hardware "call this function the instant the pin changes," and the processor drops what it is doing to run it. Interrupts react in microseconds and work even when <code>loop()</code> is busy — essential for counting fast pulses (e.g., a water-flow sensor or anemometer).</p>
+<p>A minimal interrupt example for the same button:</p>
+<pre><code class="language-cpp">// Button via interrupt: counts presses without polling.
+
+const int BUTTON_PIN = 15;
+volatile int pressCount = 0;          // volatile: shared with the interrupt
+volatile unsigned long lastPress = 0;
+
+void IRAM_ATTR onPress() {            // IRAM_ATTR: keep the handler in fast RAM
+  unsigned long now = millis();
+  if (now - lastPress &gt; 50) {         // debounce inside the interrupt
+    pressCount++;
+    lastPress = now;
+  }
+}
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), onPress, FALLING);
+  Serial.begin(115200);
+}
+
+void loop() {
+  static int shown = 0;
+  if (pressCount != shown) {          // pick up the count set by the interrupt
+    shown = pressCount;
+    Serial.print(&quot;Count = &quot;);
+    Serial.println(shown);
+  }
+  delay(100);
+}
+</code></pre>
+<p>Interrupt rules to memorize: keep the handler <strong>short</strong> (no <code>delay()</code>, no <code>Serial.print</code> inside — set a flag and handle it in <code>loop()</code>), mark shared variables <strong><code>volatile</code></strong>, and debounce anyway. For this book's projects polling is enough; reach for interrupts when you start counting fast sensor pulses.</p>
+<h3 id="multiple-buttons-and-pull-downs">Multiple buttons and pull-downs</h3>
+<p>For two or three buttons, duplicate the Chapter 4 pattern per pin — each button gets its own GPIO, its own GND connection, and its own debounce state (use arrays or small structs once it grows). The ESP32 also offers <code>INPUT_PULLDOWN</code> (pin idles LOW; button wired to 3.3 V reads HIGH when pressed) — electrically equivalent, but the pull-up-to-GND convention is more standard, and some strapping pins misbehave with pull-downs at boot. Prefer <code>INPUT_PULLUP</code> unless you have a reason not to.</p>
+<h3 id="applied-digital-input-the-pir-motion-sensor">Applied digital input: the PIR motion sensor</h3>
+<p>A <strong>PIR (passive infrared) motion sensor</strong> (the common HC-SR501 module) is a digital input with a brain: it outputs HIGH for a few seconds when it detects a warm moving body, then returns LOW. Electrically it is just a button pressed by physics — the Chapter 4 pattern applies directly, which is exactly why the chapter matters beyond buttons.</p>
+<p><strong>Wiring (HC-SR501):</strong> VCC → 5 V pin (most modules want 5 V; the ESP32's VIN/USB rail provides it — check your module), OUT → GPIO 15, GND → GND. The module's output is 3.3 V logic, safe for the ESP32 pin. Two orange potentiometers adjust sensitivity and output-hold time; the white jumper sets retrigger mode.</p>
+<pre><code class="language-cpp">// PIR motion event logger with timestamps.
+
+const int PIR_PIN = 15;
+
+int lastState = LOW;
+unsigned long motionStart = 0;
+
+void setup() {
+  pinMode(PIR_PIN, INPUT);   // the module drives the pin; no pull-up needed
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println(&quot;PIR warming up (30-60 s for the sensor to stabilize)...&quot;);
+  delay(30000);              // PIR modules need a settle period after power-on
+  Serial.println(&quot;Monitoring for motion. Timestamps are millis() since boot.&quot;);
+}
+
+void loop() {
+  int state = digitalRead(PIR_PIN);
+  if (state == HIGH &amp;&amp; lastState == LOW) {
+    motionStart = millis();
+    Serial.print(&quot;Motion START at &quot;);
+    Serial.print(motionStart);
+    Serial.println(&quot; ms&quot;);
+  } else if (state == LOW &amp;&amp; lastState == HIGH) {
+    Serial.print(&quot;Motion END at &quot;);
+    Serial.print(millis());
+    Serial.print(&quot; ms (duration &quot;);
+    Serial.print(millis() - motionStart);
+    Serial.println(&quot; ms)&quot;);
+  }
+  lastState = state;
+}
+</code></pre>
+<p><strong>Expected output</strong> (wave your hand past the sensor):</p>
+<pre><code>PIR warming up (30-60 s for the sensor to stabilize)...
+Monitoring for motion. Timestamps are millis() since boot.
+Motion START at 41230 ms
+Motion END at 46891 ms (duration 5661 ms)
+</code></pre>
+<p>Edge detection again — START and END events, each timestamped. This is the raw material of occupancy studies, intruder alerts, and wildlife counters. Note the warm-up delay: PIR sensors report garbage for 30–60 s after power-on, a hardware fact that belongs in your methodology ("first 60 s of each deployment discarded").</p>
+<h3 id="breadboard-anatomy-the-skill-nobody-teaches">Breadboard anatomy: the skill nobody teaches</h3>
+<p>If you have never used a solderless breadboard, its hidden connections are genuinely confusing. Here is the map:</p>
+<ul>
+<li><strong>Terminal strips</strong> (the main field): columns of 5 connected holes. A component leg in hole A1 connects to holes B1–E1 (same column number), but <em>not</em> to A2. Each column is an isolated 5-hole node.</li>
+<li><strong>Center groove:</strong> the two halves are electrically separate — that is why Chapter 4's button straddles the groove (its legs land in unconnected columns). A wire or component crossing the groove connects nothing by itself.</li>
+<li><strong>Power rails</strong> (the long red/blue rows on the edges): continuous strips for distributing 3V3 and GND. Warning: on many full-size boards the rail has a <strong>gap in the middle</strong> — the left half does not connect to the right half. If "GND stops working halfway across the board," bridge the gap with a jumper.</li>
+<li><strong>Jumper wires:</strong> male-to-male for breadboard-to-breadboard, male-to-female for board pins to breadboard. Buy an assortment; solid-core wires in a kit are fine, but never force an oversized pin into a hole — it springs the contact and that hole becomes unreliable forever.</li>
+</ul>
+<p><strong>The five wiring mistakes everyone makes once:</strong> (1) button legs on internally-connected pins (rotate 90°); (2) LED without a resistor (burns the LED, stresses the pin — always ~220 Ω in series); (3) rail gap in the middle; (4) wire one hole off from the intended column; (5) powering the breadboard rail from 5 V while the sensor expects 3.3 V. When a circuit misbehaves, re-derive every connection against this map before blaming code.</p>
+<p><strong>Key takeaways:</strong>
+- Digital inputs are HIGH/LOW; always terminate an input with a pull-up or pull-down so it never floats.
+- <code>INPUT_PULLUP</code> + button-to-GND means pressed = LOW; no external resistor needed.
+- Mechanical contacts bounce — debounce in software (~50 ms) and count edge

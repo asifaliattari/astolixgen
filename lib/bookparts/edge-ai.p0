@@ -1,0 +1,236 @@
+<h1 id="edge-ai-vs-cloud-ai">Edge AI vs Cloud AI</h1>
+<p><strong>Book 33 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover" src="/learn/images/media-generation-book-33-edge-ai-cover-0-a8192eca-9faf-4c74-92c0-aea4a6fa1a9a.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>Where should intelligence live — on the device or in the cloud? This book gives you the full decision framework: latency, bandwidth, privacy, cost, and energy models for edge vs cloud AI, hybrid architectures that split the work, and how to evaluate the trade-off experimentally. You will learn to design the comparison studies that IoT and systems venues expect, and to justify your placement decision with numbers rather than slogans.</p>
+<p><strong>Learning objectives:</strong>
+- Model latency, bandwidth, cost, and energy for edge vs cloud
+- Identify workloads suited to edge, cloud, or hybrid placement
+- Design edge-cloud partitioning and early-exit architectures
+- Evaluate placement decisions experimentally
+- Account for privacy, regulation, and offline operation
+- Write a publishable edge-vs-cloud comparison study</p>
+<hr />
+<h2 id="chapter-1-the-placement-question">Chapter 1: The Placement Question</h2>
+<p>Every AI system answers, explicitly or not: where does inference run? <strong>Cloud AI</strong> sends data to datacenters with effectively unlimited compute. <strong>Edge AI</strong> runs inference on local devices — from gateways and phones down to microcontrollers (TinyML, Book 32). The choice shapes everything: latency, cost structure, privacy posture, and what happens when the network fails.</p>
+<p>The naive view is "cloud is powerful, edge is weak." The research view is a multi-objective optimization over constraints that differ per application. A voice assistant needs &lt;300 ms response; a crop-yield predictor runs once a day. A hospital cannot send patient scans off-site; a social app already does. There is no universal answer — which is exactly why placement studies are publishable: the answer changes as hardware, networks, and models evolve.</p>
+<p><strong>Example:</strong> A factory vibration monitor sampling at 10 kHz generates 1.7 GB/day per machine. Cloud: $X/month in data transfer + 200 ms alert latency. Edge: $15 gateway per machine, 5 ms alerts, works during network outages. The edge wins on latency, reliability, and cost — but only because the data rate is high and the model is small.</p>
+<p><strong>For your research:</strong> State the placement decision as a function of measurable quantities (data rate, latency budget, model size, connectivity). "Edge vs cloud" papers that just assert are weak; ones that derive the crossover point are strong.</p>
+<p><strong>Key takeaway:</strong> Placement is a multi-objective optimization — derive the crossover, don't assert it.</p>
+<hr />
+<h2 id="chapter-2-latency-modeling-the-round-trip">Chapter 2: Latency — Modeling the Round Trip</h2>
+<p>Cloud inference latency = network uplink + queueing + inference + downlink. On a 4G link, the network alone is 50–150 ms each way; inference adds 10–100 ms. Edge inference latency = local inference only, typically 1–50 ms on gateways, sub-second on MCUs. For interactive applications (voice, AR, robotics control), the network round trip dominates and edge is mandatory. For batch analytics, latency barely matters and cloud wins on throughput.</p>
+<p>Model it: measure each component separately. Use ping/iperf for network, and instrument inference time on both targets. Report percentiles (p50/p99), not means — tail latency is what users feel, and cloud tails are long (congestion, cold starts).</p>
+<p><strong>Example:</strong> Keyword spotting: cloud round trip p99 = 900 ms (kills usability); edge = 25 ms p99. Image classification for a daily report: cloud p99 = 1.2 s (irrelevant); edge would need a bigger device for no benefit.</p>
+<p><strong>For your research:</strong> A latency decomposition table (network vs inference, p50/p99, edge vs cloud) is a standard, expected figure in placement papers. Include cold-start effects for serverless cloud inference.</p>
+<p><strong>Key takeaway:</strong> Decompose latency into network + inference; report p99; the network round trip usually decides.</p>
+<hr />
+<h2 id="chapter-3-bandwidth-and-data-gravity">Chapter 3: Bandwidth and Data Gravity</h2>
+<p>Bandwidth cost has two faces: money and feasibility. Money: cloud providers charge per GB ingested and per million inference requests; at high data rates, transfer dominates the bill. Feasibility: many deployments have no high-bandwidth link at all (LoRa, rural 2G, satellite) — sending raw sensor data is physically impossible, so edge processing isn't an optimization, it's a requirement.</p>
+<p>"Data gravity" is the observation that large, continuously generated datasets pull computation toward themselves. A single 4K camera at 15 fps is ~150 GB/day; a hundred cameras is 15 TB/day. No reasonable budget moves that to the cloud in real time. Edge filtering (detect events locally, upload only clips) typically cuts data by 100–1000×.</p>
+<p><strong>Example:</strong> A traffic-monitoring study: 40 cameras → edge detection of vehicles (YOLO-tiny on Jetson) → upload only counts and 10-s event clips. Data reduced from 6 TB/day to 18 GB/day; cloud bill dropped 97%; detection latency fell from 2 s to 120 ms.</p>
+<p><strong>For your research:</strong> Quantify the data-reduction ratio of your edge filtering. "We reduce uplink data 340× while preserving 98.7% event recall" is a result.</p>
+<p><strong>Key takeaway:</strong> High data rates make edge mandatory; measure and report the reduction ratio.</p>
+<hr />
+<h2 id="chapter-4-privacy-regulation-and-trust">Chapter 4: Privacy, Regulation, and Trust</h2>
+<p>Some data cannot leave the device — by law or by user expectation. Medical images (HIPAA/GDPR), children's voices (COPPA), factory trade secrets, and biometric data all face regulatory or contractual barriers to cloud processing. Edge AI keeps raw data local; only features, embeddings, or decisions cross the boundary.</p>
+<p>The research angle: privacy is not binary. Techniques like <strong>federated learning</strong> (train across devices without centralizing data), <strong>split inference</strong> (run early layers on-device, send intermediate features), and <strong>differential privacy</strong> create a spectrum. Each has measurable costs: federated learning adds communication rounds; split inference still leaks information through features (model-inversion attacks are real).</p>
+<p><strong>Example:</strong> A cough-detection study for respiratory screening: raw audio never leaves the phone (regulatory requirement); the on-device model outputs a risk score; only anonymized scores with user consent reach the server. The paper's contribution included a privacy analysis alongside accuracy.</p>
+<p><strong>For your research:</strong> If your application touches personal data, include a privacy section: what data crosses the boundary, why, and what the alternatives cost. Reviewers in health and human-centered venues require it.</p>
+<p><strong>Key takeaway:</strong> Edge keeps raw data local — map your data flows and justify each boundary crossing.</p>
+<hr />
+<h2 id="chapter-5-cost-modeling-capex-opex-and-scale">Chapter 5: Cost Modeling — Capex, Opex, and Scale</h2>
+<p>Cloud AI costs are operational: per-request inference fees, data transfer, storage. They scale linearly with usage and are cheap to start. Edge AI costs are capital: devices, installation, maintenance — plus the hidden opex of fleet management (updates, failures, truck rolls). The crossover: at low volume cloud wins; at high volume edge wins; the exact point depends on your numbers.</p>
+<p>Build the model: cloud_cost = requests × price_per_request + GB × transfer_price. Edge_cost = devices × (unit + install) + maintenance_per_year + (any cloud for aggregation). Solve for the request volume where they cross. Then stress-test assumptions: what if device lifetime is 3 years not 5? What if cloud prices drop 20%?</p>
+<p><strong>Example:</strong> Smart doorbell person-detection: cloud at $0.0015/request × 500 events/day × 10k homes = $2.7M/year. Edge: $8 NPU per doorbell × 10k = $80k capex + $50k/year maintenance. Edge wins by 30× at scale — but at 100 homes, cloud wins. The paper reported the crossover at ~400 homes.</p>
+<p><strong>For your research:</strong> A cost model with stated assumptions and sensitivity analysis is rare in papers and highly valued by industry-track reviewers. It turns a systems paper into a decision tool.</p>
+<p><strong>Key takeaway:</strong> Model capex vs opex, find the crossover volume, and stress-test your assumptions.</p>
+<hr />
+<h2 id="chapter-6-energy-device-network-and-datacenter">Chapter 6: Energy — Device, Network, and Datacenter</h2>
+<p>Energy analysis must span the whole path. Edge: device inference energy + sensor energy. Cloud: device radio energy (transmit the data!) + network infrastructure + datacenter inference. The radio is the swing factor: transmitting 1 MB over LTE costs ~1–5 J; running a small CNN on-device costs millijoules. For high-data-rate sensors, edge wins enormously; for tiny payloads (a temperature reading), the radio cost is negligible and cloud is fine.</p>
+<p>Datacenter energy matters for carbon accounting: training is the headline cost, but at scale, inference dominates lifetime emissions. A paper that only reports device energy while ignoring the cloud side (or vice versa) is incomplete.</p>
+<p><strong>Example:</strong> Air-quality node: sending raw 1 Hz sensor data via LTE = 2.1 J/hour radio. On-device aggregation + hourly upload = 0.08 J/hour. Edge wins 26×. But for a node sending one 32-byte reading per hour, the difference is noise — cloud simplicity wins.</p>
+<p><strong>For your research:</strong> Always include the radio in edge-vs-cloud energy comparisons. The most common flaw in such papers is comparing device inference energy against datacenter inference energy while forgetting transmission.</p>
+<p><strong>Key takeaway:</strong> Count the radio — transmission energy usually decides edge vs cloud efficiency.</p>
+<hr />
+<h2 id="chapter-7-hybrid-architectures-getting-both">Chapter 7: Hybrid Architectures — Getting Both</h2>
+<p>Pure edge or pure cloud is often suboptimal. <strong>Hierarchical inference:</strong> tiny model on-device filters; uncertain cases escalate to a bigger cloud model (e.g., wake-word on MCU → full ASR in cloud). <strong>Early exit:</strong> a single network with classification heads at multiple depths; easy inputs exit early on-device, hard ones continue in the cloud. <strong>Split computing:</strong> run the first layers on-device, send compressed features to the cloud — balances privacy, latency, and accuracy.</p>
+<p>The design variable is the cascade threshold: too aggressive and the cloud is never used (wasted); too lax and everything escalates (no savings). Tune the threshold on validation data and report the operating curve (accuracy vs fraction escalated vs cost).</p>
+<p><strong>Example:</strong> Wildlife camera: on-device detector (92% recall, 3% of events are animals) → only animal candidates upload for cloud species classification. Cloud calls drop 97%, species accuracy 98%, total cost per camera-month $0.40 vs $11 pure-cloud.</p>
+<p><strong>For your research:</strong> Cascade/early-exit papers need the full operating curve, not a single point. Plot accuracy vs cost across thresholds — the curve is the contribution.</p>
+<p><strong>Key takeaway:</strong> Hierarchical and early-exit designs dominate pure placement — tune and report the operating curve.</p>
+<hr />
+<h2 id="chapter-8-offline-operation-and-resilience">Chapter 8: Offline Operation and Resilience</h2>
+<p>Networks fail. Edge systems keep working; cloud systems degrade or die. For safety, industrial, medical, and remote applications, offline capability is a requirement, not a feature. Design for degraded modes: full function on-device, reduced function on cached models, graceful notification when cloud features are unavailable.</p>
+<p>Measure resilience explicitly: what fraction of functionality survives 1 hour, 1 day, 1 week of disconnection? What is the recovery behavior (backlog upload storms can overwhelm the cloud on reconnect — design backpressure)?</p>
+<p><strong>Example:</strong> An offline-first clinic diagnostic: the on-device model handles 40 common conditions; rare conditions queue for cloud review when connectivity returns. During a 3-day outage, the clinic operated at 85% diagnostic coverage with zero data loss.</p>
+<p><strong>For your research:</strong> Resilience testing (chaos-style network partitions) is under-reported and impressive. "Our system maintained 92% functionality during a 24 h partition" is a strong systems result.</p>
+<p><strong>Key takeaway:</strong> Design for disconnection; measure degraded-mode coverage and reconnect behavior.</p>
+<hr />
+<h2 id="chapter-9-hardware-landscape-from-mcu-to-gpu">Chapter 9: Hardware Landscape — From MCU to GPU</h2>
+<p>Map the spectrum: <strong>MCUs</strong> (Cortex-M, ESP32) — milliwatts, KB RAM, TinyML models. <strong>NPUs/TPUs on SBCs</strong> (Coral TPU, Jetson Nano/Orin) — watts, real-time vision, the sweet spot for serious edge AI. <strong>Phones</strong> — heterogeneous SoCs with NPUs, good for human-centric apps. <strong>Gateways/servers on-prem</strong> — "near edge," full Linux, GPUs optional. <strong>Cloud</strong> — unlimited, elastic.</p>
+<p>The research implication: "edge" is not one thing. A Jetson Orin runs YOLOv8; a Cortex-M4 runs a 200 KB classifier. Papers must name the exact edge hardware — "we ran on the edge" is meaningless.</p>
+<p><strong>Example ladder for a retail analytics task:</strong> MCU: people counting via IR (no vision). Coral: object detection at 30 fps, 4 W. Jetson Orin: multi-camera tracking. Cloud: only for retraining and dashboards. Each rung justified by measurements in the paper.</p>
+<p><strong>For your research:</strong> If you claim an "edge" result, your hardware section must be precise enough for someone to buy the same board and reproduce. Include prices — cost is part of the edge argument.</p>
+<p><strong>Key takeaway:</strong> Name your edge hardware precisely — "edge" spans 5 orders of magnitude of compute.</p>
+<hr />
+<h2 id="chapter-10-evaluating-placement-experimental-design">Chapter 10: Evaluating Placement — Experimental Design</h2>
+<p>A placement study needs: (1) the same task and model family on both sides (or justified different models), (2) identical metrics: task accuracy, p50/p99 latency, energy per inference (device + radio + estimated cloud), cost per 1k inferences, data transferred, offline coverage, (3) controlled network conditions (emulate 4G/weak links with tc), (4) multiple runs with variance.</p>
+<p>Beware: comparing a quantized edge model against a full-precision cloud model confounds placement with compression — either compare same-precision or explicitly study the interaction. Also beware cloud cold starts and multi-tenancy noise; warm up and report variance.</p>
+<p><strong>Example matrix:</strong> 2 placements × 3 network profiles × 2 model sizes = 12 conditions; metrics as above; conclusion: "edge wins below 50 ms budgets and above 10 GB/day; cloud wins otherwise" — a decision rule, not just numbers.</p>
+<p><strong>For your research:</strong> The deliverable of a placement paper should be a decision rule or crossover analysis, not a winner declaration. That ages well as hardware changes.</p>
+<p><strong>Key takeaway:</strong> Control the network, match the models fairly, and produce a decision rule.</p>
+<hr />
+<h2 id="chapter-11-federated-and-split-learning-training-at-the-edge">Chapter 11: Federated and Split Learning — Training at the Edge</h2>
+<p>Placement isn't only about inference. <strong>Federated learning</strong> trains a shared model across devices without centralizing data: devices train locally, send updates, a server aggregates (FedAvg). Costs: communication rounds, stragglers, non-IID data hurting convergence. <strong>Split learning</strong> cuts the network: device trains early layers, server trains the rest — less device compute, but features sent to the server can leak private data.</p>
+<p>For student research, federated learning is attractive: it's a hot topic, simulators exist (Flower, FedML), and you can run meaningful experiments without a device fleet. Honest limitations to report: communication cost vs accuracy, behavior under non-IID partitions (use Dirichlet splits), and privacy leakage of updates (gradient inversion is real).</p>
+<p><strong>Example:</strong> A keyboard next-word model federated across 100 simulated clients: reaches 90% of centralized accuracy with 40 rounds, but non-IID (per-user vocabulary) drops it to 82% — the non-IID gap is the finding.</p>
+<p><strong>For your research:</strong> Federated experiments must report the data partition scheme, rounds-to-accuracy, and communication cost. "We did federated learning and it worked" is insufficient.</p>
+<p><strong>Key takeaway:</strong> Federated/split learning move training to the edge — report partitions, rounds, and communication honestly.</p>
+<hr />
+<h2 id="chapter-12-your-placement-study-from-question-to-paper">Chapter 12: Your Placement Study — From Question to Paper</h2>
+<p>Template:</p>
+<ol>
+<li><strong>Question:</strong> "For [task] under [constraints], where should inference run?"</li>
+<li><strong>Hypothesis:</strong> A crossover claim, e.g., "edge wins when data rate &gt; X and latency budget &lt; Y."</li>
+<li><strong>Method:</strong> Same task both sides; controlled networks; full metric set (accuracy, latency p99, energy incl. radio, cost, offline coverage).</li>
+<li><strong>Baselines:</strong> Pure cloud, pure edge, and at least one hybrid (cascade).</li>
+<li><strong>Results:</strong> Tables + the decision rule/crossover plot.</li>
+<li><strong>Limitations:</strong> Hardware-specificity, cloud pricing volatility, network emulation fidelity.</li>
+<li><strong>Artifact:</strong> Configs, measurement scripts, cost model spreadsheet.</li>
+</ol>
+<p>Write it in IEEE format with the decision rule in the abstract. Related work must cover edge computing surveys, placement studies, and your application domain.</p>
+<p><strong>For your research:</strong> This maps to your assignments: problem + lit review (A1), method (A2), results (A3), presentation (A4). A placement study is an ideal semester-scale project.</p>
+<p><strong>Key takeaway:</strong> Question → crossover hypothesis → controlled comparison → decision rule + artifact = a publishable placement study.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Core idea</th>
+<th>Research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Placement question</td>
+<td>Multi-objective, no universal answer</td>
+<td>Derive crossovers</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Latency</td>
+<td>Network round trip dominates</td>
+<td>p50/p99 decomposition</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Bandwidth</td>
+<td>Data gravity, reduction ratios</td>
+<td>Report reduction ratio</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Privacy</td>
+<td>Data-boundary mapping</td>
+<td>Privacy section for regulated domains</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Cost</td>
+<td>Capex vs opex crossover</td>
+<td>Cost model + sensitivity</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Energy</td>
+<td>Count the radio</td>
+<td>Full-path energy accounting</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Hybrid</td>
+<td>Cascades, early exit</td>
+<td>Operating curves</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Resilience</td>
+<td>Degraded-mode coverage</td>
+<td>Partition testing</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Hardware</td>
+<td>MCU→GPU spectrum</td>
+<td>Precise hardware reporting</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Evaluation design</td>
+<td>Fair comparisons, decision rules</td>
+<td>Controlled matrices</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Federated/split</td>
+<td>Training at edge</td>
+<td>Partitions, rounds, comms</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Study template</td>
+<td>Question→rule→artifact</td>
+<td>Assignment pipeline</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] W. Shi, J. Cao, Q. Zhang, Y. Li, and L. Xu, "Edge Computing: Vision and Challenges," IEEE Internet of Things Journal, vol. 3, no. 5, pp. 637–646, 2016.
+[2] M. Satyanarayanan, "The Emergence of Edge Computing," Computer, vol. 50, no. 1, pp. 30–39, 2017.
+[3] J. Lin et al., "MCUNet: Tiny Deep Learning on IoT Devices," in Proc. 34th Conf. Neural Information Processing Systems (NeurIPS), 2020.
+[4] C. R. Banbury et al., "MLPerf Tiny Benchmark," in Proc. 35th Conf. Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks Track, 2021.
+[5] H. B. McMahan et al., "Communication-Efficient Learning of Deep Networks from Decentralized Data," in Proc. 20th Int. Conf. Artificial Intelligence and Statistics (AISTATS), 2017.
+[6] L. Atzori, A. Iera, and G. Morabito, "The Internet of Things: A survey," Computer Networks, vol. 54, no. 15, pp. 2787–2805, 2010.
+[7] S. Wolfert, L. Ge, C. Verdouw, and M. J. Bogaardt, "Big Data in Smart Farming — A review," Agricultural Systems, vol. 153, pp. 69–80, 2017.
+[8] World Health Organization, WHO Global Air Quality Guidelines, Geneva, 2021.
+[9] R. Roman, P. Najera, and J. Lopez, "Securing the Internet of Things," Computer, vol. 44, no. 9, pp. 51–58, 2011.
+[10] H. Kopetz, Real-Time Systems: Design Principles for Distributed Embedded Applications, 2nd ed. Springer, 2011. (book)</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Edge AI</strong> — inference on local devices near the data source</li>
+<li><strong>Cloud AI</strong> — inference in remote datacenters</li>
+<li><strong>Data gravity</strong> — tendency of large datasets to pull compute toward them</li>
+<li><strong>p99 latency</strong> — 99th-percentile latency; tail behavior</li>
+<li><strong>Early exit</strong> — network heads allowing easy inputs to finish early</li>
+<li><strong>Cascade</strong> — small model filters, big model handles hard cases</li>
+<li><strong>Split inference</strong> — part of the network on-device, part in cloud</li>
+<li><strong>Federated learning</strong> — training across devices without centralizing data</li>
+<li><strong>Non-IID</strong> — data differing across clients, harming federated convergence</li>
+<li><strong>Cold start</strong> — first-request latency penalty in serverless cloud</li>
+<li><strong>Crossover point</strong> — volume where edge and cloud costs equalize</li>
+<li><strong>Degraded mode</strong> — reduced functionality during disconnection</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Decompose cloud inference latency into four components and explain which dominates for a voice assistant.</li>
+<li>A camera generates 150 GB/day. Compute the monthly cloud transfer cost at $0.09/GB and compare with a $120 edge device amortized over 3 years.</li>
+<li>Explain data gravity with a concrete example from your field.</li>
+<li>Design a hierarchical cascade for a wildlife camera. State the threshold tuning method and what curve you would plot.</li>
+<li>Why must energy comparisons include the radio? Give numbers for an LTE upload vs on-device inference.</li>
+<li>Sketch the capex/opex crossover model for a 1,000-sensor deployment. What are the three most sensitive assumptions?</li>
+<li>Describe a privacy boundary for a health-sensing app: what crosses it, in what form, and why?</li>
+<li>Design a placement experiment matrix for your own task: conditions, controls, metrics.</li>
+<li>Explain the non-IID problem in federated learning and how you would demonstrate it experimentally.</li>
+<li>Write the abstract (150 words) of a placement paper for your task, including the decision rule.</li>
+</ol>
+<hr />
+<p><em>End of Book 33. Next: Book 34 — IoT Data Pipelines Explained.</em></p>

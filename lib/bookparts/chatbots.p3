@@ -1,0 +1,140 @@
+regression case. For generative replies, assert on facts and forbidden content rather than exact strings, and consider an LLM-judge assertion for faithfulness on RAG cases (validated against humans, per Chapter 6).</p>
+<h3 id="125-experiments-ab-tests-and-principled-changes">12.5 Experiments: A/B tests and principled changes</h3>
+<p>When you want to know whether change B beats current A — a new prompt, a different model, buttons vs free text — run an A/B test: randomly assign conversations, hold everything else constant, and compare on your metric stack (Chapter 9). Rules: decide the sample size and success criteria <em>before</em> starting; run long enough to cover weekly patterns; segment results by topic and channel; and be willing to ship "no significant difference" — a cheaper model that ties the expensive one is a win. Document every experiment: hypothesis, variant, metrics, result, decision. This log becomes the evidence base for your roadmap — and the methods section of your paper.</p>
+<h3 id="126-versioning-and-rollback">12.6 Versioning and rollback</h3>
+<p>Version everything together: prompts, model IDs, retrieval index version, flow definitions, code. A release is a bundle with a version number; rollback means restoring the previous bundle in one action, not hand-editing prompts at 2 a.m. Keep a changelog in plain language ("v1.4: rewrote return-policy answers; raised fallback threshold 0.6→0.65; added 40 training examples for track_order"). Future you — and any researcher reproducing your work — will be grateful.</p>
+<h3 id="127-the-long-game-from-bot-to-capability">12.7 The long game: from bot to capability</h3>
+<p>Mature chatbot programs stop thinking in terms of "the bot" and start thinking in terms of conversational capability: the knowledge base, the evaluation harness, the review ritual, and the deployment pipeline become shared infrastructure that new use cases plug into. The second bot costs a fraction of the first. The organization's real asset is not any single model — models get replaced — but the data flywheel: conversations → review → fixes → better conversations. Tend the flywheel, and the bot keeps improving long after launch day is forgotten.</p>
+<h3 id="128-the-first-90-days-a-launch-timeline">12.8 The first 90 days: a launch timeline</h3>
+<p>Abstract advice becomes concrete on a calendar. Here is a realistic 90-day arc for a first business chatbot — adjust the pace to your team, but keep the order:</p>
+<table>
+<thead>
+<tr>
+<th>Weeks</th>
+<th>Focus</th>
+<th>Exit criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1–2</td>
+<td>Internal alpha. Team + friendly testers attack the bot; fix crashes, wrong answers, broken flows. Build the regression suite from every failure.</td>
+<td>Zero critical bugs; regression suite green.</td>
+</tr>
+<tr>
+<td>3–4</td>
+<td>Silent beta at 5–10% of traffic. Humans review every conversation. Start the weekly review ritual; write the first fallback copy.</td>
+<td>Containment and CSAT baselines established; top-5 failure reasons identified.</td>
+</tr>
+<tr>
+<td>5–6</td>
+<td>Assisted launch. Bot handles scoped topics publicly; everything else routes to humans. Announce it as a helper. Tune thresholds on real data.</td>
+<td>Exit criteria from section 12.1 met for two consecutive weeks.</td>
+</tr>
+<tr>
+<td>7–10</td>
+<td>Gradual expansion. Widen topics and traffic share stepwise. Each expansion is an A/B test against the previous stage. Fix the top handoff reasons monthly.</td>
+<td>Containment improving or stable; CSAT not declining; cost per resolved conversation tracked.</td>
+</tr>
+<tr>
+<td>11–12</td>
+<td>Harden operations. Incident plan rehearsed, kill switch tested, on-call rotation set, gold set refreshed, 90-day retrospective written.</td>
+<td>Team can roll back in one action; retrospective actions filed as tickets.</td>
+</tr>
+</tbody>
+</table>
+<p>Three notes on this timeline. First, the <em>review ritual</em> (section 12.3) is the engine — without it, weeks 7–10 are just waiting. Second, resist expanding scope to impress stakeholders; a bot that does three things excellently beats one that does ten things poorly, and expansion is always available later. Third, write the retrospective honestly, including what did not work — it becomes the first chapter of your deployment study and the most-read document by the next team that builds on your work.</p>
+<h3 id="129-handover-documentation-the-next-team-needs">12.9 Handover: documentation the next team needs</h3>
+<p>Every chatbot eventually changes hands — a new owner, a new vendor, a new team. The handover document you write determines whether the bot thrives or decays. It should contain: the <strong>runbook</strong> (how to deploy, roll back, pause per channel, and respond to each alert); the <strong>decision log</strong> (why this architecture, why these thresholds, why this model — with dates, because reasons expire); the <strong>metric definitions</strong> and dashboard links; the <strong>known failure modes</strong> and their workarounds; the <strong>vendor list</strong> with contracts and contacts; and the <strong>gold set and regression suite</strong> locations.</p>
+<p>Write it as if the reader is competent but has never seen the system — because that is exactly who will read it, possibly at 2 a.m. during an incident. Update it quarterly; documentation that lags reality is worse than none, because it inspires false confidence. For researchers, this handover package is also the reproducibility artifact: with it, another lab can rebuild, re-run, and extend your work. The teams (and papers) that last are the ones whose knowledge survives the people who created it.</p>
+<h3 id="1210-knowing-when-to-retire-a-bot">12.10 Knowing when to retire a bot</h3>
+<p>Not every chatbot should live forever. Retire or rebuild when: the underlying process changed so much that patches outnumber the original design; a platform shift (new channel APIs, model deprecations) makes maintenance cost exceed rebuild cost; or metrics plateau below the success criteria for two quarters despite serious iteration — the use case may simply not fit conversational AI. Retirement is a project, not an event: announce the timeline, migrate users to the replacement (human team, new system, or redesigned bot), archive the transcripts per your retention policy, and write the postmortem. A graceful shutdown preserves user trust and team morale; a bot left to rot — wrong answers, no owner, no updates — actively damages the business. Knowing when to stop is part of knowing how to build. And sometimes retirement is really a rebirth: the conversations, gold sets, and evaluation harness you built are reusable assets, so the next system starts from your hard-won knowledge rather than from zero.</p>
+<h3 id="1211-the-bot-owners-weekly-checklist">12.11 The bot owner's weekly checklist</h3>
+<p>Tape this to the wall: review the dashboard for trend breaks; read the sampled transcripts, especially handoffs and abandonments; classify the top failure reasons and file tickets at the right layer; check spend against budget; confirm the regression suite is green and the gold set is current; and note one experiment to run next week. Thirty focused minutes a week on this list compounds into a bot that is unrecognizably better after a year — the quiet, unglamorous mechanism behind every "overnight success" chatbot story.</p>
+<blockquote>
+<p><strong>For your research:</strong> Deployment and iteration are where academic chatbot research most often stops — and where the most useful papers begin. A longitudinal deployment study ("we operated a business chatbot for six months; here is how metrics, failure modes, and user behavior evolved") is rare and highly citable because almost nobody publishes it. So is honest reporting of negative results: the prompt change that did nothing, the model upgrade that hurt latency without helping quality, the feature users ignored. Consider a paper structured around your experiment log: each experiment as a mini-study with hypothesis, method, and outcome. And if you release your regression suite and evaluation harness as open artifacts, you give the community infrastructure, not just findings — the kind of contribution that outlives any single result.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Launch in stages — internal alpha, silent beta at 5–10% traffic, assisted launch, gradual expansion — with predefined metric-based exit criteria for each stage.</li>
+<li>Monitor at two speeds: a dashboard for trends (volume, containment, handoff reasons, CSAT, spend, latency) and paging alerts for spikes, failures, spend anomalies, and content alarms.</li>
+<li>Run a weekly conversation-review loop: sample, label by failure type and root-cause layer, fix the top causes at the right layer, measure the delta.</li>
+<li>Maintain a regression suite of a few hundred curated conversations; assert on facts and forbidden content for generative replies; run it on every change.</li>
+<li>A/B test principled changes with pre-registered criteria and sample sizes; document hypothesis, variant, metrics, result, decision for every experiment.</li>
+<li>Version prompts, models, indexes, flows, and code as one releasable bundle with one-action rollback and a plain-language changelog.</li>
+<li>The long-term asset is the data flywheel — conversations → review → fixes → better conversations — not any single model.</li>
+</ul>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>A/B test:</strong> An experiment comparing two variants (A and B) on randomly assigned traffic to measure which performs better.</li>
+<li><strong>Adapter (channel adapter):</strong> Code that translates between a messaging channel's API and the bot's internal message format.</li>
+<li><strong>Annotation:</strong> Labeling training examples (e.g., intents, entities) by hand to create supervised learning data.</li>
+<li><strong>Bot framework:</strong> A software library or platform (e.g., Rasa) providing building blocks for NLU, dialogue management, and deployment.</li>
+<li><strong>Chatbot:</strong> A software system that conducts goal-directed conversation with users, usually over text.</li>
+<li><strong>Chunking:</strong> Splitting documents into smaller passages for indexing in a retrieval system.</li>
+<li><strong>Confidence score:</strong> A model's estimated probability that its prediction (e.g., an intent) is correct; used to trigger fallbacks.</li>
+<li><strong>Containment rate:</strong> The percentage of conversations resolved without human-agent involvement.</li>
+<li><strong>Conversation design:</strong> The craft of scripting bot behavior turn by turn: flows, wording, repair strategies, and tone.</li>
+<li><strong>CSAT (Customer Satisfaction Score):</strong> A 1–5 (or similar) post-conversation rating of user satisfaction.</li>
+<li><strong>Embedding:</strong> A dense numeric vector representing a text's meaning, such that similar meanings have similar vectors.</li>
+<li><strong>Entity:</strong> A structured detail extracted from a user message (date, order ID, product name) needed to complete a task.</li>
+<li><strong>Fallback:</strong> The bot's behavior when it cannot confidently handle a message — clarification, wider search, or handoff.</li>
+<li><strong>F1 score:</strong> The harmonic mean of precision and recall; a balanced measure of classification quality.</li>
+<li><strong>Function/tool calling:</strong> An LLM capability to request structured actions (API calls) that application code executes.</li>
+<li><strong>Generative chatbot:</strong> A bot that produces each reply word-by-word with a language model rather than selecting pre-written text.</li>
+<li><strong>Grounding:</strong> Constraining a model's answers to retrieved or provided source material to reduce hallucination.</li>
+<li><strong>Hallucination:</strong> A fluent, confident model output that is factually wrong or fabricated.</li>
+<li><strong>Handoff:</strong> Transferring a conversation from the bot to a human agent, ideally with transcript and context.</li>
+<li><strong>Hybrid search:</strong> Retrieval combining vector (semantic) similarity with keyword matching (e.g., BM25).</li>
+<li><strong>Idempotency:</strong> The property that processing the same message twice has the same effect as processing it once; essential for webhook retries.</li>
+<li><strong>Intent:</strong> A label for the user's goal in a message (e.g., <code>track_order</code>), used to route the conversation.</li>
+<li><strong>LLM (Large Language Model):</strong> A neural language model trained on vast text, capable of fluent generation and few-shot tasks [1][3].</li>
+<li><strong>NLU (Natural Language Understanding):</strong> The component that maps user messages to intents and entities.</li>
+<li><strong>Out-of-scope intent:</strong> A dedicated label for requests the bot does not handle, used to avoid confident misclassification.</li>
+<li><strong>Precision:</strong> Of all items the model labeled X, the fraction truly X.</li>
+<li><strong>Prompt injection:</strong> An attack that smuggles malicious instructions into a model's input to override its intended behavior.</li>
+<li><strong>RAG (Retrieval-Augmented Generation):</strong> Answering by first retrieving relevant passages from a knowledge base, then generating grounded in them [4].</li>
+<li><strong>Recall:</strong> Of all truly-X items, the fraction the model labeled X.</li>
+<li><strong>Regression test:</strong> An automated check that previously working behavior still works after a change.</li>
+<li><strong>Retrieval-based chatbot:</strong> A bot that selects replies from a fixed set of pre-written, approved answers.</li>
+<li><strong>Rule-based chatbot:</strong> A bot following hand-written decision trees with no machine learning.</li>
+<li><strong>Semantic cache:</strong> Reusing a previous answer when a new question is sufficiently similar in meaning.</li>
+<li><strong>Session:</strong> One user's continuous conversation with the bot, tracked by an ID across turns.</li>
+<li><strong>Slot:</strong> A named piece of information the bot collects during a task (e.g., date, time) in slot-filling dialogue.</li>
+<li><strong>Streaming:</strong> Delivering a model's reply token-by-token as it is generated, improving perceived latency.</li>
+<li><strong>System prompt:</strong> The standing instructions defining a bot's identity, scope, and behavior in LLM-based systems.</li>
+<li><strong>Template message:</strong> A pre-approved message format for business-initiated messaging on WhatsApp/Messenger outside the 24-hour window.</li>
+<li><strong>Token:</strong> The sub-word unit in which LLMs process text and by which API usage is metered and billed.</li>
+<li><strong>Transformer:</strong> The neural architecture underlying modern LLMs, based on self-attention [1].</li>
+<li><strong>Vector database:</strong> A store optimized for similarity search over embedding vectors.</li>
+<li><strong>Webhook:</strong> An HTTP endpoint a platform calls to deliver events (e.g., incoming messages) to your server in real time.</li>
+<li><strong>Wizard-of-Oz (study):</strong> A research method where a human secretly plays the bot to collect realistic conversation data before building.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Conversation inventory.</strong> Pick a real local business (a clinic, bookstore, salon, or restaurant). List 30 questions its customers actually ask (ask the owner or staff, or observe). Categorize them by topic, then score each topic on volume, pain, and feasibility as in Chapter 1. Write a one-page recommendation for the single best first chatbot use case, with a defined success metric.</li>
+<li><strong>Architecture decision memo.</strong> For the use case from Exercise 1, work through the six decision questions in Chapter 2 and write a one-page memo recommending rule-based, retrieval-based, generative, or hybrid architecture. Justify each answer with a concrete fact about the business.</li>
+<li><strong>Intent model design.</strong> Define 15 intents for the business in Exercise 1, with a name, a two-sentence definition, two positive and two negative examples each (annotation-guideline style). Include an <code>out_of_scope</code> intent. Then write 10 additional test messages (with typos and paraphrases) you would use to evaluate a classifier.</li>
+<li><strong>Entity annotation.</strong> Take 20 realistic customer messages for a booking or tracking task and annotate intents plus entity spans in the JSON format from Chapter 3. Have a partner independently annotate the same 20; compute your agreement rate and discuss every disagreement. Revise your guidelines based on what you learned.</li>
+<li><strong>Flow scripting with repair.</strong> Write the full happy-path script plus two repair branches (a correction and an interruption) for one task from Exercise 1, following Chapter 4's techniques. Then role-play it with a partner thinking aloud; note where they stumble and revise the script.</li>
+<li><strong>System prompt engineering.</strong> Write a system prompt for an LLM-based support bot for the Exercise 1 business, covering identity, scope, knowledge boundaries, behavioral rules, tone, and escalation policy (Chapter 5). Then adversarially test it: try three prompt-injection attempts and three out-of-scope questions, and record how it behaves. Revise the prompt and your code-level guardrails.</li>
+<li><strong>Mini-RAG prototype.</strong> Collect 10–20 real documents or FAQ pages from a business or organization. Build a RAG pipeline in Python: chunk the texts, embed them with any embedding model, store them in a local vector store (e.g., Chroma or FAISS), retrieve top-5 passages for 15 test questions, and generate grounded answers with citations. Score faithfulness manually on all 15 and report retrieval recall@5.</li>
+<li><strong>Webhook adapter.</strong> Implement the Flask webhook skeleton from Chapter 7 for one channel (or a simulated one): signature verification, fast acknowledgment, idempotent message handling, and a normalized handoff to a simple core. Write tests proving that (a) bad signatures are rejected, (b) duplicate deliveries produce one reply, and (c) slow core processing does not delay acknowledgment.</li>
+<li><strong>Metrics dashboard.</strong> Generate (or collect, with permission) 200 synthetic but realistic conversation sessions with fields from Chapter 9's logging schema. Compute containment rate, handoff rate by reason, median turns, and CSAT with response rate. Write a half-page "weekly review" memo: top three failure reasons and the specific fix each one implies at the right layer.</li>
+<li><strong>Cost model and experiment plan.</strong> Using the formula in Chapter 11, build a spreadsheet cost model for serving 50,000 conversations/month with your Exercise 7 prototype's architecture (estimate tokens per turn honestly). Then design one A/B test from Chapter 12 (e.g., a smaller model vs a larger one, or cached vs uncached) with pre-registered hypothesis, metrics, sample size rationale, and decision rule. Identify the threats to validity in your design.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] A. Vaswani et al., "Attention is all you need," in <em>Proc. 31st Int. Conf. Neural Information Processing Systems</em>, Long Beach, CA, USA, 2017, pp. 5998–6008.</p>
+<p>[2] J. Devlin et al., "BERT: Pre-training of deep bidirectional transformers for language understanding," in <em>Proc. Conf. North Amer. Chapter Assoc. Computational Linguistics: Human Language Technologies</em>, Minneapolis, MN, USA, 2019, pp. 4171–4186.</p>
+<p>[3] T. B. Brown et al., "Language models are few-shot learners," in <em>Proc. 34th Int. Conf. Neural Information Processing Systems</em>, Vancouver, BC, Canada, 2020, pp. 1877–1901.</p>
+<p>[4] P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," in <em>Proc. 34th Int. Conf. Neural Information Processing Systems</em>, Vancouver, BC, Canada, 2020, pp. 9459–9474.</p>
+<p>[5] J. Weizenbaum, "ELIZA—a computer program for the study of natural language communication between man and machine," <em>Commun. ACM</em>, vol. 9, no. 1, pp. 36–45, 1966.</p>
+<p>[6] D. Jurafsky and J. H. Martin, <em>Speech and Language Processing</em>, 3rd ed. draft. [Online]. Available: https://web.stanford.edu/~jurafsky/slp3/</p>
+<p>[7] M. A. Walker, D. J. Litman, C. A. Kamm, and A. Kamm, "PARADISE: A framework for evaluating spoken dialogue agents," in <em>Proc. 35th Annu. Meeting Assoc. Computational Linguistics</em>, Madrid, Spain, 1997, pp. 271–280.</p>
+<p>[8] C.-W. Liu, R. Lowe, I. V. Serban, M. Noseworthy, L. Charlin, and J. Pineau, "How NOT to evaluate your dialogue system: An empirical study of unsupervised evaluation metrics for dialogue response generation," in <em>Proc. Conf. Empirical Methods in Natural Language Processing</em>, Austin, TX, USA, 2016, pp. 2122–2132.</p>
+<p>[9] D. Adiwardana et al., "Towards a human-like open-domain chatbot," <em>arXiv:2001.09977</em>, 2020.</p>
+<p>[10] R. Thoppilan et al., "LaMDA: Language models for dialog applications," <em>arXiv:2201.08239</em>, 2022.</p>
+<p><em>End of Book 42.</em></p>

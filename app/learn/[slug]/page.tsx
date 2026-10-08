@@ -118,12 +118,10 @@ export default function BookPage({ params }: { params: { slug: string } }) {
       </article>
 
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
-        <Reveal>
-          <div
-            className="book-content mt-10"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        </Reveal>
+        <div
+          className="book-content mt-10"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
 
         <nav className="mt-14 grid gap-4 border-t border-white/10 pt-8 sm:grid-cols-2">
           {prev ? (

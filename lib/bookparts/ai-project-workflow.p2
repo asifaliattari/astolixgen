@@ -1,0 +1,102 @@
+arch value. It <strong>validates robustness</strong>: if the demo works on strangers' photos in bad lighting, your field-robustness claim is stronger than any table. It <strong>surfaces new errors</strong>: Ayesha's first public demo misclassified a variegated ornamental leaf — a failure mode her test set never contained, now logged as future work. And it <strong>creates impact evidence</strong>: usage logs, farmer feedback, photos of the demo in use — all legitimate material for your paper's discussion, your thesis, and your presentation. Reviewers and examiners love seeing that the work left the lab.</p>
+<p>Keep the demo <strong>maintained but bounded</strong>: it needs to work for your presentation and paper review period, not forever. Note its limits in the README (works best on tomato leaves, daylight photos). A demo that honestly states its limits impresses more than one that pretends to generality.</p>
+<h3 id="worked-example-ayeshas-demo-day">Worked example: Ayesha's demo day</h3>
+<p>Two weeks before her seminar, Ayesha built the demo: upload page, champion model, same preprocessing module as training, confidence display, blur/darkness checks, disclaimer line. She tested it on 20 fresh photos from a farm not in any split — 17 correct, 2 uncertain-but-flagged, 1 wrong (the variegated leaf). She wrote those numbers down: they became her presentation's most persuasive slide ("live test on unseen farm: 17/20"). On seminar day, an audience member uploaded a photo from their own phone. It worked. The room's reaction did more for her project's credibility than any accuracy table.</p>
+<h3 id="monitoring-a-deployed-demo-what-happens-after-launch">Monitoring a deployed demo: what happens after launch</h3>
+<p>Deployment is not "finish and forget" — models meet reality, and reality changes. Set up <strong>basic monitoring</strong> from day one: log every prediction the demo makes (input metadata, predicted class, confidence, timestamp) — with user consent and without storing personal data unnecessarily. Review the logs weekly. You are watching for three things: <strong>distribution shift</strong> (inputs changing — a new phone model, a different season's lighting — silently degrading accuracy), <strong>confident errors</strong> (high-confidence wrong predictions, the most dangerous kind), and <strong>usage patterns</strong> (which classes get queried most, where users hesitate). Ayesha's logs showed a spike in low-confidence predictions during a dusty week — airborne dust was coating leaves, a condition in no training set. That observation became a dataset-augmentation idea and, later, a paragraph in her thesis. Monitoring also tells you <strong>when to retrain</strong>: when performance on recent logged inputs drops below your paper's numbers, the model is stale. For a student demo, monitoring can be a simple spreadsheet reviewed weekly; the habit matters more than the tooling. A deployed model you never look at is a rumor you once published.</p>
+<h3 id="when-deployment-itself-is-the-contribution">When deployment itself is the contribution</h3>
+<p>For most student papers, deployment is supporting evidence. But in some venues — applied journals, systems conferences, domain conferences like agricultural informatics — the deployed system <strong>is</strong> the contribution, and the paper is judged on it. Then the problem statement changes (Chapter 2): success is measured by usability, latency, robustness in the field, or adoption — not just accuracy. The evaluation changes too: user studies, field trials, latency benchmarks, and failure-mode documentation carry the weight that ablation tables carry in methods papers. If your work heads this way, say so early to your supervisor, because the timeline and the writing both shift: you need user feedback cycles (slow) and the paper reads more like an engineering report than a science paper. Ayesha's conference paper was a science paper with a demo; her follow-up journal submission to an agriculture venue led with the deployment — farmer feedback, field-trial results, the dusty-week story. Same project, two contributions, two framings. The workflow supports both; the choice belongs in the problem statement, made deliberately.</p>
+<blockquote>
+<p><strong>For your research:</strong> Scope your deployment this week: define the one input, one output, and one user your demo serves, and the device it must run on. Then build the thinnest possible version — upload in, prediction out — reusing your training preprocessing module directly. Test it on 10 inputs you did not prepare and record what happens; those results are research data. Prepare a fallback: a 60-second screen recording of the demo working, for the day the Wi-Fi dies. A demo with a fallback video is professional; a demo with no fallback is a gamble.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Deployment for researchers means: a stranger can give input and get output without your help. A simple web page clears the bar.
+- Reuse the exact training preprocessing in deployment — never reimplement it. Measure latency on the real target device.
+- Handle edge cases before users find them: wrong inputs, bad quality, low confidence, plus an honest disclaimer.
+- Deployment validates robustness, surfaces new errors, and creates impact evidence for papers and presentations.
+- Keep the demo bounded and maintained for the review/presentation period; always have a fallback video.</p>
+<hr />
+<h2 id="chapter-12-presenting-your-work-slides-demos-and-handling-qa">Chapter 12: Presenting Your Work — Slides, Demos, and Handling Q&amp;A</h2>
+<p>You have done the work, written the paper, and built the demo. Now you must do the final, most human part: stand up and make other people understand and believe it. A good presentation does not just report results — it transfers conviction. This chapter covers slides, the live demo, and the Q&amp;A, where presentations are won or lost.</p>
+<h3 id="structure-the-story-arc-of-a-research-talk">Structure: the story arc of a research talk</h3>
+<p>A research talk is a story with four acts, and it mirrors your paper: (1) <strong>The problem</strong> — why it matters, in one slide with a concrete image (Ayesha: a diseased tomato field). Make the audience care before you make them think. (2) <strong>The gap</strong> — what prior work missed, in one or two slides. This creates the tension: something is unsolved. (3) <strong>Your approach and results</strong> — what you did and the key numbers, in three to five slides. One idea per slide; the results table gets its own slide, large enough to read from the back row. (4) <strong>What it means</strong> — error analysis insights, limitations, the demo, future work. End looking forward, not backward.</p>
+<p>Aim for ~10 slides and ~20 minutes, with nothing smaller than 30-point font — fewer, bigger slides beat dense ones every time. And <strong>never read your slides</strong>: the audience reads faster than you speak. Slides are visual anchors; the story comes from you.</p>
+<h3 id="slides-that-work-figures-first-words-last">Slides that work: figures first, words last</h3>
+<p>Each slide should pass the <strong>glance test</strong>: its point must be clear in three seconds. That means: one message per slide, a descriptive title that states the message ("Field photos break lab-trained models" — not "Results"), large figures, and minimal text. Your confusion matrix, your comparison table, your error examples — these are your best slides. Tables must be readable: 4–5 rows maximum on a slide; if your paper's table is bigger, show the key rows and say the rest is in the paper.</p>
+<p>Prepare a <strong>backup slide deck</strong> of 3–5 extra slides for anticipated hard questions: the ablation details, the per-farm breakdown, the training curves. You will not show them unless asked — but having them ready turns a scary question into a confident moment ("Great question — I have that right here").</p>
+<h3 id="the-live-demo-choreography-not-improvisation">The live demo: choreography, not improvisation</h3>
+<p>A live demo is the highest-risk, highest-reward five minutes of your talk. <strong>Choreograph it</strong>: know exactly which photo you will upload first (one you have tested), what you will say while it processes, and what the expected output is. Narrate the input honestly ("a photo taken yesterday at Farm 7, which was never in our training data"). Then — and this is the power move — invite the audience: "Anyone want to try their own photo?" An audience volunteer's photo working live is worth ten slides.</p>
+<p>But <strong>never improvise without a net</strong>: have the 60-second fallback video ready, test the demo 30 minutes before the talk, and know your recovery line ("Let me show you the recorded run — exactly what you'd see"). Audiences forgive gracefully handled failures; they do not forgive panic.</p>
+<h3 id="handling-qa-the-skill-that-builds-reputations">Handling Q&amp;A: the skill that builds reputations</h3>
+<p>Q&amp;A is where examiners and reviewers form their final judgment of <em>you</em>, not just the work. The core skill is <strong>honest, direct answering</strong>:</p>
+<ul>
+<li><strong>Listen fully, then answer.</strong> Do not start answering halfway through the question. Repeat it briefly to confirm ("You're asking whether this works on other crops?").</li>
+<li><strong>Answer the question asked.</strong> The most common failure is answering a different, easier question. If you do not know, say so: "We haven't tested that — it's in our future work." Honesty about limits (Chapter 8) earns more respect than bluffing, and bluffing gets caught.</li>
+<li><strong>Bridge to your strengths.</strong> "We didn't test other crops, but on the three tomato classes our per-class F1 was..." — acknowledge, then add what you do know.</li>
+<li><strong>Handle the hostile question calmly.</strong> "Isn't this just applying ResNet to leaves?" Answer: "The contribution isn't the architecture — it's showing that field robustness requires field data, which no prior work had tested. The baseline comparison in our table shows the gap." Know your one-sentence contribution defense before you walk in.</li>
+<li><strong>Thank the questioner</strong> when a question reveals a real weakness — examiners remember grace under pressure.</li>
+</ul>
+<p>Prepare for the <strong>five questions you will always get</strong>: Why this method? Why this dataset? How does it compare to [famous paper]? What are the limitations? What is next? Write your answers down beforehand — not to memorize, but to have thought.</p>
+<h3 id="worked-example-ayeshas-seminar">Worked example: Ayesha's seminar</h3>
+<p>Ayesha's 20-minute seminar: one problem slide (the field), one gap slide (lab vs. field accuracy drop), three method slides (dataset, approach diagram, training setup), two results slides (comparison table, confusion matrix + error examples), one demo (live upload, then an audience volunteer's photo), one limitations-and-future-work slide. In Q&amp;A she handled the predictable questions with prepared answers — the bigger-model question, the two-farm limitation, the other-crops question — and left with two collaboration offers and a clear next project. The work was good; the presentation made it land.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before your next presentation, write your one-sentence contribution defense and your answers to the five always-asked questions. Build your slide deck around the four-act story, with the results table as the centerpiece slide. Rehearse the demo twice with fresh inputs and prepare the fallback video. Then rehearse Q&amp;A with a labmate playing the hostile reviewer — the questions that sting in rehearsal are the ones that won't sting on stage. A presentation is not a performance of perfection; it is a demonstration of clear thinking, and clear thinking is exactly what this book's workflow trains.</p>
+</blockquote>
+<p><strong>Key takeaways</strong>
+- Structure the talk as a four-act story: problem, gap, approach + results, meaning and future.
+- One message per slide, message-stating titles, large figures, readable tables; keep 3–5 backup slides for hard questions.
+- Choreograph the demo: tested first input, narrated unseen-data story, audience volunteer, fallback video ready.
+- In Q&amp;A: listen fully, answer the question asked, admit what you don't know, bridge to strengths, stay calm under hostility.
+- Prepare the five always-asked questions and your one-sentence contribution defense in advance.</p>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] S. Russell and P. Norvig, <em>Artificial Intelligence: A Modern Approach</em>, 4th ed. Hoboken, NJ, USA: Pearson, 2020.
+[2] A. Géron, <em>Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow</em>, 2nd ed. Sebastopol, CA, USA: O'Reilly Media, 2019.
+[3] F. Pedregosa et al., "Scikit-learn: Machine learning in Python," <em>J. Mach. Learn. Res.</em>, vol. 12, pp. 2825–2830, 2011.
+[4] T. M. Mitchell, <em>Machine Learning</em>. New York, NY, USA: McGraw-Hill, 1997.
+[5] I. Goodfellow, Y. Bengio, and A. Courville, <em>Deep Learning</em>. Cambridge, MA, USA: MIT Press, 2016.
+[6] F. Chollet, <em>Deep Learning with Python</em>, 2nd ed. Shelter Island, NY, USA: Manning, 2021.
+[7] Y. LeCun, Y. Bengio, and G. Hinton, "Deep learning," <em>Nature</em>, vol. 521, no. 7553, pp. 436–444, May 2015.
+[8] A. Paszke et al., "PyTorch: An imperative style, high-performance deep learning library," in <em>Proc. Adv. Neural Inf. Process. Syst.</em>, vol. 32, 2019.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Baseline</strong> — A simple, well-understood method run first on a problem, serving as the reference point that new methods must beat.</li>
+<li><strong>Checkpoint</strong> — A saved copy of a model's weights at a point during or after training, used to resume, evaluate, or deploy the best version.</li>
+<li><strong>Class imbalance</strong> — A dataset condition where some classes have far fewer examples than others, making accuracy misleading and F1-score more informative.</li>
+<li><strong>Confusion matrix</strong> — A table showing, for each true class, how many examples were predicted as each class; reveals which classes the model confuses.</li>
+<li><strong>Cross-validation</strong> — An evaluation technique that rotates data through training and testing roles (e.g., 5-fold) to estimate performance more robustly on small datasets.</li>
+<li><strong>Data leakage</strong> — Information from the test set (or future data) accidentally influencing training, producing inflated, dishonest results.</li>
+<li><strong>Deployment</strong> — Making a trained model usable outside the lab, e.g., as a demo web page, app, or service.</li>
+<li><strong>Error analysis</strong> — The systematic study of a model's mistakes, categorized by type, used to understand weaknesses and guide next steps.</li>
+<li><strong>Experiment tracking</strong> — Recording every run's code version, data version, hyperparameters, environment, and results so work is comparable and reproducible.</li>
+<li><strong>F1-score</strong> — The harmonic mean of precision and recall; a balanced metric preferred over accuracy when classes are imbalanced.</li>
+<li><strong>HARKing</strong> — Hypothesizing after the results are known: inventing an explanation for a result after seeing it, instead of predicting beforehand.</li>
+<li><strong>Hyperparameter</strong> — A setting chosen before training (learning rate, batch size, epochs) rather than learned from data.</li>
+<li><strong>Inference</strong> — Using a trained model to make predictions on new inputs.</li>
+<li><strong>Overfitting</strong> — Learning training-data noise instead of the real pattern; high training scores but poor performance on new data.</li>
+<li><strong>Problem statement</strong> — A precise written definition of the task, data, metric, test condition, and baseline for a project.</li>
+<li><strong>Reproducibility</strong> — The ability of another person to rerun a project and obtain the same results, via shared code, data, seeds, and environment.</li>
+<li><strong>Research gap</strong> — A specific, evidence-based absence in prior work (dataset, condition, comparison, or deployment) that justifies a new study.</li>
+<li><strong>Seed</strong> — The number initializing random processes; fixing it makes experiments repeatable.</li>
+<li><strong>Strawman baseline</strong> — An intentionally weak or under-tuned baseline used to make a new method look better; a common cause of rejection.</li>
+<li><strong>Test set</strong> — Data locked away during development and used once at the end for the final, honest evaluation.</li>
+<li><strong>Validation set</strong> — Data used during development for tuning hyperparameters and selecting models; separate from the test set.</li>
+<li><strong>Ablation study</strong> — Experiments that remove one component of a method at a time to measure each component's contribution.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Write a one-paragraph description of your current (or planned) project idea. Then answer: what would success look like as a single number? If you cannot answer, list the three things you must find out first.</li>
+<li>Take your project idea and rewrite it as a four-part problem statement (context, gap, objective, success criterion) in under 150 words. Perform the "hostile reviewer test" and revise twice.</li>
+<li>Find 10 papers related to your topic on Google Scholar. Build a summary table with columns: problem, method, dataset, metric, key result, limitation. Identify one candidate research gap.</li>
+<li>Download a public dataset in your area. Interrogate it: plot the class distribution, inspect 50 random samples, check the license, and write a half-page dataset sheet noting three limitations.</li>
+<li>Write a one-page data collection protocol and a one-page labeling guideline for a dataset you might build. Then run a 20-sample pilot and list everything the pilot revealed as broken.</li>
+<li>Implement a trivial baseline (majority class) and one classical baseline (e.g., logistic regression with scikit-learn [3]) on your data. Record the scores with code version and seed in a dated log entry.</li>
+<li>Set up your experiment tracking minimum: a git repo, <code>configs/</code> and <code>runs/</code> folders, and an <code>EXPERIMENTS.md</code> file. Log your baselines from Exercise 6 using a strict run-naming convention.</li>
+<li>Write a hypothesis using the template from Chapter 7, run a single-variable challenger experiment against your champion, and write the four-question analysis before running anything else. Repeat three times.</li>
+<li>Lock a test set (split by the right unit to prevent leakage). Evaluate your champion once, report accuracy, per-class F1, a confusion matrix, and seed variation — then categorize 50 errors into patterns and write one paragraph per pattern.</li>
+<li>Draft your paper's figures and tables with current numbers, write the 3–4 bullet contribution list, and outline the full IEEE paper section by section. Then do the README test: have a labmate reproduce your baseline from your README alone, and fix every confusion they hit.</li>
+</ol>
+<hr />
+<p><em>End of Book 9. Next: Book 10 — Common AI Mistakes Beginners Make.</em></p>

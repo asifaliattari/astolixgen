@@ -1,0 +1,425 @@
+e α, β, γ.</li>
+</ul>
+<h3 id="the-generative-agents-pattern-memory-streams">The Generative Agents pattern: memory streams</h3>
+<p>The landmark demonstration of agent memory is Park et al.'s "Generative Agents" (2023): 25 agents in a simulated town, each with a <strong>memory stream</strong> — a chronological log of observations — plus retrieval scored on recency, importance, and relevance, plus periodic <strong>reflection</strong> (the agent pauses to synthesize higher-level insights from recent memories, which are then stored back). The reflection step is the key idea: raw logs are data; reflected insights ("Maria seems interested in art") are knowledge. If you implement one memory feature beyond the basics, implement reflection-on-completion: after each task, have the agent write 2–3 sentences on what worked and what did not, and store them.</p>
+<h3 id="a-concrete-design-memory-for-a-research-assistant-agent">A concrete design: memory for a research assistant agent</h3>
+<p>Imagine an agent that helps you with literature reviews week after week:</p>
+<ul>
+<li><strong>Short-term:</strong> current review's trajectory — papers found, which were relevant, the evolving summary.</li>
+<li><strong>Long-term facts:</strong> your field ("AI agents"), venues you trust, your citation format, papers you have already rejected (so it never suggests them again).</li>
+<li><strong>Vector memory:</strong> embeddings of every paper summary it has written for you, so "find me something like that tool-use survey from last month" retrieves by meaning.</li>
+<li><strong>Reflection:</strong> after each review, it stores "user rejected 4 of 6 suggested papers; they were all pre-2022 — prefer recent work."</li>
+</ul>
+<p>After a month, this agent is genuinely more useful than on day one — not because the model changed, but because the memory did. That compounding is the economic argument for investing in memory design.</p>
+<h3 id="failure-modes-of-memory">Failure modes of memory</h3>
+<ul>
+<li><strong>Context bloat:</strong> stuffing everything into the prompt until the model drowns or the bill explodes. Fix: summarize, retrieve selectively.</li>
+<li><strong>Memory poisoning:</strong> a bad fact gets stored ("the API key is X") and corrupts future tasks. Fix: provenance (where did this memory come from?), expiry, and user-visible memory inspection.</li>
+<li><strong>Retrieval misses:</strong> the right memory exists but is not retrieved. Fix: hybrid retrieval, better chunking, and retrieving <em>before</em> acting rather than after failing.</li>
+<li><strong>Hallucinated recall:</strong> the agent "remembers" things that never happened, especially when you let it write memories unchecked. Fix: ground memories in logged trajectories; quote, don't paraphrase, for critical facts.</li>
+</ul>
+<h3 id="forgetting-conflict-resolution-and-evaluating-memory">Forgetting, conflict resolution, and evaluating memory</h3>
+<p>Chapter 4 covered what to remember; the harder problems are what to <em>forget</em> and what to do when memories <em>conflict</em>. Both are under-researched and both bite in practice.</p>
+<p><strong>Forgetting as a designed process.</strong> Memories decay in value: API behaviors change, user preferences evolve, project contexts end. Implement three forgetting mechanisms: (1) <strong>timestamps with time-to-live</strong> — volatile facts (API quirks, prices, "the server is down") expire in days; stable facts (citation format, field of study) persist; (2) <strong>supersession</strong> — when a new memory contradicts an old one on the same topic, the old one is marked superseded, not deleted (the history of "what I used to believe" is itself useful and auditable); (3) <strong>garbage collection</strong> — memories never retrieved in N sessions get flagged for review or quiet archival. The common failure is the opposite: append-only memory that grows into a swamp of stale, contradictory facts the agent treats as equally true. If your agent's performance <em>degrades</em> over sessions, suspect the memory before the model.</p>
+<p><strong>Conflict resolution.</strong> "The user prefers concise summaries" (stored March) vs. "the user asked for detailed explanations twice this week" (recent episodes). Which wins? Implement an explicit precedence: recency-weighted, with user-stated preferences outranking inferred ones, and direct corrections ("no, I meant X") outranking everything — a correction is the user doing your memory maintenance for you; honor it immediately and visibly ("Noted — I'll use detailed explanations going forward"). When the agent detects a conflict it cannot resolve, the right behavior is to <em>ask</em>, briefly, not to guess silently. One clarifying question beats three wrong assumptions.</p>
+<p><strong>Evaluating memory: the hard part.</strong> Single-session benchmarks cannot measure memory, and most papers that claim memory improvements measure them on tasks where memory is optional. A honest memory evaluation needs <strong>multi-session tasks with planted dependencies</strong>: session 1 establishes a fact ("the lab's server address is X; the preferred plot style is Y"); session 2 (days later, in a fresh context) requires the agent to use it without being reminded; session 3 changes the fact and checks the agent updates rather than clings to the old one. Score: recall accuracy (did it retrieve the right fact?), precision (did it avoid retrieving irrelevant ones?), update correctness (did it supersede cleanly?), and abstention (did it say "I don't know" when the memory was genuinely absent?). Even a 20-task × 3-session benchmark of this shape is a contribution — the field has far fewer multi-session evaluations than it needs, which is exactly why reviewers notice them.</p>
+<p><strong>Memory and privacy.</strong> Long-term memory is a privacy surface: it accumulates facts about the user across sessions, and a compromised or over-shared agent leaks the accumulation, not just the session. Design accordingly: let users inspect and delete memories ("what do you remember about me?" should have a true, complete answer); scope memories per project when projects shouldn't mix; and treat the memory store with the same access controls as any user-data database. For research prototypes handling real user data, get this reviewed early — retrofitting privacy into a memory system is as painful as retrofitting safety into tools.</p>
+<p><strong>A note on the "extended mind" framing.</strong> Philosophers (Clark and Chalmers' extended-mind thesis, 1998 — a real and citable anchor outside ML) argued that notebooks and tools can be part of cognition when they are reliably coupled to the thinker. Agent memory systems are the engineering realization of that idea: the question is not whether the agent "really remembers" but whether the coupled system — model plus stores plus retrieval — behaves as if it does, reliably enough to trust. That framing occasionally helps in interdisciplinary venues, but in ML venues, stick to measurements: recall accuracy, not metaphysics.</p>
+<h3 id="case-study-the-agent-that-remembered-too-much">Case study: the agent that remembered too much</h3>
+<p>A coding-assistant agent with long-term memory served a small team for two months. Early on it was delightful: it remembered each developer's preferred test framework, the repo's conventions, the deployment checklist. By month two it was a menace. It kept suggesting a deprecated API because a March memory said "use library X" — the team had migrated in April, but nobody told the agent, and the old memory outranked the new reality. It addressed a developer by a nickname from a joke that had long expired. Worst of all, it once pasted a database connection string from an old memory into a shared chat — a credential leak born of helpfulness.</p>
+<p>The remediation became the team's memory policy, and it's worth copying: (1) every memory got a 30-day TTL unless explicitly marked durable by a human; (2) memories were shown in a sidebar the team could edit and delete — "what the agent remembers about this project" became reviewable like code; (3) credentials and secrets were banned from memory by a pattern filter, with violations logged; (4) before acting on any memory older than a week for a consequential decision, the agent had to confirm ("You previously used library X — still correct?"). Performance dipped slightly for two weeks, then exceeded the original — because the memories that survived were the ones that deserved to.</p>
+<p>The moral: <strong>memory is a liability you manage, not an asset you accumulate.</strong> Append-only memory feels like progress and behaves like rot. Design forgetting first, remembering second.</p>
+<blockquote>
+<p><strong>For your research:</strong> Memory ablations are clean experiments with clear baselines: no memory vs. short-term only vs. short-term + vector memory, measured on multi-session tasks. The hard part — and the publishable part — is the <em>task design</em>: you need tasks where memory actually matters (repeated users, evolving projects, recurring errors). Single-session benchmarks cannot measure memory; design a small multi-session benchmark (even 20 tasks × 3 sessions) and you have something reviewers have not seen a hundred times. Cite Park et al. (2023) for the memory-stream/reflection pattern and Sumers et al. (2024) for the cognitive-architecture framing.</p>
+</blockquote>
+<h3 id="key-takeaways_3">Key takeaways</h3>
+<ul>
+<li>Three layers: short-term (context window), long-term (durable store), vector (semantic retrieval).</li>
+<li>Manage short-term memory actively: keep recent steps verbatim, summarize the rest, pin the goal.</li>
+<li>Long-term memory needs write discipline (what, when), retrieval discipline (when), and forgetting (expiry, overwrite).</li>
+<li>Vector memory retrieves by meaning; use hybrid scoring (vector + keyword + recency) and let the agent judge relevance.</li>
+<li>Implement reflection-on-completion: the cheapest way to turn logs into knowledge.</li>
+<li>Memory failures — bloat, poisoning, misses, hallucinated recall — are design problems with known fixes.</li>
+</ul>
+<hr />
+<h2 id="chapter-5-planning-and-reasoning-react-plan-and-execute-reflection">Chapter 5: Planning and Reasoning — ReAct, Plan-and-Execute, Reflection</h2>
+<h3 id="why-planning-deserves-its-own-chapter">Why planning deserves its own chapter</h3>
+<p>Chapter 2 gave you the loop; this chapter is about the <em>thinking inside it</em>. Two agents with identical tools and memory can perform wildly differently depending on how they reason. The field has converged on a small set of reasoning architectures, each with known strengths, costs, and failure modes. Knowing them by name — and knowing when each is appropriate — is part of basic literacy in agent research, because nearly every agent paper is, at its core, a claim about a better way to think before acting.</p>
+<h3 id="react-reasoning-and-acting-interleaved">ReAct: reasoning and acting, interleaved</h3>
+<p><strong>ReAct</strong> (Yao et al., 2023) is the single most influential agent pattern, and the default you should reach for first. The idea is disarmingly simple: prompt the model to alternate between <strong>Thought</strong> (reasoning about the current state) and <strong>Action</strong> (a tool call), with each <strong>Observation</strong> feeding the next Thought:</p>
+<pre><code>Thought: I need the citation count for the ReAct paper. The arXiv page won't have it,
+         so I'll query a scholarly API.
+Action: scholarly_search(&quot;ReAct Synergizing Reasoning and Acting&quot;)
+Observation: [results with citation counts]
+Thought: The top result shows 2,847 citations. That answers the question.
+Action: finish(&quot;The ReAct paper has ~2,847 citations (per scholarly API, Oct 2026).&quot;)
+</code></pre>
+<p>Why it works: the Thought steps do three jobs at once. They decompose the goal into sub-steps, they maintain a working memory of what has been learned (compressed into the trace), and they make the agent's decisions <em>legible</em> — you can read a failed trajectory and see exactly where the reasoning went wrong. The paper showed ReAct outperforming both pure chain-of-thought (no actions) and pure act-only (no reasoning) baselines on HotpotQA and AlfWorld, and the pattern has held up across hundreds of replications: reasoning without acting cannot touch the world; acting without reasoning cannot adapt.</p>
+<p>The few-shot prompt that teaches ReAct is worth studying as an artifact. It shows 2–4 worked examples of Thought/Action/Observation sequences for the task domain, and the model generalizes the <em>format</em> to new problems. Two practical notes: keep the examples in-domain (a web-navigation ReAct prompt teaches little about a coding agent), and include at least one example of <em>recovery</em> — a Thought that says "that didn't work, let me try..." — because models imitate what they see, including error handling.</p>
+<p>ReAct's weaknesses: it is myopic — each Thought considers only the next action, so it can wander on tasks needing long-horizon plans (it may search brilliantly for an hour without ever writing the report). And it is token-hungry: every step re-reads the whole trace. For tasks longer than ~15 steps, you need something with more foresight.</p>
+<h3 id="plan-and-execute-think-first-then-do">Plan-and-execute: think first, then do</h3>
+<p><strong>Plan-and-execute</strong> splits the job: a <em>planner</em> produces a full step-by-step plan up front, then an <em>executor</em> works through it, with a <em>replanner</em> triggered when reality diverges.</p>
+<pre><code>Plan:
+  1. Search for the ReAct paper's arXiv page.
+  2. Extract the author list.
+  3. For each author, search &quot;&lt;name&gt; ICLR 2023&quot;.
+  4. Count matches and compile titles.
+  5. Write results to report.txt.
+
+Execute step 1... Observation: found.
+Execute step 2... Observation: 5 authors extracted.
+Execute step 3... Observation: author 3 has no ICLR 2023 papers; search returned noise.
+Replan: skip author 3, continue with author 4. (Plan updated.)
+</code></pre>
+<p>The strengths are the mirror of ReAct's weaknesses: the upfront plan gives long-horizon coherence (the agent knows step 5 is coming), and the executor's prompts can be short because the plan carries the context. The costs: planning up front wastes effort when the world is unpredictable (the plan is obsolete by step 2), and you now have three components to debug instead of one. The replan trigger is the delicate part — too sensitive and the agent replans constantly; too lax and it marches off a cliff following a dead plan. A workable heuristic: replan when an observation contradicts a plan assumption, or when two consecutive steps fail.</p>
+<p>In practice, many production agents are hybrids: a light plan (3–7 steps) generated up front, executed ReAct-style, with replanning on failure. If a paper claims "plan-and-execute," check whether the plan is actually used during execution or is decorative — reviewers do.</p>
+<h3 id="reflection-learning-from-the-trace">Reflection: learning from the trace</h3>
+<p><strong>Reflection</strong> means the agent examines its own trajectory and extracts lessons — during the task, after failures, or after completion. The simplest form is <em>self-critique on failure</em>: when a step fails, a dedicated prompt asks "what went wrong and what should I try instead?" before the next action. Stronger forms include:</p>
+<ul>
+<li><strong>Reflexion-style verbal reinforcement</strong> (a real technique family): the agent maintains a growing set of lessons ("don't trust the first search result's snippet; open the page") that are prepended to future attempts at the same task. It is "learning" without weight updates — the lessons live in the prompt.</li>
+<li><strong>Post-task reflection</strong> (Chapter 4's pattern): after success or failure, distill 2–3 sentences into long-term memory.</li>
+<li><strong>Critic agents</strong>: a second model instance reviews the first's plan or output before action. This is the bridge to multi-agent systems (Chapter 6).</li>
+</ul>
+<p>Reflection's cost is obvious — more model calls — and its benefit is concentrated in <em>repeated</em> tasks: the tenth literature review is better than the first because the lessons accumulated. For one-shot tasks, reflection is mostly overhead. A clean experimental result you can replicate: on tasks the agent will attempt multiple times, reflection-style lesson accumulation typically cuts steps-to-success by 20–40% after a few episodes. The variance is high, which is why you should measure it rather than assume it.</p>
+<h3 id="choosing-among-them">Choosing among them</h3>
+<table>
+<thead>
+<tr>
+<th>Task shape</th>
+<th>Best default</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Short, uncertain, exploratory (search, investigate)</td>
+<td>ReAct</td>
+<td>Adapts step by step; trace is debuggable</td>
+</tr>
+<tr>
+<td>Long, structured, decomposable (write report, run pipeline)</td>
+<td>Plan-and-execute</td>
+<td>Coherence over many steps; cheaper per step</td>
+</tr>
+<tr>
+<td>Repeated similar tasks (weekly reviews, recurring analyses)</td>
+<td>ReAct + reflection</td>
+<td>Lessons compound across episodes</td>
+</tr>
+<tr>
+<td>High-stakes single actions (send email, run migration)</td>
+<td>Plan + critic review before acting</td>
+<td>A second pair of eyes before irreversibility</td>
+</tr>
+</tbody>
+</table>
+<p>A useful mental model: <strong>ReAct is depth-first thinking, plan-and-execute is breadth-first thinking, reflection is learning across time.</strong> Most serious agents combine all three, and the art is in the proportions.</p>
+<h3 id="pseudo-code-a-planner-executor-with-replanning">Pseudo-code: a planner-executor with replanning</h3>
+<pre><code class="language-python">def plan_and_execute(goal, tools, model, max_steps=20):
+    plan = model.generate(f&quot;Create a numbered step-by-step plan for: {goal}&quot;)
+    history = []
+    step = 0
+    while step &lt; max_steps and not plan_complete(plan, history):
+        current = next_pending_step(plan, history)
+        # executor acts ReAct-style for this step
+        thought = model.generate(f&quot;Goal: {goal}\nPlan: {plan}\nCurrent step: {current}\nHistory: {history}\nThink, then choose one tool call.&quot;)
+        action = parse_action(thought)
+        obs = execute(tools, action)   # errors become observations
+        history.append((current, action, obs))
+        if contradicts_plan(obs, plan):
+            plan = model.generate(f&quot;The plan failed at step '{current}'. Observation: {obs}. Revise the remaining plan for goal: {goal}&quot;)
+        step += 1
+    reflect_and_store(goal, history)   # post-task reflection to long-term memory
+    return summarize(history)
+</code></pre>
+<p>Notice how the pieces from Chapters 2–4 compose: the loop, the tools, the memory write at the end. Agent engineering is composition, not invention.</p>
+<h3 id="beyond-the-big-three-tree-search-self-consistency-and-hierarchical-planning">Beyond the big three: tree search, self-consistency, and hierarchical planning</h3>
+<p>ReAct, plan-and-execute, and reflection cover most practical needs, but the research literature offers stronger (and costlier) reasoning patterns worth knowing — both to use and to cite correctly.</p>
+<p><strong>Tree of Thoughts (ToT).</strong> Where ReAct follows one reasoning path, ToT (Yao et al., 2023 — the same first author as ReAct, and a real paper worth citing alongside it) explores <em>multiple</em> reasoning branches: at each step the model generates several candidate thoughts, evaluates their promise, and searches the tree (breadth-first or depth-first) for the best path, backtracking from dead ends. On puzzles and problems where a single wrong step ruins the solution (the paper's Game of 24, creative writing with constraints), ToT dramatically outperforms single-path reasoning. The cost is equally dramatic — exploring k branches at each of d steps multiplies model calls — so ToT is a specialist tool: reach for it when the task has verifiable intermediate states (you can <em>score</em> a partial solution) and when getting it right matters more than getting it cheap. Most agentic tasks lack cheap intermediate scoring, which is why ToT remains more cited than deployed.</p>
+<p><strong>Self-consistency.</strong> A cheaper cousin: sample the model's reasoning multiple times (temperature &gt; 0) and take the majority answer (Wang et al., 2022). For agents, the useful variant is <em>action-level</em> self-consistency: when the next action is uncertain, sample 3 candidate actions and pick the one that appears most often, or escalate to the user on disagreement. It smooths out the model's occasional bizarre choices at 3× the planning cost — worth it for high-stakes single actions (which file to delete, which email to send), overkill for routine steps.</p>
+<p><strong>Hierarchical planning.</strong> For genuinely long tasks (50+ steps), flat planning breaks down — the plan becomes a wall of text nobody, including the model, can track. Hierarchical planners decompose recursively: the top level produces 4–6 phases ("1. gather sources, 2. extract claims, 3. draft, 4. verify"), and each phase gets its own sub-plan when executed. Only the current phase's detail is in context; the rest stays as headings. This mirrors how humans manage complex projects and composes naturally with plan-and-execute: the executor works phase by phase, replanning within a phase on failure and escalating to re-plan the <em>phase list</em> only when a whole phase fails. The engineering cost is real — you are now managing a plan tree — so reserve hierarchy for tasks that are long <em>and</em> decomposable; long <em>and</em> unpredictable tasks are still better served by ReAct with good reflection.</p>
+<p><strong>How these compose with reflection.</strong> A useful way to think about the full menu: ReAct is your step policy, plan-and-execute (or hierarchical) is your episode policy, reflection is your cross-episode policy, and ToT/self-consistency are <em>deliberation upgrades</em> you bolt onto whichever policy faces uncertainty. An agent that plans hierarchically, executes ReAct-style within phases, reflects across episodes, and uses self-consistency on its three riskiest decisions per episode is not exotic — it is what a careful practitioner assembles after a year of debugging. The research contribution is rarely "we combined everything"; it is identifying <em>which</em> combination moves the metric on <em>which</em> task class, with the ablations to prove it.</p>
+<p><strong>A caution on reasoning theater.</strong> Longer reasoning traces <em>look</em> more rigorous, and there is a temptation — in demos and in papers — to equate verbosity with thoughtfulness. The evidence supports explicit reasoning, not endless reasoning: traces that restate the obvious, hedge excessively, or "think" for 500 tokens before a trivial action are burning budget for legibility theater. In your own agents, prompt for <em>decisive</em> reasoning ("state the key uncertainty and the action that resolves it, in 2–3 sentences") and measure whether longer traces actually improve outcomes. Reviewers are learning to discount the theater; don't give them the chance.</p>
+<h3 id="case-study-when-react-wandered-and-a-plan-saved-the-day">Case study: when ReAct wandered and a plan saved the day</h3>
+<p>A data-journalism agent was tasked: "Produce a 1,500-word analysis of electric-vehicle adoption across five countries, with charts, citing sources." Running pure ReAct, it behaved like an energetic intern with no supervision: it found fascinating German subsidy data, chased it for nine steps, discovered Norwegian ferry-electrification statistics, chased those for six more, and at step 22 produced 400 words on ferries with no charts and two countries covered. Every individual step was reasonable; the trajectory had no destination.</p>
+<p>The rebuild used plan-and-execute: the planner produced six phases (per-country data gathering ×5, then synthesis), each phase budgeted 6 steps, with a phase-level verifier ("do I have adoption figures, policy context, and at least one chartable series for this country?"). The executor ran ReAct <em>within</em> phases. When the German phase surfaced the subsidy rabbit hole, the phase verifier pulled it back: "subsidy detail noted; do you have the adoption time series? No → get it before moving on." Total: 34 steps, all five countries, three charts, sources cited. Token cost was 30% <em>lower</em> than the wandering ReAct run, because focused steps beat numerous lost ones.</p>
+<p>The lesson: <strong>ReAct optimizes the next step; plans optimize the trajectory.</strong> For tasks where "done" has a known shape (sections to fill, countries to cover, tests to pass), that shape should exist as an explicit plan the executor is accountable to — not as a hope in the system prompt. And the phase verifier pattern generalizes: any long task can be checkpointed the same way, with each checkpoint asking "what does done look like <em>for this phase</em>?"</p>
+<blockquote>
+<p><strong>For your research:</strong> Reasoning-architecture comparisons are the bread and butter of agent papers, and reviewers have strong priors — so your experimental design must be airtight. Fix the model, the tools, and the task set; vary <em>only</em> the reasoning pattern; report success rate, steps, and tokens per task with confidence intervals. Include a cost axis (Chapter 9): a method that wins on success but costs 5× the tokens is a trade-off, not a victory. And ablate the pieces: is it the plan, the replan trigger, or the reflection that carries the gain? "ReAct + reflection beats ReAct" is a claim; "the reflection step accounts for 80% of the gain, the plan for 20%" is a result.</p>
+</blockquote>
+<h3 id="key-takeaways_4">Key takeaways</h3>
+<ul>
+<li>ReAct (interleaved Thought/Action/Observation) is the default pattern: adaptive, legible, and well-validated. Start here.</li>
+<li>Plan-and-execute suits long, structured tasks; the replan trigger is the delicate part.</li>
+<li>Reflection turns trajectories into reusable lessons; its payoff is in repeated tasks.</li>
+<li>Match the reasoning style to the task shape; hybrids are normal.</li>
+<li>When comparing reasoning architectures experimentally, fix everything else and report success, steps, <em>and</em> cost.</li>
+</ul>
+<hr />
+<h2 id="chapter-6-multi-agent-systems-roles-collaboration-patterns">Chapter 6: Multi-Agent Systems — Roles, Collaboration Patterns</h2>
+<p><img alt="Multi-agent collaboration" src="/learn/images/media-generation-book-19-fig3-0-1efe49be-db99-4eba-b211-1676d60bc1ed.webp" /></p>
+<h3 id="why-more-than-one-agent">Why more than one agent?</h3>
+<p>A single agent with good tools can do a great deal. But some tasks decompose naturally along lines of expertise or responsibility: one agent researches, another writes, a third checks facts. Multi-agent systems assign <strong>roles</strong> to separate model instances (each with its own prompt, and often its own tools and memory) and define how they <strong>communicate</strong>. The bet is that specialization plus structured interaction beats one generalist doing everything — the same bet human organizations make.</p>
+<p>The honest caveat, up front: multi-agent systems multiply cost, latency, and failure modes. Every additional agent is another model call per turn, another prompt to engineer, and another source of miscommunication. Chapter 7's framework comparison and Chapter 9's evaluation discipline exist partly to keep multi-agent enthusiasm honest. Use multiple agents when the task genuinely benefits from role separation, parallel work, or adversarial checking — not because it sounds impressive.</p>
+<h3 id="roles-the-cast-of-characters">Roles: the cast of characters</h3>
+<p>A role is a prompt that tells one agent who it is, what it knows, what it can do, and what it is responsible for. Common, battle-tested roles:</p>
+<ul>
+<li><strong>Researcher:</strong> gathers information. Tools: search, page reader, scholarly APIs. Forbidden from writing the final output — its job is evidence.</li>
+<li><strong>Writer/Drafter:</strong> produces the deliverable from the researcher's evidence. No web tools — it works only from provided material, which reduces hallucination surface.</li>
+<li><strong>Critic/Reviewer:</strong> checks the draft against the evidence and a rubric. Its output is a verdict plus specific fixes, not a rewrite.</li>
+<li><strong>Planner/Coordinator:</strong> decomposes the goal and assigns sub-tasks; does not execute.</li>
+<li><strong>Coder:</strong> writes and runs code. Tools: code execution, file I/O. Paired with a critic that reviews diffs.</li>
+<li><strong>User proxy:</strong> in frameworks like AutoGen, an agent that stands in for the human — executing code, answering clarifying questions from a script, or escalating to the real user.</li>
+</ul>
+<p>Role prompts need the same care as tool descriptions (Chapter 3): state the role's objective, its tools, its constraints, and — crucially — what it must <em>not</em> do. A researcher that starts editorializing wastes everyone's tokens.</p>
+<h3 id="collaboration-patterns">Collaboration patterns</h3>
+<p><strong>1. Pipeline (assembly line).</strong> Researcher → Writer → Critic → (back to Writer if rejected) → Done. Each agent's output is the next agent's input. Simple, debuggable, and the easiest to evaluate stage by stage. Weakness: no agent sees the big picture, and errors compound downstream — a bad research brief poisons the draft.</p>
+<p><strong>2. Hierarchical (manager and workers).</strong> A coordinator breaks the goal into sub-tasks, dispatches them to workers (possibly in parallel), and synthesizes results. Good for decomposable work like "survey five sub-topics." The coordinator is the single point of failure and the token hotspot — it reads everything.</p>
+<p><strong>3. Debate (adversarial).</strong> Two or more agents argue opposing positions or propose competing solutions; a judge (another agent, or a rubric) picks the winner. Research shows debate can improve factuality and reasoning on contested questions, because each agent is incentivized to find flaws in the other's position. Expensive — you pay for multiple full solutions — so reserve it for high-stakes judgments.</p>
+<p><strong>4. Conversation (free-form).</strong> Agents talk in a shared thread, each deciding when to speak and act, as in AutoGen's conversational pattern and CAMEL's role-playing (Li et al., 2023). The most flexible and the hardest to control: conversations drift, agents agree too readily ("sycophancy loops"), and termination is tricky. Impose structure — speaking order, a moderator, a max-round cap — or the flexibility becomes chaos.</p>
+<p>A concrete pipeline trace for "write a briefing on agent evaluation benchmarks":</p>
+<pre><code>Coordinator: &quot;Researcher, find the 5 most relevant benchmarks for evaluating AI agents, with what each measures.&quot;
+Researcher: [searches, reads] → &quot;1. AgentBench (multi-env task success)... 2. ...&quot;
+Coordinator: &quot;Writer, draft a 2-page briefing from this evidence. Critic, review against the rubric.&quot;
+Writer: [drafts from evidence only]
+Critic: &quot;Claim on page 1 ('all benchmarks use human judges') is unsupported by the evidence — soften or cite.&quot;
+Writer (revise): [fixes]
+Critic: &quot;Pass.&quot;
+Coordinator: [delivers briefing]
+</code></pre>
+<p>Each handoff is inspectable. If the briefing is wrong, you know whether research, writing, or reviewing failed — which is exactly the diagnosability single-agent traces sometimes lack.</p>
+<h3 id="communication-mechanics">Communication mechanics</h3>
+<p>Agents communicate through <strong>messages</strong> in a shared context or a message bus. Design decisions:</p>
+<ul>
+<li><strong>What is shared vs. private?</strong> In a pipeline, each agent may need only its input, not the full history — sharing everything bloats context and leaks role confusion ("the writer starts doing research").</li>
+<li><strong>Structured handoffs.</strong> Pass data as labeled fields (evidence:, draft:, verdict:) rather than prose paragraphs; parsing is more reliable.</li>
+<li><strong>Termination.</strong> Define who can end the conversation and on what signal: critic's "Pass," coordinator's synthesis, or a round cap. Free-form conversation without a termination rule is the multi-agent version of Chapter 2's infinite loop.</li>
+<li><strong>Human-in-the-loop points.</strong> Decide up front where a human approves: after research? before delivery? Approval gates are the cheapest safety feature in multi-agent design.</li>
+</ul>
+<h3 id="when-single-agent-wins">When single-agent wins</h3>
+<p>Be explicit about this in your own work, because reviewers will ask. Single-agent is better when: the task fits in one context window comfortably; the sub-tasks are tightly coupled (splitting them creates more coordination cost than it saves); latency matters (multi-agent is inherently sequential in places); or the budget is tight. A good rule of thumb: build the single-agent version first, measure where it fails, and add a second agent only to fix a <em>specific, observed</em> failure (e.g., "the single agent's drafts contain unsupported claims" → add a critic). Multi-agent by default is architecture astronautics.</p>
+<h3 id="framework-sketch-a-minimal-two-agent-pipeline-in-pseudo-code">Framework sketch: a minimal two-agent pipeline in pseudo-code</h3>
+<pre><code class="language-python">def pipeline(goal):
+    evidence = researcher_agent(
+        goal=f&quot;Gather evidence for: {goal}&quot;,
+        tools=[web_search, open_page],
+        forbidden=[&quot;write the final answer&quot;])
+    draft = writer_agent(
+        goal=f&quot;Draft the deliverable for: {goal}&quot;,
+        context={&quot;evidence&quot;: evidence},
+        tools=[])                       # no tools: works from evidence only
+    for round in range(3):              # bounded review loop
+        verdict = critic_agent(
+            goal=&quot;Review the draft against the evidence and rubric.&quot;,
+            context={&quot;evidence&quot;: evidence, &quot;draft&quot;: draft})
+        if verdict[&quot;status&quot;] == &quot;pass&quot;:
+            return draft
+        draft = writer_agent(
+            goal=f&quot;Revise the draft addressing: {verdict['fixes']}&quot;,
+            context={&quot;evidence&quot;: evidence, &quot;draft&quot;: draft})
+    return draft  # round cap hit: return best effort, flag it
+</code></pre>
+<p>Three lines carry the engineering wisdom: the writer gets no tools (capability restriction as a safety feature), the review loop is bounded (round cap as termination), and the final return flags imperfection (honest output beats silent failure).</p>
+<h3 id="communication-protocols-and-failure-containment-in-practice">Communication protocols and failure containment in practice</h3>
+<p>Chapter 6 described the patterns; this section is about the plumbing that makes them work — and the containment that keeps one bad agent from sinking the crew.</p>
+<p><strong>Message schemas, not prose.</strong> When agents talk to each other, free-form prose is the default and the trap: the writer buries the key finding in paragraph three, the critic misses it, and the error propagates. Define a lightweight schema per handoff. Researcher → Writer:</p>
+<pre><code>EVIDENCE BRIEF
+Topic: &lt;one line&gt;
+Key findings:
+  - &lt;finding&gt; [source: &lt;URL or tool output id&gt;]
+  - ...
+Gaps / uncertainties: &lt;what was NOT found&gt;
+Confidence: high | medium | low
+</code></pre>
+<p>Critic → Writer:</p>
+<pre><code>REVIEW VERDICT: pass | revise
+Issues:
+  - &lt;claim&gt; is unsupported: &lt;which evidence is missing&gt;
+  - ...
+</code></pre>
+<p>Schemas do three things: they make handoffs parseable (the next agent extracts fields reliably), reviewable (you can read a brief in seconds), and <em>testable</em> — you can unit-test the researcher on "does the brief contain sources for every finding?" without running the whole pipeline. The schema is a contract between agents the same way the tool schema is a contract between model and code.</p>
+<p><strong>Provenance labels.</strong> Every inter-agent message should carry its epistemic status: is this verified fact, single-source claim, or agent inference? A simple prefix convention — <code>[verified]</code>, <code>[single-source]</code>, <code>[inference]</code> — lets downstream agents (and you, reading the transcript) calibrate trust. The critic's most important job is upgrading labels: turning <code>[single-source]</code> claims into <code>[verified]</code> or flagging them. Without provenance, multi-agent transcripts develop a dangerous property: confident-sounding text with untraceable origins, which is how cascades (Chapter 10) start.</p>
+<p><strong>Failure containment.</strong> Design each agent so its failures are <em>local</em>: the researcher returns "insufficient evidence" instead of fabricating a brief; the writer refuses to write from an empty brief instead of inventing content; the critic can halt the pipeline ("evidence too thin — recommend human review") instead of passing garbage. This is the multi-agent version of "errors as observations": a stage that fails loudly and specifically gives the coordinator something to work with — retry the researcher with broader queries, or escalate to the human. A stage that fails silently poisons everything downstream. When you evaluate multi-agent systems (Chapter 9), inject failures deliberately — give the researcher a broken search tool for one run — and measure whether the system degrades gracefully or collapses. Graceful degradation under injected faults is one of the most convincing results a multi-agent paper can show, and almost nobody reports it.</p>
+<p><strong>The coordinator's real job.</strong> In hierarchical systems the coordinator is often described as "delegating and synthesizing," but its highest-value function is <em>triage</em>: deciding which worker outputs to trust, which to redo, and when to stop the whole endeavor. Give the coordinator explicit triage criteria in its prompt ("redo any brief with confidence=low; stop and escalate if two workers fail on the same sub-task") rather than hoping judgment emerges. And watch the coordinator's context: it sees the most, so it bloats fastest — have workers return briefs, not raw traces, and the coordinator will stay functional twice as long.</p>
+<p><strong>Cost reality check.</strong> A 3-agent pipeline with a 2-round critic loop makes roughly 5–8 model calls per task where a single agent makes 10–15 steps of 1 call each. Multi-agent is not automatically more expensive — specialization lets each agent use <em>shorter prompts</em> (the writer needs no tool schemas; the researcher needs no writing rubric). Measure per-role token spend (Chapter 9's tracker, tagged by agent) and you will often find the critic is the cheapest agent per call but the one most worth keeping. "Which agent earned its keep?" is an empirical question; answer it with numbers, not intuition.</p>
+<h3 id="case-study-the-debate-that-caught-a-hallucination">Case study: the debate that caught a hallucination</h3>
+<p>A medical-literature briefing pipeline (researcher → writer → critic) was summarizing a clinical trial. The researcher returned a solid brief; the writer drafted; the critic passed it. A human spot-check later found a fabricated dosage in the draft — the researcher had accurately reported "dosage not stated in abstract," the writer had <em>invented</em> a plausible number to fill the gap, and the critic, reviewing the draft against the brief, had no way to know the number wasn't in the brief's source material... because it checked draft-vs-brief, not draft-vs-evidence.</p>
+<p>The fix was a structural one from this chapter's playbook: the critic was given the <em>original evidence</em> (the abstract text), not just the brief, and its schema gained a provenance column — every quantitative claim in the draft had to be labeled <code>[verified: source]</code> or flagged. Re-run on the same task: the critic flagged the dosage as <code>[unverified]</code>, the writer was forced to either find it or write "not reported," and the final brief was correct. The pipeline got one agent <em>slower</em> (the critic now read source material) and dramatically more trustworthy.</p>
+<p>Two lessons: first, <strong>a critic is only as good as its access to ground truth</strong> — reviewing summaries of summaries is theater. Second, this is exactly the kind of failure that single-agent evaluation would have scored as "success" (the brief looked great), which is why trajectory-level and provenance-level analysis matters. The most dangerous agent failures are the fluent ones.</p>
+<blockquote>
+<p><strong>For your research:</strong> Multi-agent papers live or die on their baselines. "Our 4-agent system beats a single agent" is unconvincing if the single agent got one attempt and the system got the equivalent of four. Control for total compute: compare against a single agent with the same token budget, or against the best single-agent variant (e.g., single agent + self-critique). Report per-agent token costs — reviewers increasingly ask "which agent earned its keep?" Ablate roles: remove the critic and measure the drop; that number is your paper's core claim. And cite the conversational frameworks honestly: AutoGen (Wu et al., 2023) for conversation-driven orchestration, CAMEL (Li et al., 2023) for role-playing dynamics.</p>
+</blockquote>
+<h3 id="key-takeaways_5">Key takeaways</h3>
+<ul>
+<li>Multi-agent = roles (specialized prompts, tools, responsibilities) + collaboration pattern + communication rules.</li>
+<li>Patterns: pipeline, hierarchical, debate, conversation — each with a natural task shape and a characteristic failure.</li>
+<li>Restrict capabilities per role (a writer with no web tools cannot hallucinate fresh "facts" as easily); bound review loops; define termination.</li>
+<li>Build single-agent first; add agents only to fix observed failures.</li>
+<li>In experiments, control for total compute and ablate roles — "which agent earned its keep?" is the question reviewers ask.</li>
+</ul>
+<hr />
+<h2 id="chapter-7-frameworks-overview-langchain-autogen-crewai-honest-comparison">Chapter 7: Frameworks Overview — LangChain, AutoGen, CrewAI (Honest Comparison)</h2>
+<h3 id="what-a-framework-actually-gives-you">What a framework actually gives you</h3>
+<p>An agent framework is scaffolding around the loop from Chapter 2: prompt templates, tool registries, memory integrations, tracing, and (for multi-agent frameworks) conversation orchestration. No framework invents the loop for you — they all implement some version of perceive–plan–act — and none removes the need to design tools, write good prompts, and evaluate. What they buy is speed of prototyping and, in the better ones, observability: the ability to see what your agent did and why.</p>
+<p>This chapter compares the three frameworks a researcher is most likely to encounter. The comparison is honest: each has a natural habitat, and each has sharp edges the documentation undersells. Versions move fast; the architectural judgments below are about design philosophy, which changes more slowly than APIs.</p>
+<h3 id="langchain-and-langgraph">LangChain (and LangGraph)</h3>
+<p><strong>What it is.</strong> LangChain began as a toolkit for chaining language-model calls — prompts, models, parsers, retrievers — and grew an agent layer on top. Its modern agent story is <strong>LangGraph</strong>: agents as graphs where nodes are steps (reason, act, reflect) and edges are transitions, including loops and conditional branches. This is a genuinely good mental model — Chapter 2's loop <em>is</em> a graph — and LangGraph makes the control flow explicit and inspectable instead of buried in a prompt.</p>
+<p><strong>Habitat.</strong> Single-agent systems with custom control flow: research prototypes where you want to say "after the critic rejects, go back to the planner, max 3 times" and have that be real code, not prompt wishes. Its ecosystem (document loaders, vector-store integrations, tracing via LangSmith) is the largest in the field, which matters when you need an obscure integration yesterday.</p>
+<p><strong>Sharp edges.</strong> Abstraction bloat: there are often three ways to do the same thing, and the "recommended" way changes between releases — pin your versions and expect migration work. The magic that makes demos easy (agents constructed in five lines) hides the prompt and the loop, which is exactly what you need to see when things break; prefer LangGraph's explicit graphs over the highest-level agent constructors for anything you will publish. Tracing is excellent but the hosted parts can get expensive.</p>
+<pre><code class="language-python"># LangGraph-style sketch: the loop from Chapter 2, made explicit
+from langgraph.graph import StateGraph, END
+
+graph = StateGraph(AgentState)
+graph.add_node(&quot;reason&quot;, reason_step)      # Thought
+graph.add_node(&quot;act&quot;, act_step)            # tool call
+graph.add_node(&quot;reflect&quot;, reflect_step)    # critique the trace
+graph.add_edge(&quot;reason&quot;, &quot;act&quot;)
+graph.add_conditional_edges(&quot;act&quot;, route, {&quot;reflect&quot;: &quot;reflect&quot;, &quot;done&quot;: END})
+graph.add_edge(&quot;reflect&quot;, &quot;reason&quot;)        # bounded by a counter in state
+agent = graph.compile()
+</code></pre>
+<h3 id="autogen">AutoGen</h3>
+<p><strong>What it is.</strong> Microsoft's framework for <strong>multi-agent conversation</strong>: agents are peers that exchange messages, and "the program" is the conversation itself (Wu et al., 2023). Its signature pieces are the <code>AssistantAgent</code> (model-driven) and the <code>UserProxyAgent</code> (executes code, can ask the human), plus group chat with a speaker-selection policy. The research lineage is visible: it is built for the Chapter 6 patterns — conversation, hierarchy, debate.</p>
+<p><strong>Habitat.</strong> Multi-agent experiments and coding-agent systems: one agent writes code, another executes it and returns errors, a third reviews. The code-execution loop with a proxy is the most mature in any framework, and the conversation abstraction maps cleanly onto "agents as colleagues" research questions.</p>
+<p><strong>Sharp edges.</strong> Conversation is a leaky abstraction for control flow: implementing "do X exactly twice, then stop" in message-passing terms is awkward, and debugging means reading long transcripts. Termination conditions (<code>is_termination_msg</code>) are easy to get subtly wrong — agents that congratulate each other forever are a rite of passage. Speaker selection in group chat can dither; for structured work, prefer explicit orchestration over fully autonomous speaker choice.</p>
+<pre><code class="language-python"># AutoGen-style sketch: coder + executor + critic
+coder = AssistantAgent(&quot;coder&quot;, system_message=&quot;Write Python to solve the task. Reply TERMINATE when tests pass.&quot;)
+executor = UserProxyAgent(&quot;executor&quot;, code_execution_config={&quot;work_dir&quot;: &quot;sandbox/&quot;})
+critic = AssistantAgent(&quot;critic&quot;, system_message=&quot;Review the code for correctness. Be specific.&quot;)
+# orchestrated: coder -&gt; executor -&gt; critic -&gt; coder ... (bounded rounds)
+</code></pre>
+<h3 id="crewai">CrewAI</h3>
+<p><strong>What it is.</strong> A framework organized around <strong>crews of role-based agents</strong> doing <strong>tasks</strong> in sequence — the pipeline pattern from Chapter 6 made declarative. You define agents (role, goal, backstory), tasks (description, expected output, assigned agent), and a crew runs them, optionally with a manager agent coordinating. It is the most opinionated of the three: it wants your problem to look like a team with job descriptions.</p>
+<p><strong>Habitat.</strong> Role-based pipelines built fast: "researcher finds papers, writer drafts, editor polishes" demos and content/production workflows where the decomposition is stable. The role/task vocabulary is intuitive for non-engineers, which helps in interdisciplinary research teams.</p>
+<p><strong>Sharp edges.</strong> Opinionation cuts both ways: tasks that do not fit the role-pipeline mold fight the framework. The "backstory" flavor text is prompt surface area you must maintain, and the manager-agent coordination can be nondeterministic in ways that complicate replication — a real concern for published experiments. Fine-grained control of the loop (custom replanning, exotic memory) is harder than in LangGraph.</p>
+<h3 id="head-to-head">Head-to-head</h3>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>LangChain / LangGraph</th>
+<th>AutoGen</th>
+<th>CrewAI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Core abstraction</td>
+<td>Graph of steps (explicit control flow)</td>
+<td>Conversing agents (messages)</td>
+<td>Crew: roles + tasks (pipeline)</td>
+</tr>
+<tr>
+<td>Single-agent strength</td>
+<td>★★★★★ (most control)</td>
+<td>★★★ (possible, not the focus)</td>
+<td>★★★ (via single-task crews)</td>
+</tr>
+<tr>
+<td>Multi-agent strength</td>
+<td>★★★★ (graphs can express it)</td>
+<td>★★★★★ (native habitat)</td>
+<td>★★★★ (role pipelines)</td>
+</tr>
+<tr>
+<td>Observability / tracing</td>
+<td>★★★★★ (LangSmith, graph inspection)</td>
+<td>★★★★ (transcripts; can be long)</td>
+<td>★★★ (task outputs; less step detail)</td>
+</tr>
+<tr>
+<td>Learning curve</td>
+<td>Steep (many abstractions)</td>
+<td>Medium (conversation metaphor)</td>
+<td>Gentle (declarative roles/tasks)</td>
+</tr>
+<tr>
+<td>Replication-friendliness</td>
+<td>High (graph is code)</td>
+<td>Medium (nondeterministic chat dynamics)</td>
+<td>Medium (manager nondeterminism)</td>
+</tr>
+<tr>
+<td>Ecosystem / integrations</td>
+<td>Largest</td>
+<td>Strong (esp. code exec)</td>
+<td>Growing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="how-to-choose-a-decision-procedure">How to choose (a decision procedure)</h3>
+<ol>
+<li><strong>Is it single-agent with custom logic?</strong> → LangGraph. You want the loop as code.</li>
+<li><strong>Is it multi-agent conversation or a coding-agent loop?</strong> → AutoGen.</li>
+<li><strong>Is it a stable role pipeline you need running this week?</strong> → CrewAI.</li>
+<li><strong>Are you publishing the experiment?</strong> → Whichever you choose, log at the trajectory level (Chapter 2) and pin versions; be ready to reimplement the critical loop in ~100 lines of plain code as a framework-free baseline — reviewers trust what they can read.</li>
+</ol>
+<p>That last point deserves emphasis: the strongest agent papers often include a "minimal implementation" baseline. If your contribution survives when the framework is stripped away, it is real; if it only works inside one framework's magic, it is a demo. Build the Chapter 2 skeleton first, then decide what the framework adds.</p>
+<h3 id="beyond-the-big-three-the-rest-of-the-landscape">Beyond the big three: the rest of the landscape</h3>
+<p>LangChain, AutoGen, and CrewAI are the frameworks you will meet most often, but the landscape is wider, and knowing the neighbors helps you choose — and helps you answer the reviewer's "why this framework?" question.</p>
+<ul>
+<li><strong>Raw provider SDKs + your own loop.</strong> For maximum control and minimum magic, many production teams skip frameworks entirely: the OpenAI/Anthropic/Google SDKs all support tool calling natively, and Chapter 8's ~120-line skeleton is a legitimate production starting point. Choose this when the agent is simple, the team is strong, and you want every line inspectable. The cost is reinventing tracing, retries, and memory integrations — budget for it.</li>
+<li><strong>LlamaIndex.</strong> If your agent is <em>retrieval-heavy</em> — its main job is reasoning over your documents — LlamaIndex's data connectors, indexing, and query engines are the best in class, and its agent layer sits on top of that strength. It is a data framework that grew agents, where LangChain is a chaining framework that grew agents; pick by which half of your problem is harder.</li>
+<li><strong>Semantic Kernel (Microsoft).</strong> A solid choice in .NET/C# shops and for plugin-oriented architectures; its "planner" concepts map cleanly onto Chapter 5's patterns. Less Python-ecosystem momentum than the big three, but strong enterprise integration story.</li>
+<li><strong>Specialized agent SDKs</strong> (OpenAI Agents SDK, Anthropic's agent patterns, Google's ADK): these are thin, opinionated, and track their provider's newest capabilities fastest — handoffs, guardrails, and tracing built around one model family. Good when you have standardized on a provider; risky as a long-term bet if you need model portability.</li>
+</ul>
+<p><strong>The build-vs-buy decision, honestly.</strong> Frameworks accelerate the first demo and complicate the tenth debugging session — that is the trade in one sentence. Concretely: adopt a framework when (a) you need its specific strength (LangGraph's explicit control flow, AutoGen's conversational orchestration), (b) your team already knows it, or (c) time-to-first-result dominates. Build on raw SDKs when (a) the agent's logic is unusual enough to fight the framework's abstractions, (b) you need to <em>publish</em> the mechanism and want zero magic in the methods section, or (c) you are operating at a scale where framework overhead (extra calls, opaque retries) costs real money. Most research prototypes land in the middle: framework for the 80% that is standard, hand-rolled code for the 20% that is the actual contribution — with a clean seam between them so the contribution can be lifted out and described independently.</p>
+<p><strong>Version pinning and the treadmill.</strong> The practical reality of 2024–2026 agent frameworks: rapid releases, shifting "recommended" patterns, and occasional breaking changes. For research, this means: pin exact versions in your requirements file, record them in the paper, and re-run key experiments if you upgrade mid-project — a framework update that changes default retry behavior can move your numbers without touching your code. For production, it means treating the framework as a dependency with an upgrade budget, not a foundation you can ignore. None of this is a reason to avoid frameworks; it is a reason to isolate them behind your own interfaces (the registry pattern from Chapter 3 generalizes: wrap framework calls so swapping frameworks touches one module, not fifty).</p>
+<h3 id="case-study-migrating-off-framework-magic">Case study: migrating off framework magic</h3>
+<p>A research group built their published agent on a high-level framework's one-line agent constructor. It worked — until a reviewer asked for an ablation removing the reflection step. The framework's "reflection" was buried inside the constructor's hidden prompt chain; there was no flag to disable it, no documented way to see what it did. The group spent three weeks reverse-engineering the framework's internals to produce the ablation the reviewer wanted — and discovered the "reflection" was mostly a generic self-critique prompt they could have written in ten lines.</p>
+<p>They rewrote the agent on LangGraph with the loop as explicit nodes (reason → act → reflect → reason...), each node a readable function. The rewrite took four days. Every subsequent experiment — removing reflection, swapping the planner, changing the stop condition — became a config edit. Their follow-up paper's methods section included the graph diagram, and reviewers praised its clarity.</p>
+<p>The lesson isn't "frameworks bad" — it's <strong>abstraction gradient</strong>: use high-level magic for exploration, explicit structure for anything you must explain, ablate, or defend. A practical rule: if you can't draw your agent's control flow on a whiteboard from memory, you don't understand your own system well enough to publish it. The framework-free skeleton from Chapter 8 isn't just a learning exercise; it's the diagram your methods section wishes it had.</p>
+<blockquote>
+<p><strong>For your research:</strong> Framework comparisons are publishable when they are <em>controlled</em>. "We tried three frameworks" is a blog post; "we implemented the identical agent (same model, tools, prompts, task set) in three frameworks and measured success rate, tokens, latency, and lines of scaffolding code" is a workshop paper at minimum. Report the scaffolding cost honestly — engineering effort is a real variable. And cite primary sources: the AutoGen paper (Wu et al., 2023) for conversational orchestration, LangGraph's documentation and associated work for graph-based control, and treat CrewAI as an engineering artifact (cite the repository) unless you are evaluating its specific mechanisms.</p>
+</blockquote>
+<h3 id="key-takeaways_6">Key takeaways</h3>
+<ul>
+<li>Frameworks scaffold the loop; they do not replace tool design, prompt design, or evaluation.</li>
+<li>LangGraph: explicit control flow, best for custom single-agent logic and inspectability.</li>
+<li>AutoGen: conversational multi-agent, best for coding loops and agent dialogue research.</li>
+<li>CrewAI: declarative role pipelines, fastest for stable team-of-agents workflows.</li>
+<li>For published work, pin versions, log trajectories, and include a framework-free minimal baseline.</li>
+</ul>
+<hr />
+<h2 id="chapter-8-building-your-first-agent-step-by-step-full-example">Chapter 8: Building Your First Agent, Step by Step (Full Example)</h2>
+<h3 id="what-we-are-building">What we are building</h3>
+<p>Everything so far has been preparation for this: a complete, working agent built from the pieces of Chapters 2–5, with no framework — about 120 lines of honest code. Our agent is a <strong>research briefing agent</strong>: given a topic, it searches the web, opens the most promising pages, extracts key points, and writes a structured briefing to a file. It uses ReAct reasoning, three tools, rolling short-term memory, and a hard step cap. You can build this in an afternoon with any chat-completions API.</p>
+<p>We will build it in seven steps, each one runnable. Resist the urge to skip to the end; each step isolates one design decision, and the debugging skill you build is the actual lesson.</p>
+<h3 id="step-1-define-the-goal-contract">Step 1: Define the goal contract</h3>
+<p>Before writing code, write the contract — what the agent is for, what it may do, and what "done" means:</p>
+<ul>
+<li><strong>Goal (input):</strong> a research topic string, e.g., "evaluation benchmarks for AI agents."</li>
+<li><strong>Allowed tools:</strong> <code>web_search</code>, <code>open_page</code>, <code>write_file</code> (restricted to a <code>./briefings/</code> directory).</li>
+<li><strong>Done when:</strong> a file <code>./briefings/&lt;topic-slug&gt;.md</code> exists containing: a 3-bullet summary, a table of at least 3 sources with URLs, and a "limitations" note. Or when 12 steps pass without success → report failure honestly.</li>
+</ul>
+<p>Writing this down first is not bureaucracy; it is the specification your stop condition (Step 6) will check against. Vague contracts produce agents that cannot tell when they are done.</p>
+<h3 id="step-2-implement-the-tools">Step 2: Implement the tools</h3>
+<p>Three tools, each following Chapter 3's rules — good descriptions, bounded outputs, errors as guidance:</p>
+<pre><code class="language-python">import json, re, urllib.request, os
+
+def web_search(query, num_results=5):
+    &quot;&quot;&quot;Search the web. 'query': keywords, not sentences. Returns numbered
+    title/URL/snippet results, or 'No results found.'&quot;&quot;&quot;
+    # ... call your search API; keep it simple ...
+    results = search_api(query, count=min(num_results, 8))
+    if not results:
+        return &quot;No results found. Try broader or different keywords.&quot;
+    return &quot;\n&quot;.join(
+        f&quot;[{i+1}] {r['title']}\n    URL: {r['url']}\n    {r['snippet'][:300]}&quot;
+        for i, r in enumerate(results))
+
+def open_page(url, max_chars=4000):
+    &quot;&quot;&quot;Open a web page and return its main text (first ~4000 chars).
+    Returns 'Could not open page: &lt;reason&gt;' on failure.&quot;&quot;&quot;
+    try:
+        text = fetch_and_extract_text(url)  # strip HTML, keep article text
+        return text[:max_chars] or &quot;Page opened but contained no readable text.&quot;
+    except Exception as e:
+        return f&quot;Could not open page: {e}. Try another URL.&quot;
+
+def write_file(path, content):
+    &quot;&quot;&quot;Write content to a file under ./briefings/. Returns confirmation
+    or an error explaining what went wrong.&quot;&quot;&quot;
+    safe = os.path.join(&quot;briefings&quot;, os.path.basename(path))
+    os.makedirs(&quot;briefings&quot;, exist_ok=True)
+    w

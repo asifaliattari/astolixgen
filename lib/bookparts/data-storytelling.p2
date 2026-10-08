@@ -1,0 +1,511 @@
+w mentoring helped — but we didn't know <em>who</em> it helped most. Here's what the data said." These spoken bridges are the arc made audible, and they cost nothing.</p>
+<h2 id="94-handling-questions-and-hostile-charts">9.4 Handling Questions and Hostile Charts</h2>
+<p><strong>Anticipate the three hard questions</strong> and prepare one backup slide for each: (1) the limitation you already know ("yes, the sample is urban-only — here's why the mechanism should generalize, and here's the rural study we're planning"); (2) the alternative explanation ("we tested whether income explains the gap — it doesn't; here's the adjusted analysis"); (3) the "so what" ("here is the cost per student and the policy pilot we'd propose"). Having the slide ready signals mastery; fumbling signals the opposite.</p>
+<p><strong>If a chart confuses the room</strong>, do not defend the chart — translate it: "Let me put it simply: the blue schools kept their students; the gray ones lost them in grade 8." Then fix the chart after the talk. The audience's confusion is data about your design, not about their intelligence.</p>
+<p><strong>Live demos and interactive dashboards</strong> are high-risk: they fail at the worst moment. If you must demo, record a video backup. For data talks, static progressive-reveal slides beat live dashboards — you control the narrative path instead of hoping the tool cooperates.</p>
+<h2 id="95-the-rehearsal-checklist">9.5 The Rehearsal Checklist</h2>
+<p>Rehearse out loud, standing, with a timer — silent mental run-throughs lie about timing. Then check:</p>
+<ul>
+<li>[ ] Every slide headline is a complete sentence stating its message.</li>
+<li>[ ] Headlines alone tell the talk's story (read them in sequence).</li>
+<li>[ ] Each chart gets orient → point → interpret narration.</li>
+<li>[ ] The key result uses progressive reveal.</li>
+<li>[ ] Method is under 2 minutes; results get the most time.</li>
+<li>[ ] You state the one message explicitly at the end ("If you remember one thing…").</li>
+<li>[ ] Backup slides exist for the three hard questions.</li>
+<li>[ ] You finish 1–2 minutes <em>under</em> time — overrunning steals the audience's questions and goodwill.</li>
+</ul>
+<h2 id="96-the-poster-session-data-storytelling-on-a-wall">9.6 The Poster Session: Data Storytelling on a Wall</h2>
+<p>The academic poster is a talk without a speaker — a static data story competing with fifty neighbors for a wandering reader's three minutes. Design it as one.</p>
+<p><strong>Layout as a reading path.</strong> Title banner across the top with the <em>message</em>, not the topic: "Drip irrigation raised small-farm yields by one-third" beats "A study of irrigation methods in Sindh." Below, three columns read left to right: setup (the problem, one short paragraph + one context chart), conflict (methods in a small box, then the two key figures, large), resolution (the implication and the takeaway box). The reader's eye should travel in a Z: title → hero figure → conclusion. Place your single most important figure at optical center, at least twice the size of the others — the hero earns the space.</p>
+<p><strong>Text discipline.</strong> A poster is not a paper on a wall. Aim for under 800 words total: short paragraphs, bullet-style phrases, 24pt minimum body text (if you must squint, so must the reader — and they will walk away instead). Every section heading is a message sentence. Methods shrink to a small box: data, sample, key technique, one line. Nobody reads a methods wall; everybody reads the hero figure's caption.</p>
+<p><strong>The two pitches.</strong> Prepare a 30-second pitch (the hook + the one finding + the implication) for the casual browser and a 3-minute guided tour (the arc, walking the poster left to right) for the engaged reader. Watch where eyes go during your tour — if visitors keep asking about something you considered minor, your poster's emphasis is wrong, not their curiosity.</p>
+<p><strong>Practical details.</strong> Include a QR code linking to the paper, data, or code — the poster starts conversations; the QR code continues them. Print a day early and proofread at full size (errors invisible on screen shout from a meter away). Bring handouts: a one-page summary with the hero figure and your contact — the physical artifact people actually keep. And stand <em>beside</em> your poster, not in front of it; you are the narrator, not the obstruction.</p>
+<p><strong>Common poster failures:</strong> the wall of text (a paper pasted into columns), 10pt fonts, paper figures shrunk unreadably instead of rebuilt, rainbow color with no meaning, no takeaway box (the reader leaves with no sentence to carry away), and the missing QR code (interest with nowhere to go). Each is fixed by treating the poster as a three-minute story, not a compressed thesis.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your thesis defense and conference talks are examinations of your storytelling as much as your science. Take your next talk and convert every topic-headline slide to assertion–evidence form using the rules above. Rehearse the guided tour (orient → point → interpret) for your three most important charts, and prepare backup slides for your three hardest questions. Examiners consistently reward candidates who can narrate their own figures — it demonstrates the deep understanding that a memorized script cannot fake.</p>
+</blockquote>
+<h2 id="97-virtual-talks-storytelling-through-a-screen">9.7 Virtual Talks: Storytelling Through a Screen</h2>
+<p>Remote presentations change the medium, and the medium changes the tactics:</p>
+<ul>
+<li><strong>The camera is your eye contact.</strong> Look at the camera when stating the key message, not at your slides. The audience experiences this as direct address — the virtual equivalent of pausing at the chart's peak (Section 9.2).</li>
+<li><strong>Pace for latency.</strong> Pause a full beat longer after revealing the key chart; remote audiences need the extra second to process without the room's shared energy. Silence feels longer to you than to them.</li>
+<li><strong>Simplify further.</strong> Screen-shared slides compete with notifications, small windows, and fatigue. Larger type, fewer words per slide, and even more progressive reveal than in person. If a slide works on a phone screen, it works anywhere.</li>
+<li><strong>Narrate navigation.</strong> "I'm moving to the results now — three charts, starting with the headline finding." Remote audiences can't see you physically transition, so verbal signposting (Chapter 10's device, spoken) carries the arc.</li>
+<li><strong>Engage deliberately.</strong> Attention decays faster remotely. Build in two or three interaction moments: a poll ("which district do you think gained most?"), a chat question, a pause for questions mid-talk rather than only at the end. Each re-engagement resets the attention clock.</li>
+<li><strong>Record and share.</strong> Virtual talks are recordable — say so, share the recording with the slide deck, and make the deck self-explanatory (action titles, annotated figures) since it will be watched without your narration.</li>
+</ul>
+<p>The arc, the guided tour, and assertion-evidence slides all survive the move online unchanged — they are medium-independent. What changes is energy management: on screen, you must manufacture the pacing and presence that a physical room gives you for free.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Slides are not documents: use assertion–evidence structure — a sentence headline stating the message, visual evidence below.</li>
+<li>One message per slide; headlines alone should summarize the talk; simplify paper figures for the screen, never shrink them.</li>
+<li>Narrate charts as a guided tour: orient (axes, series), point (direct attention, pause), interpret (state the conclusion).</li>
+<li>Build complex charts with progressive reveal; spend talk time on results, not method.</li>
+<li>Prepare backup slides for the limitation, the alternative explanation, and the "so what" — and always finish under time.</li>
+</ul>
+<hr />
+<h1 id="chapter-10-writing-the-data-story-reports-and-articles">Chapter 10: Writing the Data Story — Reports and Articles</h1>
+<p>Reports, white papers, policy briefs, and articles give you what slides cannot: space. But space is a temptation — to include everything, to let figures drift from the text, to write around the data instead of through it. This chapter shows how to write long-form data stories that hold together.</p>
+<h2 id="101-the-architecture-of-a-data-report">10.1 The Architecture of a Data Report</h2>
+<p>A strong data report follows a predictable architecture, because readers of reports skim strategically — executives read the summary, specialists read the findings, skeptics read the methods. Design for all three:</p>
+<ol>
+<li><strong>Executive summary (one page):</strong> the entire story in miniature — the problem, the key finding (with its number), the implication, the recommendation. A busy stakeholder should be able to act on this page alone. Write it last.</li>
+<li><strong>Introduction:</strong> the setup — context, the question, why it matters now. End with a roadmap sentence ("This report first describes…, then shows…, and concludes with…").</li>
+<li><strong>Methods (brief but honest):</strong> data sources, sample, key analytical choices, limitations. In a report this is shorter than in a paper, but it must exist — a finding without a method is a rumor.</li>
+<li><strong>Findings:</strong> the conflict and resolution, organized by message, not by analysis order. Each subsection opens with its message sentence, followed by the figure, followed by the interpretation.</li>
+<li><strong>Discussion and recommendations:</strong> the resolution — what the findings mean, what should be done, by whom, at what cost. Recommendations must be specific enough to act on ("pilot mentoring in the 50 highest-dropout schools" beats "address dropout").</li>
+<li><strong>Appendices:</strong> the full tables, robustness checks, and technical detail that reviewers and specialists need — present but not in the story's way.</li>
+</ol>
+<h2 id="102-integrating-figures-with-text-the-referencing-discipline">10.2 Integrating Figures with Text: The Referencing Discipline</h2>
+<p>The most common long-form failure is the <strong>orphan figure</strong>: a chart appears pages from its discussion, or is never referenced at all, leaving the reader to guess why it exists. Enforce three rules:</p>
+<ul>
+<li><strong>Every figure is referenced by number in the text, before it appears</strong> ("Figure 4 shows…"). No exceptions.</li>
+<li><strong>The text states the figure's message; the figure shows the evidence.</strong> Do not describe the chart's mechanics ("the blue bars represent…") — describe what it means ("dropout concentrates in grade 8, where mentoring has its largest effect"). The reader can see the bars; tell them what the bars <em>mean</em>.</li>
+<li><strong>Place the figure as close as possible to its reference.</strong> A figure three pages from its discussion might as well not exist for a skimming reader.</li>
+</ul>
+<p>A related discipline: <strong>never make the reader do arithmetic the text could do.</strong> If the point is a change, state the change ("a 12-point rise, from 61% to 73%"), don't make the reader subtract. The figure shows; the text tells.</p>
+<h2 id="103-writing-around-the-so-what">10.3 Writing Around the "So What"</h2>
+<p>Every paragraph of findings should pass the "so what" test: after stating a result, add the sentence that says why it matters. Students often stop at the result ("The correlation was 0.62") — which leaves the reader to supply the significance. The data storyteller adds the bridge ("…meaning study time explains more than a third of the variation in scores — the strongest predictor we measured").</p>
+<p>Three devices keep long-form writing story-shaped:</p>
+<ul>
+<li><strong>Topic sentences as message sentences.</strong> Open each paragraph with its conclusion, then support it. Readers who skim first sentences should get the whole argument.</li>
+<li><strong>Signposting.</strong> Short roadmap phrases ("Three patterns emerged. First,…") orient the reader in longer sections. Signposts are the written equivalent of Chapter 9's spoken transitions.</li>
+<li><strong>The recurring thread.</strong> Refer back to the central question or the hook from the introduction ("Recall the grade-8 spike from Chapter 1 — here is what drives it"). Threads turn a sequence of analyses into one story.</li>
+</ul>
+<h2 id="104-tables-in-reports-when-precision-serves-the-story">10.4 Tables in Reports: When Precision Serves the Story</h2>
+<p>Tables are not the enemy (Chapter 1 criticized <em>uninterpreted</em> tables, not tables as such). In reports, tables serve three legitimate roles: precise lookup (exact values a specialist needs), complete reporting (all results, honestly shown), and audit (enough detail to check the work). Design them well: clear headers in plain language, units stated, numbers aligned on decimals, heavy gridlines removed in favor of white space and a few horizontal rules, and the key row or column subtly highlighted. A well-designed table is itself a visualization — and a poorly designed one is where readers go to get lost.</p>
+<h2 id="105-the-honesty-layer-limitations-uncertainty-alternatives">10.5 The Honesty Layer: Limitations, Uncertainty, Alternatives</h2>
+<p>Long-form stories have room for the honesty that short formats compress — use it. A dedicated limitations discussion, uncertainty shown on every inferential figure (confidence intervals, not just point estimates), and at least one alternative explanation addressed ("could income explain this? We tested it — here is the adjusted result") are what separate storytelling from salesmanship. Paradoxically, stated limitations <em>increase</em> persuasion with expert audiences: they signal that the author has interrogated the work, which makes the surviving claims more credible. The arc needs its conflict to be real (Chapter 3); the honesty layer is how you prove it.</p>
+<h2 id="106-the-two-page-policy-brief-the-data-story-under-extreme-constraint">10.6 The Two-Page Policy Brief: The Data Story Under Extreme Constraint</h2>
+<p>The policy brief is the inverted pyramid (Chapter 3) at full compression: two pages, one decision, a reader who may give you five minutes. Everything in this chapter applies, tightened.</p>
+<p><strong>The structure:</strong></p>
+<ul>
+<li><strong>Headline finding</strong> (top of page one, impossible to miss): the message sentence with its number. "Drip irrigation raises small-farm tomato yields by 34% — but the poorest farmers can't afford the $40 kit."</li>
+<li><strong>The problem</strong> (three to four lines): why this matters now, in human and economic terms. No literature review.</li>
+<li><strong>The evidence</strong> (one or two figures, maximum): the single most convincing chart, rebuilt for the brief — large, action-titled, annotated. A second figure only if it carries a distinct, decision-relevant message (e.g., the cost-payback arithmetic).</li>
+<li><strong>The options</strong> (a short table): two or three policy options with costs, coverage, and expected effect — the decision-maker's actual choice set, laid out honestly including the "do nothing" baseline.</li>
+<li><strong>The recommendation</strong> (boxed, explicit): what you advise, what it costs, who implements it, and the first step. Vague recommendations ("policymakers should consider…") are where briefs go to die.</li>
+<li><strong>Methods footnote</strong> (bottom of page two, small): data source, sample, one-line method, contact author, link to the full report. Credibility without consuming the story's space.</li>
+</ul>
+<p><strong>The cutting discipline.</strong> Draft the brief, then cut half the words. What survives the cut is always the same: the number, the comparison, the cost, the ask. Background paragraphs, caveats that don't change the decision, and secondary findings all move to the full report — which the footnote links to. If a sentence doesn't help the reader decide, it doesn't belong in two pages.</p>
+<p><strong>Worked outline — the irrigation subsidy brief.</strong> Headline: the 34% finding + the affordability paradox. Problem: smallholders' water losses in three lines with the income stakes. Evidence: Figure 1 — adopters vs. non-adopters by farm size (the paradox visible); Figure 2 — payback arithmetic (one season). Options table: (a) no subsidy — adoption stays at 12% on small farms; (b) 50% subsidy for farms under 2 acres — $180,000 pilot, 2,000 farms, payback in one season; (c) full subsidy — $340,000, faster uptake, higher fiscal risk. Recommendation: option (b), pilot in the three lowest-adoption districts, implemented through the existing extension service, first disbursement before planting season. Methods footnote: 120-farm trial, 2024 season, mixed-effects analysis, full report linked. Two pages; a minister can read it between meetings and <em>decide</em>.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take a recent long report, project deliverable, or thesis chapter you have written. Check: does every figure have a numbered in-text reference before it appears? Does the text state each figure's message rather than describing its mechanics? Does every findings paragraph contain a "so what" sentence? Revise one chapter against these three checks — it is the fastest structural edit most student writing ever receives.</p>
+</blockquote>
+<h2 id="107-the-appendix-as-a-story-too">10.7 The Appendix as a Story Too</h2>
+<p>Appendices are where detail goes to be ignored — unless you organize them as the story's supporting cast rather than its attic:</p>
+<ul>
+<li><strong>Structure mirrors the main text.</strong> Order appendices to follow the findings (Appendix A supports Section 3, Appendix B supports Section 4), and say so: "Full regression tables for the results in Section 3." A reader who wants to verify a claim should find its evidence in one step.</li>
+<li><strong>Each appendix opens with a one-line orientation.</strong> "This appendix lists all 40 model coefficients; the five key effects are plotted in Figure 4." Nobody should have to guess why an appendix exists.</li>
+<li><strong>Apply the same design standards.</strong> Decluttered tables, consistent palette, captioned figures — appendices get skimmed by the most skeptical readers (reviewers checking your work), so they deserve the same craft as the main text. A sloppy appendix undermines the ethos the main report built.</li>
+<li><strong>Know what belongs there.</strong> Robustness checks, full tables, survey instruments, code listings, extended methods — anything a specialist needs and a general reader doesn't. If a general reader <em>needs</em> it to follow the story, it belongs in the main text, not the appendix.</li>
+</ul>
+<p>A well-built appendix does quiet persuasive work: it tells the reviewer "everything is here, check anything," which is ethos in document form. The story's honesty layer (Section 10.5) lives partly here — and reviewers notice when it's missing.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Structure reports as: executive summary → introduction → methods → findings by message → discussion/recommendations → appendices.</li>
+<li>Every figure gets a numbered in-text reference before it appears; text states the message, the figure shows the evidence.</li>
+<li>Write topic sentences as message sentences; use signposts and a recurring thread to hold long sections together.</li>
+<li>Design tables for precision and readability; highlight the key row.</li>
+<li>The honesty layer — limitations, uncertainty, alternative explanations — is what makes a story trustworthy, and trust is what persuades experts.</li>
+</ul>
+<hr />
+<h1 id="chapter-11-storytelling-in-research-papers-and-theses-figures-reviewers-love">Chapter 11: Storytelling in Research Papers and Theses — Figures Reviewers Love</h1>
+<p>Journal reviewers and thesis examiners are the most demanding audience in this book: they are expert, skeptical, and drowning in manuscripts. Figures that respect their time and intelligence get papers accepted faster. This chapter is a field guide to what reviewers actually want from your visuals.</p>
+<h2 id="111-what-reviewers-complain-about-and-how-to-preempt-it">11.1 What Reviewers Complain About (and How to Preempt It)</h2>
+<p>Read reviewer reports across fields and the same figure complaints recur:</p>
+<ul>
+<li><strong>"The figures are unclear / hard to interpret."</strong> Usually means: no action title, no annotation, legend-dependent decoding, or panels discussed in a different order than presented. Fix with Chapters 5 and 7.</li>
+<li><strong>"Key information is missing."</strong> Sample sizes absent, error bars unexplained, axes unlabeled, statistics unreported. Every inferential figure needs n, the uncertainty display defined in the caption, and units on axes.</li>
+<li><strong>"The figure does not support the claim."</strong> The text claims a difference the figure's error bars contradict, or a cherry-picked time window. Fix with honesty: show the full data, show uncertainty, claim only what the figure shows.</li>
+<li><strong>"Too many / redundant figures."</strong> Six figures making two points. Combine into panels, move the rest to supplementary material. Each figure must earn its place with a distinct message.</li>
+<li><strong>"Inconsistent notation and styling."</strong> The treatment group is blue in Figure 2 and orange in Figure 4. Fix with a project palette (Chapter 6).</li>
+</ul>
+<p>Preempting these complaints is not cosmetic — reviewers who struggle with figures downgrade their assessment of the <em>science</em>, because unclear presentation reads as unclear thinking.</p>
+<h2 id="112-figure-design-rules-for-papers">11.2 Figure Design Rules for Papers</h2>
+<ul>
+<li><strong>Resolution and format:</strong> vector formats (PDF, EPS, SVG) for line art and charts — they scale infinitely and stay sharp. Raster (PNG, TIFF) at 300+ dpi only for photographs and complex heatmaps. Check the journal's figure specifications <em>before</em> finalizing, not after the first rejection.</li>
+<li><strong>Fonts and sizes:</strong> one font family, matching the paper; all text legible at the final printed size (a common failure: figures designed full-screen, then shrunk to a single column where labels become microscopic). Test by printing at column width.</li>
+<li><strong>Color in print:</strong> many journals still print in grayscale or charge for color. Design figures that work in grayscale first (Chapter 6's grayscale test), then add color as enhancement.</li>
+<li><strong>Panels:</strong> label panels (a), (b), (c) clearly; discuss them in order in the text; keep a consistent style across panels. Multi-panel figures should tell a mini-story left to right, top to bottom — setup panel, conflict panel, resolution panel.</li>
+<li><strong>Captions:</strong> the caption is a mini-abstract for the figure. Structure: first sentence states the finding (the action title, adapted), then describes what is shown (sample, method, symbols), then defines the statistics ("error bars show 95% CI; n = 120"). A reader should understand the figure from caption + image alone.</li>
+</ul>
+<h2 id="113-the-results-section-as-narrative">11.3 The Results Section as Narrative</h2>
+<p>Apply Chapter 3's arc deliberately to the results section:</p>
+<ul>
+<li><strong>Order by message, not by analysis.</strong> Group findings into 2–4 narrative blocks, each with a clear message sentence as its opening. Within each block: orient the reader ("Figure 3 compares…"), present the key pattern, note the surprise or nuance, and state the interpretation.</li>
+<li><strong>One figure, one message.</strong> If a figure needs three paragraphs of distinct messages, split it. Reviewers remember papers as sequences of figure-messages; make each one crisp.</li>
+<li><strong>Handle the null and the negative honestly.</strong> Non-significant results and failed hypotheses are part of the story — the conflict that <em>didn't</em> materialize. Report them plainly; reviewers punish hidden nulls far more than reported ones, and a frank null result often strengthens the paper's credibility.</li>
+<li><strong>Connect figures with transitions.</strong> "Having established the overall effect (Figure 2), we next asked <em>which</em> students benefited most (Figure 3)." These bridges are the arc made visible in academic prose.</li>
+</ul>
+<h2 id="114-the-thesis-sustaining-the-story-across-chapters">11.4 The Thesis: Sustaining the Story Across Chapters</h2>
+<p>A thesis is a book-length data story, and its most common failure is episodic drift — chapters that read as separate papers stapled together. Counter it structurally:</p>
+<ul>
+<li><strong>The introduction chapter is the setup for the whole thesis.</strong> Its literature review should build to the gap (the tension) that the entire thesis resolves. Every empirical chapter should open by restating which part of that tension it addresses.</li>
+<li><strong>A consistent visual language</strong> across chapters — same palette, same chart styles, same caption structure — signals one mind behind the work and spares the examiner re-decoding every chapter.</li>
+<li><strong>The discussion/conclusion chapter is the resolution.</strong> Synthesize, don't summarize: state what the thesis as a whole establishes, reconcile conflicts between your chapters honestly, name the limitations, and point to the next setup — the future work that your resolution makes possible.</li>
+<li><strong>The defense presentation</strong> is Chapter 9 applied: assertion–evidence slides, guided tours of the three key figures, backup slides for the hard questions. Examiners decide in the first ten minutes whether the candidate <em>understands</em> the work; narrating your figures is how you show it.</li>
+</ul>
+<h2 id="115-answering-reviewers-the-figure-rebuttal">11.5 Answering Reviewers: The Figure Rebuttal</h2>
+<p>Figure complaints are the most winnable points in peer review: they are concrete, fixable, and revising them visibly improves the paper. Treat the response letter as a second round of storytelling.</p>
+<p><strong>The response structure.</strong> For each figure-related comment, use three moves: (1) thank and acknowledge ("We agree Figure 3 was difficult to interpret"); (2) describe the specific change ("We have replotted it as a dot plot with direct labels, added 95% confidence intervals, and rewritten the caption to state the finding"); (3) point to the evidence ("see revised Figure 3, p. 12"). Reviewers skim response letters the way they skim papers — make each response self-contained and point precisely.</p>
+<p><strong>When to concede vs. defend.</strong> Concede and redesign when the complaint is about clarity, completeness, or consistency — the reviewer is right that the figure can be clearer, and a better figure helps you too. Defend only when the complaint misreads the figure, and defend with evidence, not assertion: "We respectfully disagree that the effect is driven by outliers: revised Supplementary Figure S4 shows the result holds after excluding the three extreme points." Never defend a figure's <em>aesthetics</em> without offering a revision — arguing "we prefer the pie chart" against a reviewer who asked for bars is a fast track to rejection.</p>
+<p><strong>Example rebuttal language.</strong></p>
+<ul>
+<li><em>On "figure unclear":</em> "We thank the reviewer for this point. We have simplified Figure 2 following the reviewer's suggestion: the six series are now shown as small multiples with a shared scale, the treatment series is highlighted, and the caption now states the main finding in its first sentence."</li>
+<li><em>On "figure does not support the claim":</em> "The reviewer is correct that the original figure overstated the difference. We have replotted with the full y-axis range and 95% confidence intervals, and softened the corresponding claim in the text (p. 8) to match what the data show."</li>
+<li><em>On "missing information":</em> "We have added sample sizes, units, and definitions of all error bars to every figure caption, and added a statistics summary to the Methods."</li>
+</ul>
+<p>Notice the pattern: agreement where possible, concrete changes, precise pointers. A reviewer who sees their figure comments addressed thoroughly upgrades their assessment of the whole manuscript — because clear figures, once again, read as clear thinking.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before your next submission, run the "reviewer preempt" audit on your manuscript: (1) Is every figure referenced in order, with n, units, and uncertainty defined? (2) Does each figure carry exactly one message, stated in its caption's first sentence? (3) Would the figures survive grayscale printing? (4) Is the results section ordered by message rather than analysis order? Fix every "no" — this audit catches the majority of figure-related reviewer complaints before they are written.</p>
+</blockquote>
+<h2 id="116-figure-checklists-for-common-study-types">11.6 Figure Checklists for Common Study Types</h2>
+<p>Different research designs need different figure sets. Use these as starting checklists, then adapt:</p>
+<ul>
+<li><strong>Controlled experiment:</strong> (1) design schematic or CONSORT-style flow; (2) main effect figure with CIs (the message); (3) distribution or raw-data panel showing the effect isn't driven by outliers; (4) robustness/alternative-specification panel.</li>
+<li><strong>Survey study:</strong> (1) sample description (who responded, response rate); (2) key prevalence/pattern chart; (3) subgroup comparison (the interesting heterogeneity); (4) the one chart that answers the research question directly.</li>
+<li><strong>ML benchmark study:</strong> (1) dataset/method overview diagram; (2) main comparison (dot plot or slope chart, never 3D bars); (3) ablation or sensitivity panel (what drives the gain); (4) failure-case examples with honest discussion.</li>
+<li><strong>Field trial / longitudinal study:</strong> (1) timeline schematic (interventions marked); (2) primary outcome trend with intervention annotation; (3) subgroup/heterogeneity panel; (4) data-quality panel (missingness, attrition — reviewers always ask).</li>
+</ul>
+<p>In every case: one message per figure, uncertainty where claims depend on it, captions in the four-part structure (Section 7.6), and the full set ordered by narrative, not by analysis. Run the reviewer-preempt audit (Section 11.4's box) against the finished set.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Reviewers' top figure complaints — unclear, incomplete, unsupported, redundant, inconsistent — are all preemptable with the techniques in Chapters 5–7.</li>
+<li>Use vector formats, test legibility at final print size, design for grayscale first, label panels in discussion order, and write captions as mini-abstracts.</li>
+<li>Structure results by message in narrative blocks; report nulls honestly; connect figures with transitions.</li>
+<li>Sustain the thesis arc: introduction as setup, consistent visual language, discussion as resolution, defense as guided narration.</li>
+</ul>
+<hr />
+<h1 id="chapter-12-capstone-redesign-a-bad-report-into-a-great-story">Chapter 12: Capstone — Redesign a Bad Report into a Great Story</h1>
+<p>Everything in this book converges here. Below is a complete capstone: a realistic bad report, diagnosed against every chapter, then rebuilt step by step into a story. Read it as a worked model for your own redesigns.</p>
+<h2 id="121-the-bad-report-q3-field-survey-findings">12.1 The Bad Report: "Q3 Field Survey Findings"</h2>
+<p><strong>The document.</strong> A 14-page internal report from a fictional agricultural NGO's quarterly field survey of 600 smallholder farms. It opens with two pages of background on the NGO's history. Then come the findings: eleven figures in analysis order — a 3D pie chart of crop types (nine slices), a rainbow bar chart of yields by district (axis starting at 2.0 tonnes), a table of 40 regression coefficients with six decimals, a dual-axis chart of rainfall and yield, six more default-styled charts, and a line chart of monthly data with no annotations. Figure titles are descriptive ("Yield by district"). No figure is referenced by number in the text. The text describes chart mechanics ("the blue bars show…"). The report ends without recommendations — "further analysis is planned."</p>
+<p><strong>The diagnosis, by chapter:</strong></p>
+<ul>
+<li><em>Ch. 1:</em> Tables and charts display; nothing transfers. No finding is statable in one sentence.</li>
+<li><em>Ch. 2:</em> No audience brief. The report mixes reviewer-level detail (40 coefficients) with stakeholder needs (no decisions supported).</li>
+<li><em>Ch. 3:</em> No arc. Analysis order buries the one genuine surprise: drip-irrigation adopters out-yielded others by 34%, concentrated on small farms.</li>
+<li><em>Ch. 4:</em> Miscast charts — 9-slice pie, truncated bar axis, dual-axis deception, categorical line chart.</li>
+<li><em>Ch. 5:</em> Chartjunk everywhere — 3D effects, heavy gridlines, borders, legends, 48 data labels.</li>
+<li><em>Ch. 6:</em> Rainbow palettes, red/green encoding, no consistent palette, fails the grayscale test.</li>
+<li><em>Ch. 7:</em> Descriptive titles, zero annotations, no subtitles, no source notes.</li>
+<li><em>Ch. 8:</em> N/A (no dashboard) — but the report's summary page could have been one.</li>
+<li><em>Ch. 9:</em> N/A — but the findings would die on slides as pasted.</li>
+<li><em>Ch. 10:</em> Orphan figures, no "so what" sentences, no recommendations, methods absent.</li>
+<li><em>Ch. 11:</em> Would not survive review — missing n's, undefined error bars, inconsistent styling.</li>
+</ul>
+<p><strong>The buried story.</strong> Reading past the clutter, the data actually says: <em>Drip-irrigation adopters out-yielded non-adopters by 34%; the gains concentrate on farms under 2 acres; adoption is lowest exactly where gains are highest — because the upfront cost blocks the poorest farmers; a subsidy targeted at small farms would pay for itself in one season.</em> That is a setup (smallholders struggle with water), a conflict (the best solution is adopted least where it helps most), and a resolution (targeted subsidy). The bad report never told it.</p>
+<h2 id="122-the-redesign-step-by-step">12.2 The Redesign, Step by Step</h2>
+<p><strong>Step 1 — Audience and message (Ch. 2).</strong> Audience brief: the NGO's program director and two funders; decision: whether to fund a targeted subsidy pilot; attention: 15 minutes. One message sentence: "Drip irrigation raises small-farm yields by a third, but the poorest farmers can't afford it — a targeted subsidy pays for itself in one season."</p>
+<p><strong>Step 2 — Arc (Ch. 3).</strong> Restructure into three acts: setup (the water problem on small farms, two short paragraphs + one context chart), conflict (adopters vs. non-adopters; the adoption paradox — lowest adoption where gains are highest), resolution (the subsidy arithmetic and the pilot proposal).</p>
+<p><strong>Step 3 — Recast the charts (Ch. 4).</strong> The 9-slice pie becomes a sorted bar chart of the top five crops plus "other." The truncated rainbow bars become a dot plot of yield by district, axis honestly scaled, adopters vs. non-adopters. The dual-axis chart becomes two aligned panels (rainfall; yield) sharing the time axis. The 40-coefficient table becomes one forest plot of the five key effects with 95% CIs, the rest to an appendix. The categorical line chart becomes bars.</p>
+<p><strong>Step 4 — Declutter (Ch. 5).</strong> Borders, 3D, heavy gridlines, and legends removed across all figures; direct labels; data labels kept only on the key comparisons; white space between panels.</p>
+<p><strong>Step 5 — Color with intent (Ch. 6).</strong> Project palette: gray for context, teal for adopters/gains, coral for the gap. Small farms highlighted; everything else gray. Grayscale-tested.</p>
+<p><strong>Step 6 — Teaching layer (Ch. 7).</strong> Every figure gets an action title ("Adoption is lowest where gains are highest — the poorest farms"), a subtitle with scope, one annotation (the cost barrier note on the adoption chart), and a source line.</p>
+<p><strong>Step 7 — Structure (Ch. 10).</strong> One-page executive summary written last. Every figure numbered and referenced before it appears. "So what" sentences in every findings paragraph. Methods in a half-page box. Three specific recommendations with costs and owners. Appendices hold the full tables.</p>
+<h2 id="123-the-after-what-the-great-version-feels-like">12.3 The After: What the Great Version Feels Like</h2>
+<p>The redesigned report is six pages. Page one: the executive summary — the whole story, the number (34%), the paradox, the ask ($180,000 pilot, 2,000 farms, payback in one season). Pages two to four: three acts, five figures, each self-explanatory. Page five: recommendations with owners and timelines. Page six: methods box and honesty layer (limitations, the one district where the effect didn't hold, next steps). A funder reading it in fifteen minutes knows the problem, the evidence, the paradox, and exactly what is being asked. The same data, the same honesty — but now the understanding transfers.</p>
+<p><strong>The capstone lesson:</strong> no step in the redesign required new data or advanced statistics. Audience clarity, narrative order, correct chart casting, decluttering, intentional color, and a teaching layer — the full toolkit of this book — turned a document nobody would act on into one that funds a program. That is the whole promise of storytelling with data: <em>the analysis discovers the truth; the story delivers it.</em></p>
+<h2 id="124-the-20-point-final-audit">12.4 The 20-Point Final Audit</h2>
+<p>Run this audit on any document before it leaves your hands — paper, thesis chapter, report, or slide deck:</p>
+<p><strong>Audience &amp; message</strong>
+- [ ] 1. Audience brief written (who, decision, knowledge, fears, one message).
+- [ ] 2. One message sentence exists for the document — and for every figure.
+- [ ] 3. A stranger passes the ten-second test on each key figure.</p>
+<p><strong>Narrative</strong>
+- [ ] 4. Findings are in narrative order (setup → conflict → resolution), not analysis order.
+- [ ] 5. The conflict is genuine — no manufactured drama, no buried lede.
+- [ ] 6. The resolution states implications: what changes, who acts, what is next.</p>
+<p><strong>Charts</strong>
+- [ ] 7. Every chart's family matches its question (comparison / composition / distribution / relationship).
+- [ ] 8. Honesty checks pass: bars at zero, no dual axes, no cherry-picked windows, log scales labeled.
+- [ ] 9. Uncertainty is shown wherever a claim depends on it (CIs defined in captions).</p>
+<p><strong>Clarity</strong>
+- [ ] 10. Declutter pass applied: no chartjunk, direct labels, rounded numbers, white space.
+- [ ] 11. Action titles on every figure; subtitles give scope; 1–3 annotations mark key features.
+- [ ] 12. Color discipline: gray for context, one color for the message; palette consistent throughout.</p>
+<p><strong>Access &amp; honesty</strong>
+- [ ] 13. Colorblind simulator + grayscale test passed on every figure.
+- [ ] 14. Captions are four-part (finding, what's shown, statistics, reading guide); figures referenced in order.
+- [ ] 15. Limitations, alternative explanations, and null results are reported honestly.</p>
+<p><strong>Consistency</strong>
+- [ ] 16. Notation, colors, fonts, and styles are consistent across the whole document.
+- [ ] 17. Numbers are rounded appropriately; units appear on every axis and table header.
+- [ ] 18. Every figure is referenced by number before it appears; cross-references compile cleanly.</p>
+<p><strong>Finish</strong>
+- [ ] 19. The executive summary / abstract tells the whole story alone.
+- [ ] 20. You have kept the before version — the before/after pair is your portfolio.</p>
+<p>Score yourself honestly. Items 1–3 are where most documents fail; items 8, 9, and 15 are where trust is won or lost. A document passing all twenty is rare — and unmistakable.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your capstone task is Exercise 10 below: take the weakest chapter, report, or slide deck in your current work and run the full seven-step redesign on it. Keep the before version. The before/after pair is not just an exercise — it is portfolio material for job interviews, a demonstration for your supervisor, and often the version of your work that finally gets understood.</p>
+</blockquote>
+<h2 id="125-beyond-the-capstone-building-the-habit">12.5 Beyond the Capstone: Building the Habit</h2>
+<p>One redesign makes you capable; routine makes you good. A sustainable practice:</p>
+<ul>
+<li><strong>The weekly figure review.</strong> Every Friday, pick one figure you made that week and run the 20-point audit's first twelve items on it (15 minutes). Small, frequent corrections beat annual overhauls.</li>
+<li><strong>The swipe file.</strong> Keep a folder of excellent figures you encounter — papers, journalism, dashboards — with a one-line note on <em>what technique</em> makes each work ("annotation carries the story," "gray context + one color"). When you're stuck, browse it for patterns instead of starting from a blank page.</li>
+<li><strong>The before/after portfolio.</strong> Save every redesign pair (Capstone, Chapter 12). After a year you own a portfolio demonstrating a rare, employable skill: turning analysis into understanding. Show it in job interviews, grant applications, and supervisor meetings.</li>
+<li><strong>Teach it once.</strong> Explain the declutter pass or the action-title rule to a junior colleague. Teaching forces you to articulate the principles, and their fresh questions will expose the gaps in your own practice.</li>
+<li><strong>Revisit this book's dashboard yearly.</strong> The chart chooser matrix, declutter checklist, and color rules (Learning Dashboard) are durable; your application of them improves with mileage. Re-audit an old paper with new eyes — you'll see every shortcut you once took, which is the surest sign you're improving.</li>
+</ul>
+<p>Storytelling with data is not a talent. It is a set of checkable practices — audience briefs, arcs, chart families, declutter passes, palettes, teaching layers — applied repeatedly until they become instinct. You now own the checklist. The instinct is a year of Fridays away.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Diagnose any weak document against the chapter checklist: audience, arc, chart casting, clutter, color, teaching layer, structure.</li>
+<li>The redesign sequence — audience brief → arc → recast charts → declutter → color → teaching layer → structure — works on any report, paper, or deck.</li>
+<li>The buried story is usually already in the data; the redesign excavates it rather than inventing it.</li>
+<li>No advanced statistics were needed — communication craft, not computation, was the bottleneck.</li>
+<li>Keep before/after pairs: they demonstrate your skill to supervisors, examiners, and employers.</li>
+</ul>
+<hr />
+<h1 id="learning-dashboard">Learning Dashboard</h1>
+<p>Quick-reference summaries of the book's core systems. Print these pages and keep them beside you while you work.</p>
+<h2 id="chart-chooser-matrix">Chart Chooser Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Question you are answering</th>
+<th>Relationship family</th>
+<th>Best chart</th>
+<th>Avoid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which is biggest/smallest? How do items rank?</td>
+<td>Comparison</td>
+<td>Sorted bar chart (axis at zero)</td>
+<td>Truncated axes, 3D bars</td>
+</tr>
+<tr>
+<td>How has it changed over time?</td>
+<td>Comparison (time)</td>
+<td>Line chart</td>
+<td>Bars for long series; lines for categories</td>
+</tr>
+<tr>
+<td>Before vs. after, precisely?</td>
+<td>Comparison</td>
+<td>Dot plot / slope chart</td>
+<td>Grouped 3D bars</td>
+</tr>
+<tr>
+<td>What are the parts of the whole?</td>
+<td>Composition</td>
+<td>Bar of shares / stacked bar; pie only if ≤5 slices with a dominant one</td>
+<td>Pies with many slices; donut for precision</td>
+</tr>
+<tr>
+<td>How are values distributed?</td>
+<td>Distribution</td>
+<td>Histogram</td>
+<td>Too few/many bins; hiding the shape</td>
+</tr>
+<tr>
+<td>How do distributions compare across groups?</td>
+<td>Distribution</td>
+<td>Box plot (expert audience)</td>
+<td>For general audiences without explanation</td>
+</tr>
+<tr>
+<td>Do two variables move together?</td>
+<td>Relationship</td>
+<td>Scatter plot (+ trend line only if modeled)</td>
+<td>Bubble charts; decorative trend lines</td>
+</tr>
+<tr>
+<td>Where exactly are the values? (lookup)</td>
+<td>Lookup</td>
+<td>Formatted table with subtle shading</td>
+<td>Rainbow cell coloring; six decimals</td>
+</tr>
+<tr>
+<td>Where is it happening geographically?</td>
+<td>Spatial</td>
+<td>Choropleth map (or cartogram if population matters)</td>
+<td>Maps when location isn't the message</td>
+</tr>
+</tbody>
+</table>
+<h2 id="declutter-checklist">Declutter Checklist</h2>
+<ul>
+<li>[ ] Chart border, plot background, and decorative fills removed</li>
+<li>[ ] Gridlines light gray or removed; horizontal only</li>
+<li>[ ] Axis lines thin/gray; tick marks minimal; labels reduced to readable set</li>
+<li>[ ] Legend replaced with direct labels (unless impossible)</li>
+<li>[ ] Data labels only on key points; numbers rounded</li>
+<li>[ ] One font family; no bold on axes; no rotated labels</li>
+<li>[ ] White space used for grouping; panels separated by space, not lines</li>
+<li>[ ] Scale, uncertainty, and context (baselines, targets) preserved</li>
+</ul>
+<h2 id="color-use-rules">Color-Use Rules</h2>
+<ol>
+<li>Gray for context; <strong>one</strong> saturated color for the message; a second color only for a second meaning.</li>
+<li>Match palette to data: categorical → distinct muted hues; sequential → light-to-dark single hue; diverging → two hues around a meaningful midpoint.</li>
+<li>Never encode meaning with red vs. green alone — design for the ~1 in 12 colorblind men.</li>
+<li>Test every figure in grayscale: the message must survive without hue.</li>
+<li>Keep color meanings consistent across the entire document; build a 3–5 color project palette.</li>
+<li>Use semantic resonance (blue for water) deliberately; be cautious with culturally loaded colors.</li>
+</ol>
+<h2 id="preattentive-attributes-quick-reference">Preattentive Attributes Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Processed in</th>
+<th>Best used for</th>
+<th>Caution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Position (along a scale)</td>
+<td>~200 ms, most accurate</td>
+<td>Encoding the actual data values</td>
+<td>Keep scales honest and consistent</td>
+</tr>
+<tr>
+<td>Color (hue)</td>
+<td>~200 ms, strong</td>
+<td>Highlighting the message; separating a few categories</td>
+<td>Fails for ~1 in 12 men (red-green); always redundant-encode</td>
+</tr>
+<tr>
+<td>Color (intensity/lightness)</td>
+<td>~200 ms</td>
+<td>Sequential magnitude (dark = more)</td>
+<td>Survives grayscale; hue alone does not</td>
+</tr>
+<tr>
+<td>Size / length</td>
+<td>Fast</td>
+<td>Emphasis; magnitude via length</td>
+<td>Area is misjudged — prefer length</td>
+</tr>
+<tr>
+<td>Orientation / shape</td>
+<td>Fast</td>
+<td>Distinguishing categories among points</td>
+<td>Limit to a few distinct shapes</td>
+</tr>
+<tr>
+<td>Enclosure</td>
+<td>Fast</td>
+<td>Grouping ("these belong together")</td>
+<td>Keep the enclosure light so it doesn't dominate</td>
+</tr>
+<tr>
+<td>Motion</td>
+<td>Fastest, irresistible</td>
+<td>Live alerts only</td>
+<td>Never in static figures; sparingly in talks</td>
+</tr>
+</tbody>
+</table>
+<p>Rule of thumb: <strong>one preattentive signal per message.</strong> Each additional signal competes with the others; a chart that shouts in five channels says nothing.</p>
+<h2 id="narrative-arc-planner">Narrative Arc Planner</h2>
+<table>
+<thead>
+<tr>
+<th>Act</th>
+<th>Job</th>
+<th>Where it lives</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Setup</td>
+<td>Establish context and expectation</td>
+<td>Intro, background, baseline chart</td>
+<td>Does the reader know the stakes?</td>
+</tr>
+<tr>
+<td>Conflict</td>
+<td>Reveal what the data disrupted</td>
+<td>Results, key figure, anomaly</td>
+<td>Is there a genuine violated expectation?</td>
+</tr>
+<tr>
+<td>Resolution</td>
+<td>Explain and prescribe</td>
+<td>Discussion, recommendations</td>
+<td>Does the reader know what changes?</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="glossary">Glossary</h1>
+<ul>
+<li><strong>Action title</strong> — a chart or slide title that states the conclusion ("Solar cut use by 38%") rather than describing the topic ("Electricity use").</li>
+<li><strong>Annotation</strong> — short explanatory text placed directly on a chart to mark a key feature (a spike, an intervention, an outlier).</li>
+<li><strong>Assertion–evidence slide</strong> — a slide with a complete-sentence headline stating its message, supported by visual evidence instead of bullet points.</li>
+<li><strong>Attention budget</strong> — the time and mental effort an audience will spend; a core input to design choices.</li>
+<li><strong>Audience brief</strong> — five lines written before designing: who, what decision, what they know, what they fear, the one message.</li>
+<li><strong>Box plot</strong> — a chart showing a distribution's median, quartiles, and outliers; good for comparing distributions across groups.</li>
+<li><strong>Chartjunk</strong> — any ink on a chart that carries no information (heavy gridlines, 3D effects, decorative backgrounds); term coined by Edward Tufte.</li>
+<li><strong>Choropleth map</strong> — a map with regions shaded by data value; beware that large regions dominate visually.</li>
+<li><strong>Data-ink ratio</strong> — the proportion of a chart's ink devoted to the data itself (Tufte); a diagnostic for clutter.</li>
+<li><strong>Decluttering</strong> — the systematic removal of non-data ink so the data carries the message.</li>
+<li><strong>Direct labeling</strong> — placing series names next to the data in matching color instead of using a separate legend.</li>
+<li><strong>Diverging palette</strong> — a color scale with two hues meeting at a meaningful midpoint (e.g., below/above average).</li>
+<li><strong>Dual-axis chart</strong> — a chart with two different y-scales; generally deceptive and best replaced by indexed series or aligned panels.</li>
+<li><strong>Executive summary</strong> — a one-page miniature of a whole report: problem, key finding, implication, recommendation.</li>
+<li><strong>Forest plot</strong> — a dot-and-interval plot commonly used to display multiple effect estimates with confidence intervals.</li>
+<li><strong>Guided tour</strong> — live narration of a chart in three moves: orient (axes, series), point (direct attention), interpret (state the conclusion).</li>
+<li><strong>Heatmap</strong> — a table with cell shading encoding magnitude; good for precise lookup with visual pattern support.</li>
+<li><strong>Histogram</strong> — a chart showing the distribution shape of one variable via binned frequencies.</li>
+<li><strong>IMRaD</strong> — the standard paper structure: Introduction, Methods, Results, and Discussion.</li>
+<li><strong>KPI (key performance indicator)</strong> — a headline metric tied to an objective; dashboards should show only a few.</li>
+<li><strong>Narrative arc</strong> — the setup–conflict–resolution structure that gives a data story tension and direction.</li>
+<li><strong>Narrative transportation</strong> — the psychological state of being absorbed in a story, which reduces counter-arguing and aids persuasion.</li>
+<li><strong>Preattentive attribute</strong> — a visual channel (color, size, position, orientation) processed in milliseconds before conscious attention.</li>
+<li><strong>Progressive reveal</strong> — building a chart in stages during a talk so the audience constructs understanding step by step.</li>
+<li><strong>Scatter plot</strong> — points showing the relationship between two continuous variables; reveals correlation, clusters, outliers.</li>
+<li><strong>Sequential palette</strong> — a single-hue light-to-dark color scale for ordered low-to-high data.</li>
+<li><strong>Slope chart</strong> — a two-point dot plot showing before/after change; the slope is the story.</li>
+<li><strong>Small multiples</strong> — a grid of small, identically scaled charts for comparing many groups without spaghetti plots.</li>
+<li><strong>Sparkline</strong> — a tiny word-sized trend line giving context to a headline number.</li>
+<li><strong>Stakeholder</strong> — a decision-maker who needs data to act (funder, policymaker, manager); designs for them emphasize recommendations.</li>
+<li><strong>Vanity metric</strong> — an impressive-looking number that never changes any decision; excluded from good dashboards.</li>
+<li><strong>WIIFM</strong> — "What's in it for me": the filter every reader unconsciously applies to your work.</li>
+</ul>
+<hr />
+<ul>
+<li><strong>Availability heuristic</strong> — the tendency to overweight vivid or recent examples when judging; why exemplars must be paired with base rates.</li>
+<li><strong>Confirmation bias</strong> — accepting congenial findings easily while scrutinizing uncongenial ones; pre-disarm it with explicit robustness checks.</li>
+<li><strong>Curse of knowledge</strong> — the expert's inability to imagine not seeing the pattern; the reason for the stranger test.</li>
+<li><strong>Inverted pyramid</strong> — leading with the conclusion and recommendation, then supporting evidence; the structure for briefs and memos.</li>
+<li><strong>Spaghetti plot</strong> — many overlapping time series in similar colors; fixed by highlighting one series or using small multiples.</li>
+<li><strong>Stranger test</strong> — showing a figure to someone outside the project for ten seconds to check the message transfers.</li>
+<li><strong>Waterfall chart</strong> — bars showing how a total changes through sequential additions and subtractions.</li>
+</ul>
+<h1 id="practice-exercises">Practice Exercises</h1>
+<p><strong>1. Table to story (easy).</strong> Take any data table from your field (at least 20 numbers). Write the one-sentence finding it contains, then sketch the single chart that makes that sentence obvious. Time how long a friend takes to state the finding from the table vs. the chart.</p>
+<p><strong>2. Audience briefs (easy).</strong> Choose one result from your research. Write the five-line audience brief (Section 2.2) for a stakeholder, a peer reviewer, and a non-specialist friend. Note how the "one message" sentence changes.</p>
+<p><strong>3. Arc mapping (easy–medium).</strong> List the findings of your current paper in presentation order. Label each as setup, conflict, or resolution. Reorder them into narrative order and rewrite the section's opening paragraph as a three-sentence arc.</p>
+<p><strong>4. Chart recasting (medium).</strong> Find one miscast chart in your work (wrong family, truncated axis, pie with too many slices, dual axes). Recast it using the Chapter 4 decision tree and write down which of the seven classic errors it committed.</p>
+<p><strong>5. Declutter pass (medium).</strong> Take your most cluttered figure and run the six-step declutter pass (Chapter 5) plus the declutter checklist. Save before/after side by side and test both on a colleague with the ten-second stranger test.</p>
+<p><strong>6. Palette design (medium).</strong> Build your project's 3–5 color palette (Chapter 6): neutral gray, message color, second-meaning color, sequential scale. Test all figures in a colorblind simulator and in grayscale. Document the palette for your thesis.</p>
+<p><strong>7. Teaching layer (medium–hard).</strong> Rewrite every figure title in a draft chapter as an action title, add subtitles and one to three annotations per figure, and add source/statistics notes. Verify each figure is self-explanatory in isolation.</p>
+<p><strong>8. Dashboard story (hard).</strong> Design a one-screen dashboard for a real monitoring need in your work (field trial, survey waves, lab throughput) following the headline → trend → breakdown → action path, with at most five KPIs and context on every number.</p>
+<p><strong>9. Talk rebuild (hard, research-oriented).</strong> Convert your next conference or defense talk to assertion–evidence slides: sentence headlines, one message per slide, simplified figures, guided-tour narration (orient → point → interpret) for the three key charts, progressive reveal for the main result, and backup slides for your three hardest questions. Rehearse with a timer.</p>
+<p><strong>10. Capstone redesign (hard, research-oriented).</strong> Take the weakest report, paper draft, or slide deck in your current work and run the full seven-step capstone redesign from Chapter 12: audience brief → arc → recast charts → declutter → color → teaching layer → structure. Keep the before version. Present the before/after pair to your supervisor and note which step made the biggest difference.</p>
+<hr />
+<h1 id="references">References</h1>
+<p>[1] C. N. Knaflic, <em>Storytelling with Data: A Data Visualization Guide for Business Professionals</em>. Hoboken, NJ, USA: Wiley, 2015.</p>
+<p>[2] C. N. Knaflic, <em>Storytelling with Data: Let's Practice!</em> Hoboken, NJ, USA: Wiley, 2019.</p>
+<p>[3] E. R. Tufte, <em>The Visual Display of Quantitative Information</em>, 2nd ed. Cheshire, CT, USA: Graphics Press, 2001.</p>
+<p>[4] S. Few, <em>Show Me the Numbers: Designing Tables and Graphs to Enlighten</em>, 2nd ed. Burlingame, CA, USA: Analytics Press, 2012.</p>
+<p>[5] S. Few, <em>Information Dashboard Design: Displaying Data for At-a-Glance Monitoring</em>, 2nd ed. Burlingame, CA, USA: Analytics Press, 2013.</p>
+<p>[6] W. S. Cleveland, <em>The Elements of Graphing Data</em>, 2nd ed. Murray Hill, NJ, USA: Hobart Press, 1994.</p>
+<p>[7] W. S. Cleveland and R. McGill, "Graphical perception: Theory, experimentation, and application to the development of graphical methods," <em>J. Amer. Statist. Assoc.</em>, vol. 79, no. 387, pp. 531–554, 1984.</p>
+<p>[8] J. Bertin, <em>Semiology of Graphics: Diagrams, Networks, Maps</em>. Madison, WI, USA: Univ. of Wisconsin Press, 1983.</p>
+<p>[9] A. Cairo, <em>The Truthful Art: Data, Charts, and Maps for Communication</em>. Berkeley, CA, USA: New Riders, 2016.</p>
+<p>[10] N. Duarte, <em>Slide:ology: The Art and Science of Creating Great Presentations</em>. Sebastopol, CA, USA: O'Reilly Media, 2008.</p>
+<p>[11] G. Reynolds, <em>Presentation Zen: Simple Ideas on Presentation Design and Delivery</em>, 2nd ed. Berkeley, CA, USA: New Riders, 2011.</p>
+<p>[12] B. Shneiderman, "The eyes have it: A task by data type taxonomy for information visualizations," in <em>Proc. IEEE Symp. Visual Languages</em>, Boulder, CO, USA, 1996, pp. 336–343.</p>
+<hr />
+<p><em>End of Book 26. Next: Book 27 — Communicating Uncertainty: Error Bars, Confidence, and Honest Numbers.</em></p>

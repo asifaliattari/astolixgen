@@ -1,0 +1,235 @@
+<h1 id="indoor-air-quality-monitoring-with-iot">Indoor Air Quality Monitoring with IoT</h1>
+<p><strong>Book 36 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover" src="/learn/images/media-generation-book-36-air-quality-cover-0-514a7a26-9d0f-42f3-914f-a05c70c2fde8.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>We spend 90% of our time indoors, breathing air that can be 2–5× more polluted than outside — yet it's invisible and unmeasured. This book builds complete indoor air-quality (IAQ) monitoring systems: the pollutants that matter, low-cost sensors and their calibration against reference instruments, ventilation control, and the health-evidence framing that makes IAQ papers publishable. You'll learn to produce trustworthy measurements, not just colorful dashboards.</p>
+<p><strong>Learning objectives:</strong>
+- Name the key indoor pollutants and their health-relevant thresholds (WHO 2021)
+- Select and calibrate low-cost gas/particulate sensors
+- Design multi-room monitoring deployments
+- Implement ventilation control from IAQ data
+- Handle sensor drift, cross-sensitivity, and humidity effects
+- Evaluate IAQ interventions with proper study design
+- Publish credible IAQ research</p>
+<hr />
+<h2 id="chapter-1-why-indoor-air-quality-matters">Chapter 1: Why Indoor Air Quality Matters</h2>
+<p>Indoor air carries particulate matter (PM2.5/PM10), CO₂, volatile organic compounds (VOCs), carbon monoxide, radon, and biological aerosols. Sources: cooking (the dominant PM source in homes), cleaning products, furniture off-gassing, candles, outdoor infiltration, and occupants themselves (CO₂, bioeffluents). Health effects range from headaches and lost productivity (CO₂ &gt; 1000 ppm impairs cognition measurably) to chronic cardiovascular and respiratory disease from long-term PM2.5 exposure.</p>
+<p>The WHO's 2021 global air quality guidelines tightened PM2.5 limits (annual mean 5 µg/m³) — levels many indoor environments exceed during cooking. For researchers, IAQ is attractive: the problem is real, the measurements are physical, interventions (ventilation, purifiers) are testable, and the literature spans environmental science, building engineering, and public health — a genuinely interdisciplinary publication space.</p>
+<p><strong>Example:</strong> A Karachi classroom study: PM2.5 spiked to 180 µg/m³ during nearby cooking hours (infiltration), CO₂ exceeded 2000 ppm by midday in a 40-student room. Two interventions tested: scheduled window ventilation (CO₂ −45%) and a DIY box-fan purifier (PM2.5 −70%). Both measured, both published.</p>
+<p><strong>For your research:</strong> Frame IAQ papers around a health-relevant threshold (WHO guideline), not just "we measured pollution." Threshold-crossing hours per day is a powerful, interpretable metric.</p>
+<p><strong>Key takeaway:</strong> Indoor air is often worse than outdoor; anchor studies to WHO 2021 thresholds and threshold-exceedance metrics.</p>
+<hr />
+<h2 id="chapter-2-the-pollutants-what-to-measure">Chapter 2: The Pollutants — What to Measure</h2>
+<p><strong>PM2.5/PM10</strong> (particulate matter): the most health-relevant. Low-cost optical sensors (Plantower PMS series, Sensirion SPS30) count particles via laser scattering. <strong>CO₂</strong>: occupancy and ventilation proxy; NDIR sensors (Sensirion SCD30/SCD40, MH-Z19) are accurate and stable. <strong>VOCs</strong>: from cooking, cleaning, materials; metal-oxide (MOX) sensors (SGP30/SGP40, BME680) respond to many gases but are non-specific — report as "VOC index," never as specific compounds. <strong>CO</strong>: safety-critical near combustion; electrochemical sensors. <strong>Temperature/humidity</strong>: essential context — PM sensors are humidity-sensitive, and comfort analysis needs both.</p>
+<p>What NOT to claim: low-cost MOX sensors cannot identify formaldehyde specifically; optical PM sensors misread humidity as particles. Papers that overclaim sensor specificity get rejected. Report what the sensor actually measures.</p>
+<p><strong>Example sensor set per room (~$60):</strong> PMS5003 (PM), SCD40 (CO₂/temp/RH), SGP40 (VOC index). Calibrated against a reference (see Ch. 3). This trio covers 90% of IAQ research questions.</p>
+<p><strong>For your research:</strong> Your methods must state each sensor's principle, range, and known cross-sensitivities. A sensor table is expected.</p>
+<p><strong>Key takeaway:</strong> PM + CO₂ + VOC-index + temp/RH covers most IAQ work; never overclaim specificity.</p>
+<hr />
+<h2 id="chapter-3-calibration-making-low-cost-data-trustworthy">Chapter 3: Calibration — Making Low-Cost Data Trustworthy</h2>
+<p>Raw low-cost sensor data is not trustworthy. <strong>PM sensors</strong> overread in high humidity (water droplets scatter light like particles) — apply humidity correction (published formulas exist) or dry the inlet. <strong>CO₂ NDIR</strong> sensors are stable but need periodic auto-calibration (ABC assumes weekly fresh-air exposure; disable ABC in always-occupied rooms and calibrate manually). <strong>MOX VOC</strong> sensors drift with age and respond to humidity — use relative indices, not absolute ppb.</p>
+<p><strong>Calibration procedure:</strong> co-locate your low-cost node with a reference instrument (borrowed from an environmental lab, or a calibrated mid-range device) for 1–2 weeks across varying conditions. Fit a correction (linear or multilinear with humidity/temperature terms). Report R², RMSE, and bias before/after. Re-check quarterly — publish the drift.</p>
+<p><strong>Example:</strong> PMS5003 vs reference (TSI DustTrak): raw R² 0.82, RMSE 14 µg/m³; after humidity correction: R² 0.94, RMSE 6 µg/m³. The correction equation and validation stats were a full paper section.</p>
+<p><strong>For your research:</strong> Co-location calibration with reported metrics is the minimum bar for credible low-cost IAQ papers. No calibration section = desk rejection in serious venues.</p>
+<p><strong>Key takeaway:</strong> Co-locate, correct (especially humidity), report R²/RMSE, re-check drift — calibration is the paper's foundation.</p>
+<hr />
+<h2 id="chapter-4-deployment-design-rooms-placement-density">Chapter 4: Deployment Design — Rooms, Placement, Density</h2>
+<p><strong>Placement:</strong> breathing zone height (1–1.5 m), away from direct sources (not above the stove), away from windows/doors (drafts), one node per room for studies (hallway nodes miss room-level variation). <strong>Density:</strong> for a home study, 3–5 nodes (bedroom, living, kitchen, outdoor reference). The outdoor node is essential — it separates indoor sources from infiltration.</p>
+<p><strong>Power/connectivity:</strong> mains-powered nodes (sensors like PMS draw too much for batteries); Wi-Fi or LoRa to a gateway; local buffering for outages (SD card). <strong>Duration:</strong> minimum 2 weeks per condition; seasonal variation means winter and summer campaigns differ enormously.</p>
+<p><strong>Example:</strong> A 20-home study: 4 indoor nodes + 1 outdoor per home, 3-week winter campaign. Key finding: kitchen PM during cooking exceeded outdoor pollution by 8×, but 70% of daily exposure came from the living room (time-weighted) — placement + occupancy diaries changed the conclusion.</p>
+<p><strong>For your research:</strong> Include occupancy/activity diaries (even simple ones). IAQ without knowing what people were doing is hard to interpret — and reviewers know it.</p>
+<p><strong>Key takeaway:</strong> Breathing-zone placement, outdoor reference node, activity diaries, multi-week campaigns.</p>
+<hr />
+<h2 id="chapter-5-co2-and-ventilation-the-actionable-loop">Chapter 5: CO₂ and Ventilation — The Actionable Loop</h2>
+<p>CO₂ is the most actionable IAQ metric: it directly indicates ventilation adequacy, and the fix (more fresh air) is straightforward. Thresholds: &lt;800 ppm good, 800–1200 acceptable, &gt;1200 poor (cognitive effects documented), &gt;2000 seriously under-ventilated. <strong>Demand-controlled ventilation:</strong> CO₂ sensor → controller → damper/fan/window alert. In classrooms, this single loop is the highest-impact IAQ intervention.</p>
+<p><strong>Example:</strong> A 35-student classroom: baseline CO₂ peaked at 2,400 ppm. Intervention: CO₂-triggered exhaust fan at 1,000 ppm + teacher alert. Result: peaks capped at 1,100 ppm, absenteeism (illness) dropped 12% over the term vs the control classroom. The control classroom is what made it a paper, not a project.</p>
+<p><strong>For your research:</strong> Ventilation studies need a control room and should report both CO₂ and an outcome (absenteeism, test scores, or at least perceived air quality surveys).</p>
+<p><strong>Key takeaway:</strong> CO₂ → ventilation is the highest-ROI IAQ loop; evaluate with controls and outcomes.</p>
+<hr />
+<h2 id="chapter-6-particulates-sources-purifiers-and-evidence">Chapter 6: Particulates — Sources, Purifiers, and Evidence</h2>
+<p>Indoor PM sources ranked: cooking (frying = extreme), candles/incense, cleaning (resuspension), outdoor infiltration (traffic, burning), smoking. <strong>Interventions:</strong> source control (lids on pans, range hoods that actually vent outside), portable HEPA purifiers (CADR matched to room size), and DIY box-fan + MERV-13 filters (the famous Corsi-Rosenthal box — ~$60, remarkably effective, great for low-resource studies).</p>
+<p><strong>Measuring purifier effectiveness:</strong> decay-rate method — elevate PM (or wait for a cooking event), run purifier, fit exponential decay; compare against natural decay (no purifier). Report clean air delivery in context of room volume.</p>
+<p><strong>Example:</strong> Corsi-Rosenthal box in a 30 m³ bedroom: PM2.5 decay constant improved 3.2× vs natural decay; overnight mean PM2.5 fell from 34 to 11 µg/m³. Total cost $58. The cost-effectiveness framing drove citations.</p>
+<p><strong>For your research:</strong> Low-cost interventions with rigorous measurement are highly publishable and highly cited — they serve the low-resource settings most papers ignore.</p>
+<p><strong>Key takeaway:</strong> Source control first, purifiers second; measure with decay rates; cost-effectiveness is a publication asset.</p>
+<hr />
+<h2 id="chapter-7-data-analysis-for-iaq">Chapter 7: Data Analysis for IAQ</h2>
+<p>IAQ analysis patterns: <strong>time-weighted exposure</strong> (concentration × time per microenvironment — the health-relevant dose), <strong>event detection</strong> (cooking peaks via PM slope), <strong>source apportionment</strong> (indoor/outdoor ratios by time of day), <strong>threshold exceedance</strong> (hours/day above WHO limits), and <strong>intervention comparison</strong> (before/after with controls, or crossover designs where each home serves as its own control).</p>
+<p><strong>Crossover design</strong> (powerful for small-N studies): each home gets 2 weeks baseline + 2 weeks intervention, order randomized. Each home is its own control — eliminating between-home variation. With 10 homes you have a real study.</p>
+<p><strong>Example:</strong> Purifier crossover in 12 homes: baseline week mean PM2.5 28 µg/m³ → purifier week 12 µg/m³ (p &lt; 0.001, paired test). The paired design gave statistical power that 12 homes in a parallel design couldn't.</p>
+<p><strong>For your research:</strong> Learn the crossover design — it's the small-N researcher's superpower for intervention studies.</p>
+<p><strong>Key takeaway:</strong> Time-weighted exposure, threshold exceedance, and crossover designs are the IAQ analyst's core tools.</p>
+<hr />
+<h2 id="chapter-8-sensor-networks-and-iot-architecture-for-iaq">Chapter 8: Sensor Networks and IoT Architecture for IAQ</h2>
+<p>Apply Books 31/34: nodes publish via MQTT (QoS 1, retained last values), a broker bridges to a time-series DB (InfluxDB), Grafana dashboards per home, alerts on threshold exceedance. <strong>IAQ-specific needs:</strong> high time resolution during events (1-min), aggressive downsampling for storage (1-min → 1-hour rollups after 30 days), and data-quality flags (sensor warm-up periods, humidity-suspect PM readings).</p>
+<p><strong>Privacy:</strong> indoor data reveals occupancy patterns — encrypt, restrict access, anonymize in publications (Home A, not addresses), get consent. Ethics approval is required for human-occupancy studies at most institutions.</p>
+<p><strong>Example architecture:</strong> ESP32 + sensors → MQTT → Mosquitto → Telegraf → InfluxDB → Grafana; 5 nodes/home × 20 homes; total cloud cost $0 (local server). The zero-cloud-cost design was a deliberate choice for a low-resource setting, stated in the paper.</p>
+<p><strong>For your research:</strong> State the full stack with versions; include the ethics approval ID; anonymization procedures belong in methods.</p>
+<p><strong>Key takeaway:</strong> MQTT + time-series DB + Grafana is the standard IAQ stack; ethics and anonymization are mandatory.</p>
+<hr />
+<h2 id="chapter-9-health-evidence-linking-air-to-outcomes">Chapter 9: Health Evidence — Linking Air to Outcomes</h2>
+<p>Strong IAQ papers connect exposure to outcomes: <strong>cognitive</strong> (test scores, reaction time vs CO₂), <strong>respiratory</strong> (symptom diaries, peak-flow vs PM), <strong>absenteeism</strong>, <strong>sleep quality</strong> (bedroom PM/CO₂ vs sleep trackers). You don't need clinical trials — validated symptom questionnaires and simple cognitive tests suffice for a first paper.</p>
+<p><strong>Caution:</strong> correlation is not causation; control for confounders (season, illness circulation, exam stress). Report effect sizes with confidence intervals, not just p-values.</p>
+<p><strong>Example:</strong> Classroom CO₂ vs math test scores (n=180 students, 6 classrooms): each 500 ppm increase associated with −3.2% scores (95% CI −5.1 to −1.3), controlling for temperature and time of day. Modest, honest, publishable.</p>
+<p><strong>For your research:</strong> Partner with a health or education researcher — interdisciplinary co-authors strengthen both the study and its reception.</p>
+<p><strong>Key takeaway:</strong> Link exposure to measured outcomes with confounder control; interdisciplinary co-authors help.</p>
+<hr />
+<h2 id="chapter-10-low-resource-settings-the-high-impact-frontier">Chapter 10: Low-Resource Settings — The High-Impact Frontier</h2>
+<p>Most IAQ research comes from wealthy countries; the worst exposures are elsewhere (biomass cooking, brick kilns, traffic). Low-cost sensors + DIY purifiers + local deployments = high-impact research. Challenges: power reliability (design for outages), dust (sensor maintenance schedules), and community engagement (results must return to participants in understandable form).</p>
+<p><strong>Example:</strong> A Lahore kitchen study: biomass stove PM2.5 averaged 210 µg/m³ during cooking; a $12 chimney hood intervention cut it to 68 µg/m³. The paper's community-reporting section (results shared in Urdu infographics) was praised by reviewers and adopted by an NGO.</p>
+<p><strong>For your research:</strong> Low-resource IAQ work is under-published and over-cited. Budget for community reporting — it's both ethical and strategically smart.</p>
+<p><strong>Key takeaway:</strong> The highest-impact IAQ research serves low-resource settings; report back to communities.</p>
+<hr />
+<h2 id="chapter-11-standards-guidelines-and-policy-context">Chapter 11: Standards, Guidelines, and Policy Context</h2>
+<p>Know the landscape: <strong>WHO 2021</strong> global air quality guidelines (PM2.5 annual 5 µg/m³, 24-h 15 µg/m³), <strong>ASHRAE 62.1</strong> (ventilation rates), <strong>WELL/RESET</strong> building standards (commercial IAQ certification), and national building codes. Your paper's discussion should position findings against these: "bedroom CO₂ exceeded the 1,000 ppm guideline for 4.2 h/day" is policy-relevant language.</p>
+<p><strong>Example:</strong> A school-district study framed entirely around ASHRAE ventilation rates led to a district-wide ventilation retrofit policy — the paper's policy impact section documented it, multiplying the work's influence beyond citations.</p>
+<p><strong>For your research:</strong> One paragraph linking results to a specific standard or policy turns a measurement paper into a policy-relevant one.</p>
+<p><strong>Key takeaway:</strong> Anchor discussions to WHO/ASHRAE/WELL — policy relevance multiplies impact.</p>
+<hr />
+<h2 id="chapter-12-your-iaq-study-from-question-to-paper">Chapter 12: Your IAQ Study — From Question to Paper</h2>
+<p>Template:</p>
+<ol>
+<li><strong>Question:</strong> e.g., "Does a low-cost purifier reduce children's bedroom PM2.5 exposure in Lahore homes?"</li>
+<li><strong>Design:</strong> Crossover (each home its own control), 2+2 weeks, n≥10 homes.</li>
+<li><strong>Instruments:</strong> Listed sensors with calibration (co-location stats), placement map, outdoor reference.</li>
+<li><strong>Metrics:</strong> Time-weighted PM2.5, threshold-exceedance hours, pre-registered.</li>
+<li><strong>Analysis:</strong> Paired tests, effect sizes, confounder checks.</li>
+<li><strong>Ethics:</strong> Approval ID, consent, anonymization.</li>
+<li><strong>Economics:</strong> Intervention cost, cost per µg/m³ reduced.</li>
+<li><strong>Artifact:</strong> Dataset (anonymized), calibration data, analysis code.</li>
+<li><strong>Writing:</strong> IEEE or environmental-health journal format; abstract leads with the exposure reduction numbers.</li>
+</ol>
+<p>Common rejections: no calibration, no control/crossover, N too small without paired design, overclaimed sensor specificity, missing ethics.</p>
+<p><strong>For your research:</strong> This is A1→A4 once more — and IAQ's physical measurements plus crossover designs make it one of the most achievable first-publication domains.</p>
+<p><strong>Key takeaway:</strong> Calibrated sensors + crossover design + threshold metrics + ethics + artifact = a publishable IAQ paper.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Core idea</th>
+<th>Research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Why IAQ</td>
+<td>90% indoors, WHO 2021</td>
+<td>Threshold-exceedance metrics</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Pollutants</td>
+<td>PM/CO₂/VOC, sensor limits</td>
+<td>Sensor table, no overclaiming</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Calibration</td>
+<td>Co-location, humidity correction</td>
+<td>R²/RMSE reporting = credibility</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Deployment</td>
+<td>Placement, outdoor ref, diaries</td>
+<td>Multi-week, activity context</td>
+</tr>
+<tr>
+<td>5</td>
+<td>CO₂/ventilation</td>
+<td>Actionable loop</td>
+<td>Control-room evaluations</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Particulates</td>
+<td>Sources, purifiers, decay rates</td>
+<td>Cost-effectiveness framing</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Analysis</td>
+<td>Exposure, crossover designs</td>
+<td>Small-N superpower</td>
+</tr>
+<tr>
+<td>8</td>
+<td>IoT architecture</td>
+<td>MQTT→TSDB→Grafana</td>
+<td>Full-stack disclosure, ethics</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Health links</td>
+<td>Outcomes with confounder control</td>
+<td>Interdisciplinary co-authors</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Low-resource</td>
+<td>High impact, community reporting</td>
+<td>Under-published, over-cited</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Standards</td>
+<td>WHO/ASHRAE/WELL anchoring</td>
+<td>Policy relevance</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Study template</td>
+<td>Question→paper pipeline</td>
+<td>A1–A4 mapping</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] World Health Organization, WHO Global Air Quality Guidelines: Particulate Matter (PM2.5 and PM10), Ozone, Nitrogen Dioxide, Sulfur Dioxide and Carbon Monoxide, Geneva, 2021.
+[2] P. Kumar et al., "Real-time sensors for indoor air monitoring and challenges ahead in deploying them to urban buildings," Science of the Total Environment, vol. 560–561, pp. 150–159, 2016.
+[3] L. Morawska et al., "Applications of low-cost sensing technologies for air quality monitoring and exposure assessment: How far have they gone?" Environment International, vol. 116, pp. 286–299, 2018.
+[4] J. Li, S. K. R. Haugen, and M. C. Turner, "Low-cost air quality sensors: Intercomparison and calibration," Atmospheric Environment, 2019. (verify exact citation)
+[5] U. Satish et al., "Is CO₂ an indoor pollutant? Direct effects of low-to-moderate CO₂ concentrations on human decision-making performance," Environmental Health Perspectives, vol. 120, no. 12, 2012.
+[6] R. Allen, P. Wargocki et al., "Associations of cognitive function scores with carbon dioxide, ventilation, and volatile organic compound exposures in office workers," Environmental Health Perspectives, vol. 124, no. 6, 2016.
+[7] A. Banks and R. Gupta, "MQTT Version 3.1.1," OASIS Standard, Oct. 2014.
+[8] L. Atzori, A. Iera, and G. Morabito, "The Internet of Things: A survey," Computer Networks, vol. 54, no. 15, pp. 2787–2805, 2010.
+[9] W. J. Fisk, "The ventilation problem in schools: literature review," Indoor Air, vol. 27, no. 6, 2017.
+[10] ASHRAE, ANSI/ASHRAE Standard 62.1-2022, Ventilation for Acceptable Indoor Air Quality, 2022.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>PM2.5/PM10</strong> — particles ≤2.5/10 µm; key health metric</li>
+<li><strong>NDIR</strong> — nondispersive infrared; CO₂ sensing principle</li>
+<li><strong>MOX</strong> — metal oxide; broad-spectrum gas sensing</li>
+<li><strong>VOC</strong> — volatile organic compounds</li>
+<li><strong>Co-location</strong> — calibrating against a reference side by side</li>
+<li><strong>Crossover design</strong> — each subject gets both conditions in random order</li>
+<li><strong>Time-weighted exposure</strong> — concentration × time, the health-relevant dose</li>
+<li><strong>CADR</strong> — clean air delivery rate (purifiers)</li>
+<li><strong>Corsi-Rosenthal box</strong> — DIY box-fan + filter purifier</li>
+<li><strong>ABC</strong> — automatic baseline calibration (CO₂ sensors)</li>
+<li><strong>Threshold exceedance</strong> — hours above a guideline limit</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Why is threshold-exceedance (hours/day above WHO limits) a better metric than daily mean? Give an example.</li>
+<li>Your PM sensor reads high on humid days. Explain the physics and two corrections.</li>
+<li>Design a 4-node home deployment: rooms, placement heights, and why each location.</li>
+<li>Write the control logic for CO₂-triggered ventilation with hysteresis (to avoid flapping).</li>
+<li>Describe the decay-rate method for purifier testing. What is the control condition?</li>
+<li>Design a crossover study for a purifier intervention with 10 homes. State the analysis.</li>
+<li>Why must MOX VOC sensors be reported as an index, not specific compounds?</li>
+<li>Compute time-weighted PM2.5 exposure for a person: 8 h bedroom at 12 µg/m³, 8 h office at 35 µg/m³, 2 h kitchen at 90 µg/m³, 6 h outdoors at 45 µg/m³.</li>
+<li>List the ethics requirements for an occupied-home IAQ study at your institution.</li>
+<li>Draft an abstract for your IAQ study with the key numbers filled in as variables.</li>
+</ol>
+<hr />
+<p><em>End of Book 36. Next: Book 37 — IoT Security Basics.</em></p>

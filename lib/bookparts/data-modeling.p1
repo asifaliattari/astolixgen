@@ -1,0 +1,672 @@
+eries slow down for high-level dashboards ("yearly sales by region" should not scan a billion rows). The answer is <strong>aggregate fact tables</strong>: pre-computed summaries at coarser grains, e.g., <code>FactSalesMonthly(CityKey, ProductKey, MonthKey, TotalQty, TotalSales)</code> — the same conformed dimensions, fewer rows by 100×. Modern engines (Power BI aggregations, materialized views) can route queries to the aggregate automatically when the question's grain allows, drilling through to detail on demand. Rules: aggregates must use <em>identical</em> dimension keys and definitions (or they are not the same numbers, just similar ones); every aggregate is documented as derived, with its grain stated; reconciliation checks compare aggregate totals to base-fact totals after each load. Aggregates are a performance technique, never a modeling shortcut — build the base fact first, aggregate second.</p>
+<h3 id="the-etl-mapping-document-from-source-to-star">The ETL mapping document: from source to star</h3>
+<p>The bridge between the normalized source and the star is the <strong>mapping document</strong> — one row per target column:</p>
+<table>
+<thead>
+<tr>
+<th>Target table.column</th>
+<th>Source</th>
+<th>Transformation</th>
+<th>Load rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DimCustomer.City</td>
+<td>crm.customers.city</td>
+<td>Trim, title-case; map NULL → 'Unknown'</td>
+<td>Type 2 on change</td>
+</tr>
+<tr>
+<td>FactSales.SalesAmount</td>
+<td>pos.order_lines.qty × price − discount</td>
+<td>Convert to reporting currency (PKR) at daily rate</td>
+<td>Reject if ≤ 0</td>
+</tr>
+<tr>
+<td>DimDate (all)</td>
+<td>Generated</td>
+<td>Script gen_dates.py, 2020–2035</td>
+<td>Full refresh yearly</td>
+</tr>
+</tbody>
+</table>
+<p>Write the mapping before building the ETL — it forces every transformation decision into the open (currency conversion? null handling? rejection rules?) where stakeholders can review it. The mapping document plus the lineage diagram <em>is</em> the ETL specification; a developer should be able to build the pipeline from it without asking you a single question.</p>
+<p><strong>For your research:</strong> If your study produces repeated analytical cuts — survey waves, experiment conditions, sensor deployments — build yourself a small star: one fact table (responses, measurements) and flat dimensions (respondent attributes, question attributes, date, wave). Your analysis scripts become short, uniform aggregations (group by dimension, summarize fact), and adding wave 3 of a longitudinal study is just more fact rows, not a restructured spreadsheet. Reviewers can follow the logic because the shape is standard.</p>
+<p><strong>Key takeaways:</strong>
+- Normalize for correct writes; denormalize (in a separate analytical copy) for fast, simple reads.
+- A star schema = one central fact table + denormalized dimension tables, each one join away.
+- Prefer star over snowflake unless dimension maintenance genuinely demands normalization.
+- Conformed dimensions (shared across analyses) are how you get numbers that agree everywhere.</p>
+<hr />
+<h2 id="chapter-5-fact-tables-vs-dimension-tables">Chapter 5: Fact Tables vs Dimension Tables</h2>
+<p>The star schema's two table types do completely different jobs, and confusing them is one of the most common modeling errors. This chapter draws the line sharply, with rules for each and worked examples.</p>
+<p><img alt="Fact and dimension tables illustration" src="/learn/images/book-25-ch5-factdim.webp" /></p>
+<p><em>Figure: a fact table of measurable events surrounded by descriptive dimension tables.</em></p>
+<h3 id="the-core-distinction">The core distinction</h3>
+<ul>
+<li><strong>Fact tables</strong> record <em>measurements of events</em>: things that happened, quantified. Sales transactions, sensor readings, survey responses, website clicks, exam scores. Facts answer "how much / how many."</li>
+<li><strong>Dimension tables</strong> describe the <em>context</em> of those events: who, what, where, when, why. Customers, products, stores, dates, respondents, questions. Dimensions answer "by what" — they are the slicing axes of every report.</li>
+</ul>
+<p>Memory aid: <strong>facts are verbs</strong> (sold, measured, answered, clicked); <strong>dimensions are nouns</strong> (customer, product, date, question).</p>
+<h3 id="anatomy-of-a-fact-table">Anatomy of a fact table</h3>
+<p>A fact table has two kinds of columns and almost nothing else:</p>
+<ol>
+<li><strong>Foreign keys</strong> to dimensions (the grain-defining context): <code>DateKey, ProductKey, CustomerKey, StoreKey</code>.</li>
+<li><strong>Measures</strong>: numeric, additive-ish facts: <code>Quantity, UnitPrice, SalesAmount, DiscountAmount</code>.</li>
+</ol>
+<p>What a fact table does <em>not</em> have: descriptive text attributes (product name, customer city — those live in dimensions), and usually no primary key in the analytical sense (the combination of dimension keys <em>is</em> the identity; some designers add a degenerate key like <code>OrderLineNumber</code> — see below).</p>
+<p><strong>Sample fact table — FactSales:</strong></p>
+<table>
+<thead>
+<tr>
+<th>DateKey</th>
+<th>ProductKey</th>
+<th>CustomerKey</th>
+<th>StoreKey</th>
+<th>Quantity</th>
+<th>UnitPrice</th>
+<th>SalesAmount</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>20260105</td>
+<td>501</td>
+<td>9001</td>
+<td>12</td>
+<td>2</td>
+<td>1500</td>
+<td>3000</td>
+</tr>
+<tr>
+<td>20260105</td>
+<td>502</td>
+<td>9002</td>
+<td>12</td>
+<td>1</td>
+<td>95000</td>
+<td>95000</td>
+</tr>
+<tr>
+<td>20260106</td>
+<td>501</td>
+<td>9001</td>
+<td>12</td>
+<td>1</td>
+<td>1500</td>
+<td>1500</td>
+</tr>
+</tbody>
+</table>
+<p>One row = one order line (that is the grain — Chapter 7). The foreign keys are the address; the measures are the payload.</p>
+<h3 id="the-three-kinds-of-facts">The three kinds of facts</h3>
+<p>Not all measures behave the same under aggregation, and modeling them correctly matters:</p>
+<ol>
+<li><strong>Additive facts</strong> — can be summed across <em>all</em> dimensions. <code>SalesAmount</code>, <code>Quantity</code>. The well-behaved majority.</li>
+<li><strong>Semi-additive facts</strong> — can be summed across some dimensions but not others. Account <em>balances</em> sum across accounts but not across time (summing January's balance + February's balance is meaningless — you want the latest). Inventory levels are the classic example.</li>
+<li><strong>Non-additive facts</strong> — cannot be summed at all. Ratios, percentages, unit prices. <code>UnitPrice</code> summed across products is nonsense. Store these at the fact grain and compute ratios <em>after</em> aggregating the additive components (sum revenue ÷ sum quantity = correct average price; averaging the averages is wrong — a classic error).</li>
+</ol>
+<p><strong>Rule:</strong> store additive components in the fact table; compute ratios and percentages in measures/reports, never as stored summed values.</p>
+<h3 id="anatomy-of-a-dimension-table">Anatomy of a dimension table</h3>
+<p>Dimensions are wide, descriptive, and relatively small:</p>
+<ul>
+<li>A <strong>surrogate primary key</strong> (<code>CustomerKey</code>) — meaningless integer, stable forever (Chapter 6 explains why this matters when attributes change).</li>
+<li><strong>Descriptive attributes</strong>: names, categories, types, flags — the labels and groupings of reports.</li>
+<li><strong>Hierarchies</strong> rolled into the same table (denormalized): <code>Category, Subcategory, ProductName</code> all in <code>DimProduct</code>; <code>Year, Quarter, Month, Date</code> all in <code>DimDate</code>.</li>
+<li>A <strong>row per member</strong>: one row per customer, per product, per date — including special rows like "Unknown" (key 0 or -1) so facts with missing dimension values still join cleanly instead of vanishing from reports.</li>
+</ul>
+<p><strong>Sample dimension — DimProduct:</strong></p>
+<table>
+<thead>
+<tr>
+<th>ProductKey (PK)</th>
+<th>ProductName</th>
+<th>Category</th>
+<th>Brand</th>
+<th>UnitCost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>501</td>
+<td>Wireless Mouse</td>
+<td>Electronics</td>
+<td>LogiTech-style</td>
+<td>900</td>
+</tr>
+<tr>
+<td>502</td>
+<td>Laptop 14"</td>
+<td>Electronics</td>
+<td>CompuBrand</td>
+<td>78000</td>
+</tr>
+</tbody>
+</table>
+<h3 id="factless-fact-tables-and-degenerate-dimensions">Factless fact tables and degenerate dimensions</h3>
+<p>Two special cases worth knowing:</p>
+<ul>
+<li><strong>Factless fact tables</strong> record that an event <em>happened</em> but carry no measures — only foreign keys. Example: <code>FactAttendance(StudentKey, DateKey, CourseKey)</code> — one row per student per class session attended. The "measure" is the row count itself. Coverage/attendance/compliance scenarios use these constantly.</li>
+<li><strong>Degenerate dimensions</strong> are dimension-like attributes with no table of their own — typically transaction numbers like <code>OrderNumber</code> or <code>TicketNumber</code> stored directly in the fact table. They have no attributes beyond the identifier, so a table would be pointless; but keep them in the fact because users filter and drill by them.</li>
+</ul>
+<h3 id="worked-example-modeling-a-research-experiment">Worked example: modeling a research experiment</h3>
+<p>A psychology lab runs a reaction-time experiment: 60 participants, each completes 200 trials across 4 conditions, reaction time recorded per trial.</p>
+<ul>
+<li><strong>Fact table</strong> <code>FactTrials(ParticipantKey, DateKey, ConditionKey, TrialNumber, ReactionTimeMs, CorrectFlag)</code> — one row per trial (grain = one trial). Measures: <code>ReactionTimeMs</code> (non-additive — average it, don't sum it), <code>CorrectFlag</code> (0/1, additive — sums to total correct).</li>
+<li><strong>Dimensions</strong>: <code>DimParticipant(ParticipantKey, Age, Gender, Group)</code> (slowly changing — Chapter 6), <code>DimCondition(ConditionKey, ConditionName, StimulusType)</code>, <code>DimDate</code>.</li>
+</ul>
+<p>"Mean reaction time by condition for the experimental group" = filter DimParticipant.Group, group by DimCondition, average FactTrials.ReactionTimeMs. Clean, fast, and the shape scales to 60,000 trials without restructuring.</p>
+<h3 id="the-three-fact-table-types-transaction-snapshot-accumulating">The three fact table types: transaction, snapshot, accumulating</h3>
+<p>Kimball's framework distinguishes three fact table types by <em>what event the grain captures</em>. Choosing correctly is one of the highest-leverage modeling decisions:</p>
+<p><strong>1. Transaction fact tables</strong> — one row per event at the moment it happens. <code>FactSales</code> (one row per order line), <code>FactClicks</code> (one row per click), <code>FactResponses</code> (one row per answer). The most common type; the grain is the event itself. Rows are inserted once and never updated. Analysis: counts, sums, trends over the event date.</p>
+<p><strong>2. Periodic snapshot fact tables</strong> — one row per <em>thing</em> per <em>period</em>, capturing state. <code>FactInventorySnapshot(ProductKey, DateKey, QtyOnHand, QtyOnOrder)</code> — one row per product per day, even with no transactions. This is how you answer "what was inventory on March 15?" — a transaction fact cannot answer state-at-a-point-in-time questions. Snapshots are <strong>dense</strong> (a row for every combination every period — large!) and carry <strong>semi-additive</strong> facts (Chapter 5: sum across products, not across days). Typical use: balances, headcounts, inventory, survey panel membership per wave.</p>
+<p><strong>3. Accumulating snapshot fact tables</strong> — one row per <em>process</em>, updated as the process moves through stages. <code>FactOrderPipeline(OrderKey, OrderDateKey, ShipDateKey, DeliveryDateKey, OrderAmount, ShipLagDays, DeliveryLagDays)</code> — one row per order, with a date key per milestone; the row is <em>updated</em> when the order ships, then again when delivered. Perfect for pipeline/lifecycle analysis: "average days from order to ship by month", "orders stuck in 'shipped' over 10 days". The grain is the process instance; multiple date roles (Chapter 8's role-playing dimensions) are the signature pattern.</p>
+<p><strong>How to choose:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Question to answer</th>
+<th>Fact type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How many events happened?</td>
+<td>Transaction</td>
+</tr>
+<tr>
+<td>What was the state on date X?</td>
+<td>Periodic snapshot</td>
+</tr>
+<tr>
+<td>How long do processes take? Where do they stall?</td>
+<td>Accumulating snapshot</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Worked example — research grant applications:</strong> a funding body wants three analyses: (a) applications received per month → <strong>transaction</strong> fact <code>FactApplications(ApplicationKey, DateKey, ApplicantKey, ProgramKey, RequestedAmount)</code>; (b) total pipeline value at each month-end → <strong>periodic snapshot</strong> <code>FactPipelineSnapshot(ProgramKey, MonthKey, ApplicationsInReview, TotalRequested)</code>; (c) average days from submission to decision, and where applications stall → <strong>accumulating snapshot</strong> <code>FactApplicationPipeline(ApplicationKey, SubmitDateKey, ReviewDateKey, DecisionDateKey, DaysToReview, DaysToDecision, Outcome)</code>. Three grains, three fact tables, one set of conformed dimensions — the galaxy pattern from Chapter 4.</p>
+<h3 id="drilling-down-and-rolling-up-using-the-grain-deliberately">Drilling down and rolling up: using the grain deliberately</h3>
+<p><strong>Drill down</strong> moves from coarse to fine (year → quarter → month → day); <strong>roll up</strong> moves fine to coarse. Both are safe when the path follows the dimension hierarchy, because hierarchies are defined to aggregate cleanly. <strong>Drill through</strong> jumps from an aggregated number to the underlying fact rows ("show me the actual order lines behind this 2.4M") — invaluable for trust ("prove it") and for debugging. <strong>Drill across</strong> (Chapter 7) combines fact tables. A good model supports all four; a bad model supports none and forces users into raw table dumps.</p>
+<h3 id="drill-across-worked-example-sales-vs-targets-numerically">Drill-across worked example: sales vs. targets, numerically</h3>
+<p>"Achievement % by city by month" drills across <code>FactSales</code> (order-line grain) and <code>FactTargets</code> (city-month grain) via conformed <code>DimCity</code> and <code>DimDate</code>. The engine's logic, step by step:</p>
+<ol>
+<li>Aggregate <code>FactSales</code> to the common grain: <code>SELECT CityKey, Month, SUM(SalesAmount) → (Karachi, 2026-06, 4,200,000)</code>.</li>
+<li>Aggregate <code>FactTargets</code> (already at city-month): <code>(Karachi, 2026-06, 5,000,000)</code>.</li>
+<li>Join the two small result sets on CityKey + Month.</li>
+<li>Compute the ratio on the joined result: <code>4,200,000 / 5,000,000 = 84%</code>.</li>
+</ol>
+<p>In DAX, <code>Achievement % = DIVIDE([Total Sales], [Total Target])</code> does exactly this: each measure aggregates its own fact to the filter context's grain (city × month from the visual), then the division happens last. The critical insight: <strong>the join happens after aggregation, never before</strong> — that is what keeps different grains from corrupting each other. Any attempt to join the raw tables first (fan trap territory) multiplies rows and produces fiction. When a drill-across number looks wrong, check that both measures aggregate correctly <em>independently</em> before suspecting the combination.</p>
+<h3 id="units-currencies-and-other-fact-table-disciplines">Units, currencies, and other fact-table disciplines</h3>
+<p>Two details separate professional fact tables from amateur ones:</p>
+<ul>
+<li><strong>One currency, one unit.</strong> A <code>SalesAmount</code> column mixing rupees, dollars, and euros is un-aggregatable. Standardize at ETL: store <code>SalesAmount</code> in a single reporting currency plus <code>SalesAmountLocal</code> and <code>CurrencyCode</code> if local values matter; document the exchange-rate source and date. The same for units: kilograms vs. grams, minutes vs. hours — pick one, convert at load, record the original in a companion column if needed.</li>
+<li><strong>No null measures; no missing semantics.</strong> A NULL <code>Quantity</code> — does it mean zero, unknown, or not applicable? Decide per measure, encode it (0 vs. NULL vs. a <code>QualityFlag</code>), and document it. Aggregations treat NULL and 0 very differently (AVG ignores NULLs; SUM treats them as 0-ish absence), so ambiguity here silently corrupts statistics.</li>
+</ul>
+<p>Add both checks to your ETL validation: "all amounts in reporting currency" and "no unexpected null measures." These are the boring rules that keep headline numbers trustworthy.</p>
+<p><strong>For your research:</strong> When you design your analysis dataset, explicitly label each table as fact or dimension and each numeric column as additive, semi-additive, or non-additive. This single exercise prevents the most embarrassing analysis errors: summed percentages, averaged totals, double-counted respondents. Put the labels in your data dictionary (Chapter 10) — reviewers who see "ReactionTimeMs: non-additive, report means only" will trust your statistics more.</p>
+<p><strong>Key takeaways:</strong>
+- Facts = measurable events (how much); dimensions = context (by what). Facts are verbs, dimensions are nouns.
+- Fact tables hold dimension foreign keys + numeric measures; dimension tables hold surrogate keys + descriptive attributes.
+- Classify measures: additive (sum freely), semi-additive (not across time), non-additive (compute ratios after aggregating).
+- Factless fact tables track event occurrence; degenerate dimensions (like order numbers) live in the fact table without their own table.
+- Label fact/dimension and additivity in your data dictionary — it prevents entire classes of analysis errors.</p>
+<hr />
+<h2 id="chapter-6-slowly-changing-dimensions-types-1-2-and-3">Chapter 6: Slowly Changing Dimensions — Types 1, 2, and 3</h2>
+<p>Real-world things change: customers move cities, products get rebranded, respondents change departments, sensors get recalibrated. A <strong>slowly changing dimension (SCD)</strong> is a dimension whose attributes change over time — "slowly" relative to the fact events. The modeling question is: <em>when an attribute changes, do we overwrite history, keep history, or do a bit of both?</em> The three classic answers are SCD Types 1, 2, and 3.</p>
+<h3 id="why-this-matters-the-history-problem">Why this matters: the history problem</h3>
+<p>Consider <code>DimCustomer</code> with customer 9001, Ali, living in Karachi. On March 1, he moves to Islamabad. In June you run "total 2026 sales by city." Should Ali's January purchases (made while he lived in Karachi) count under Karachi or Islamabad? There is no universally right answer — it depends on the business question — but your model must implement <em>one</em> answer deliberately, not produce a random one because nobody thought about it. That is what SCD types are for.</p>
+<h3 id="type-1-overwrite-only-the-present-matters">Type 1: overwrite — "only the present matters"</h3>
+<p><strong>How it works:</strong> when the attribute changes, update the existing dimension row in place. History is rewritten.</p>
+<p><strong>Example — DimCustomer before and after Ali's move:</strong></p>
+<p>Before: <code>| 9001 | Ali | Karachi | … |</code>
+After: <code>| 9001 | Ali | Islamabad | … |</code></p>
+<p>All of Ali's facts — January's and June's — now roll up to Islamabad.</p>
+<p><strong>When to use:</strong> for corrections (a misspelled name, a wrongly entered city) and for attributes where history genuinely does not matter (a customer's current email for contact purposes). </p>
+<p><strong>Pros:</strong> simple; dimension stays small; always reflects current truth.
+<strong>Cons:</strong> history is destroyed — you can never again answer "as it was at the time." Dangerous if applied to attributes used in historical analysis.</p>
+<h3 id="type-2-add-a-new-row-keep-full-history">Type 2: add a new row — "keep full history"</h3>
+<p><strong>How it works:</strong> when a tracked attribute changes, insert a <em>new</em> dimension row with a new surrogate key; keep the old row. The fact table's foreign keys point to whichever row was current when the fact occurred. Rows carry effective dates and a current flag.</p>
+<p><strong>Example — DimCustomer as Type 2:</strong></p>
+<table>
+<thead>
+<tr>
+<th>CustomerKey (PK)</th>
+<th>CustomerID (natural)</th>
+<th>Name</th>
+<th>City</th>
+<th>EffectiveFrom</th>
+<th>EffectiveTo</th>
+<th>IsCurrent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9001</td>
+<td>C-100</td>
+<td>Ali</td>
+<td>Karachi</td>
+<td>2024-01-01</td>
+<td>2026-02-28</td>
+<td>No</td>
+</tr>
+<tr>
+<td>9007</td>
+<td>C-100</td>
+<td>Ali</td>
+<td>Islamabad</td>
+<td>2026-03-01</td>
+<td>9999-12-31</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p>Note the crucial mechanics: the <em>surrogate key</em> (<code>CustomerKey</code>) changes — that is what makes history work, because January's sales rows point to 9001 (Karachi) and June's point to 9007 (Islamabad). The <em>natural key</em> (<code>CustomerID</code> C-100) stays constant, so you can still find "all rows for Ali." January sales count under Karachi; June sales under Islamabad. Full history preserved.</p>
+<p><strong>When to use:</strong> whenever historical accuracy matters — customer segments, product categories, respondent demographics in longitudinal studies, anything a trend analysis might slice by.</p>
+<p><strong>Pros:</strong> complete history; "as was" and "as is" analyses both possible.
+<strong>Cons:</strong> dimension grows (one row per change); queries must usually filter <code>IsCurrent = Yes</code> for current-state reports; ETL is more complex.</p>
+<p><strong>Implementation notes:</strong> the ETL process compares incoming source records against the current dimension row; on a tracked-attribute change, it expires the old row (set <code>EffectiveTo</code>, <code>IsCurrent = No</code>) and inserts the new one. Untracked attributes (e.g., a phone number you do not analyze historically) can still be Type 1-overwritten even in a Type 2 dimension — hybrid handling per attribute is normal and should be documented.</p>
+<h3 id="type-3-add-a-column-keep-the-previous-value">Type 3: add a column — "keep the previous value"</h3>
+<p><strong>How it works:</strong> keep two columns: current value and previous value. On change, shift current → previous, write the new current.</p>
+<p><strong>Example — DimCustomer as Type 3:</strong></p>
+<p>Before: <code>| 9001 | Ali | CurrentCity: Karachi | PreviousCity: NULL |</code>
+After: <code>| 9001 | Ali | CurrentCity: Islamabad | PreviousCity: Karachi |</code></p>
+<p><strong>When to use:</strong> when you need exactly one step of history — "current vs. immediately previous" — e.g., a sales reorganization where you want this quarter vs. last quarter's territory assignment, no deeper.</p>
+<p><strong>Pros:</strong> simple; both values queryable in one row.
+<strong>Cons:</strong> only one generation of history; a second change destroys the original previous value; rarely the right choice — Type 2 is usually better and barely harder.</p>
+<h3 id="choosing-between-the-types">Choosing between the types</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Was it a data entry error?</td>
+<td>Type 1 (overwrite the mistake)</td>
+</tr>
+<tr>
+<td>Does any historical analysis slice by this attribute?</td>
+<td>Type 2 (keep history)</td>
+</tr>
+<tr>
+<td>Do we need only current vs. previous?</td>
+<td>Type 3 (or Type 2 — simpler to stay consistent)</td>
+</tr>
+<tr>
+<td>Is it just a contact detail nobody analyzes?</td>
+<td>Type 1</td>
+</tr>
+<tr>
+<td>Not sure?</td>
+<td>Type 2 — history you keep can be ignored; history you destroy is gone forever</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The golden rule: when in doubt, use Type 2.</strong> Storage is cheap; lost history is unrecoverable. You can always present a "current only" view over a Type 2 dimension, but you can never reconstruct history from a Type 1 overwrite.</p>
+<h3 id="worked-example-longitudinal-survey-study">Worked example: longitudinal survey study</h3>
+<p>A three-wave panel survey tracks respondents' employment status. Respondent R-014 is "Student" in Wave 1, "Employed" in Wave 2, "Employed" in Wave 3.</p>
+<ul>
+<li><strong>Type 1</strong> DimRespondent: R-014's row says "Employed." Wave 1 responses now appear to come from an employed person — wrong, and it corrupts any "responses by employment status at time of response" analysis.</li>
+<li><strong>Type 2</strong> DimRespondent: three rows for R-014 (or two: Student row effective Wave 1, Employed row effective Waves 2–3). Each <code>FactResponses</code> row points to the correct version. "How did employed respondents answer in Wave 1?" and "How do currently-employed respondents' answers trend across waves?" are both answerable — the second via the natural key.</li>
+<li>Document your choice in the methods section: "Respondent demographics were modeled as Type 2 slowly changing dimensions, preserving attribute values at time of response." Reviewers of longitudinal work notice and respect this.</li>
+</ul>
+<h3 id="mini-design-exercise">Mini design exercise</h3>
+<p>DimProduct tracks <code>Category</code> and <code>SupplierName</code>. Marketing analyzes trends by category historically (needs history → Type 2 for Category). Procurement just needs the current supplier for reordering (Type 1 for SupplierName). One dimension, two treatments — document per attribute:</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>SCD treatment</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Category</td>
+<td>Type 2</td>
+<td>Historical trend analysis by category</td>
+</tr>
+<tr>
+<td>SupplierName</td>
+<td>Type 1</td>
+<td>Only current value operationally needed</td>
+</tr>
+<tr>
+<td>ProductName</td>
+<td>Type 1</td>
+<td>Corrections only</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-type-2-etl-process-step-by-step">The Type 2 ETL process, step by step</h3>
+<p>Type 2 is conceptually simple but mechanically precise. Here is the load logic for <code>DimCustomer</code>, run each cycle:</p>
+<ol>
+<li><strong>Extract</strong> the current source record for natural key C-100: (Ali, Islamabad, Segment=Regular).</li>
+<li><strong>Look up</strong> the current dimension row (<code>IsCurrent = Yes</code>) for C-100: (Ali, Karachi, Segment=New).</li>
+<li><strong>Compare</strong> tracked attributes (City, Segment). City changed (Karachi → Islamabad) → a new version is needed. (Untracked attributes like phone are compared separately — changes there just overwrite, Type 1, even on a Type 2 row.)</li>
+<li><strong>Expire</strong> the old row: set <code>EffectiveTo = yesterday</code>, <code>IsCurrent = No</code>. Never delete it — facts still point to it.</li>
+<li><strong>Insert</strong> the new row: new surrogate key, <code>EffectiveFrom = today</code>, <code>EffectiveTo = 9999-12-31</code>, <code>IsCurrent = Yes</code>, natural key unchanged.</li>
+<li><strong>Route facts</strong>: new fact rows look up the <em>current</em> surrogate key at load time, so they automatically point to the right version.</li>
+</ol>
+<p>Edge cases to handle: a change and a change-back (two new rows — correct, history is history); multiple changes in one load cycle (process in chronological order); a brand-new natural key (insert with no expiry step). Test the loader with a scripted scenario — "customer moves twice in one week" — before trusting it on real data.</p>
+<h3 id="mini-dimensions-and-junk-dimensions-taming-high-cardinality-attributes">Mini-dimensions and junk dimensions: taming high-cardinality attributes</h3>
+<p>Two refinements for dimensions that would otherwise explode under Type 2:</p>
+<ul>
+<li><strong>Mini-dimension:</strong> when a large dimension (millions of customers) has a few frequently-changing attributes (age band, segment score), splitting those attributes into a small separate <strong>mini-dimension</strong> avoids versioning the giant table. <code>DimCustomer</code> keeps stable attributes; <code>DimCustomerProfile(ProfileKey, AgeBand, Segment, ScoreBand)</code> is Type 2 on its own; the fact table carries both keys. The profile dimension has only hundreds of rows (every <em>combination</em> of the few attributes).</li>
+<li><strong>Junk dimension:</strong> leftover yes/no flags and codes that do not deserve their own tables (<code>IsGiftWrap, ShipPriority, PaymentType, ReturnFlag</code>) get bundled into one <strong>junk dimension</strong> — one row per observed combination. It keeps the fact table clean (one <code>JunkKey</code> instead of six flag columns) and gives the flags a browsable home.</li>
+</ul>
+<p>Both are standard Kimball techniques: use them when a dimension is either too volatile or too scrappy for the clean Type 2 pattern.</p>
+<h3 id="late-arriving-dimensions-and-early-arriving-facts">Late-arriving dimensions and early-arriving facts</h3>
+<p>Sometimes a fact arrives before its dimension row (the sale syncs before the new-customer record). Options: (a) <strong>inferred member</strong> — create a placeholder dimension row ("Unknown, pending") with the natural key, then fill in attributes when they arrive (keeping the same surrogate key — this is one of the few legitimate in-place updates on a Type 2 dimension); (b) <strong>error queue</strong> — hold the fact until the dimension arrives, with alerting. Choose (a) when dimension delays are routine and minutes-long; (b) when they signal an upstream problem you want to see. Either way, decide and document — do not drop the fact silently.</p>
+<h3 id="type-0-and-type-6-the-ends-of-the-spectrum">Type 0 and Type 6: the ends of the spectrum</h3>
+<p>Two more types complete the picture:</p>
+<ul>
+<li><strong>Type 0 — never change.</strong> The attribute is frozen at its first value (e.g., <code>OriginalAcquisitionChannel</code>, <code>BirthDate</code>). Even if the source sends an update, the loader ignores it. Use sparingly and deliberately — it is a business rule ("we always want the <em>original</em> value"), not laziness. Document it loudly, because it surprises people.</li>
+<li><strong>Type 6 — the hybrid (1 + 2 + 3).</strong> Keeps the Type 2 history rows <em>and</em> adds a <code>CurrentX</code> column on every row holding the present value. This lets one query answer both "as was" (filter the historical row) and "as is" (read the Current column) without self-joining the dimension. It costs a little ETL complexity (every new version updates the Current column on all sibling rows) and is worth it for heavily-used dimensions where both perspectives are queried constantly.</li>
+</ul>
+<p><strong>Choosing across all types:</strong> Type 0 for frozen origin facts; Type 1 for corrections and current-only attributes; Type 2 as the default for anything analyzed historically; Type 3 for the rare current-vs-previous-only need; Type 6 when "as is" and "as was" are both hot query paths. Most real dimensions use a mix per attribute — the per-attribute SCD table from this chapter's mini exercise is the document that records the mix.</p>
+<h3 id="testing-scd-logic-scenarios-that-catch-bugs">Testing SCD logic: scenarios that catch bugs</h3>
+<p>SCD loaders fail in predictable ways — test for them explicitly:</p>
+<ol>
+<li><strong>The double move:</strong> customer changes city twice between loads. Expected: two new versions, ordered by effective date, no gaps or overlaps in coverage.</li>
+<li><strong>The change-back:</strong> city changes Karachi → Islamabad → Karachi. Expected: three versions; history shows the truth, not a net-zero.</li>
+<li><strong>The midnight boundary:</strong> change effective exactly at a fact's timestamp. Expected: deterministic rule (e.g., facts on the effective date use the new version) applied consistently.</li>
+<li><strong>The untracked change:</strong> phone number updates. Expected: overwrite in place, no new version, history of tracked attributes untouched.</li>
+<li><strong>The late correction:</strong> source corrects last month's city. Expected: per your policy — either restate history (new versions with corrected dates) or leave history and fix forward. Both are defensible; silent in-place edits of expired rows are not.</li>
+</ol>
+<p>Automate these as a test fixture with a tiny synthetic dimension. SCD bugs are silent — totals still compute, reports still render — so only scenario tests catch them.</p>
+<p><strong>For your research:</strong> Any study running longer than a few months has slowly changing dimensions: respondents change institutions, sensors get recalibrated, experimental protocols get revised. Decide <em>before</em> data collection which attributes need history. The cheapest implementation is a Type 2 pattern in a spreadsheet or SQLite table: add <code>EffectiveFrom</code>, <code>EffectiveTo</code>, <code>IsCurrent</code> columns and never update a row in place — always expire and insert. Your future self, writing the longitudinal analysis chapter, will be profoundly grateful.</p>
+<p><strong>Key takeaways:</strong>
+- SCDs handle dimension attributes that change over time; the question is always what happens to history.
+- Type 1 overwrites (history lost) — for corrections and current-only attributes.
+- Type 2 adds a new row with a new surrogate key (full history) — the default choice for anything analyzed historically.
+- Type 3 keeps current + previous columns — only for single-step history needs.
+- When in doubt, Type 2: kept history can be ignored, destroyed history cannot be recovered.
+- Document the SCD type per attribute in your data dictionary.</p>
+<hr />
+<h2 id="chapter-7-hierarchies-granularity-and-grain-statements">Chapter 7: Hierarchies, Granularity, and Grain Statements</h2>
+<p>If Chapter 2 gave you tables and keys, this chapter gives you the <em>discipline</em> that holds a model together: knowing exactly what one row means (grain), how detailed your data is (granularity), and how attributes roll up into bigger groups (hierarchies). Grain mistakes are the number-one cause of wrong numbers in analytical models — this chapter makes sure you never make one.</p>
+<h3 id="grain-what-does-one-row-mean">Grain: what does one row mean?</h3>
+<p>The <strong>grain</strong> of a table is the precise definition of what a single row represents. It is the most important sentence in any data model, and it should be written down explicitly as a <strong>grain statement</strong>. Examples:</p>
+<ul>
+<li><code>FactSales</code>: "One row per product per order line." </li>
+<li><code>FactAttendance</code>: "One row per student per course per class session."</li>
+<li><code>FactSensorReadings</code>: "One row per sensor per 5-minute interval."</li>
+<li><code>DimCustomer</code> (Type 2): "One row per customer per version of tracked attributes."</li>
+</ul>
+<p><strong>The grain test:</strong> pick any row in the table and check it against the statement. If you find a row that represents something else, the grain is broken (or the statement is wrong). A table with mixed grain — some rows daily, some monthly — is a time bomb: every aggregation over it is wrong in ways that are hard to detect.</p>
+<h3 id="granularity-the-level-of-detail">Granularity: the level of detail</h3>
+<p><strong>Granularity</strong> is how fine or coarse the data is: transaction-level (finest), daily summaries, monthly summaries (coarsest). Higher granularity (finer detail) is more flexible — you can always roll daily data up to months, but you can never drill monthly data down to days. <strong>Rule: capture data at the finest grain you can afford; aggregate later.</strong> Storage is cheap; lost detail is permanent.</p>
+<p>This has a direct research parallel: record raw trial-level data even if you plan to analyze participant means. The participant means can always be computed; the trial-level patterns (learning curves, outlier trials) cannot be recovered from means.</p>
+<h3 id="hierarchies-rolling-up">Hierarchies: rolling up</h3>
+<p>A <strong>hierarchy</strong> is a chain of attributes from fine to coarse within a dimension: <code>Day → Month → Quarter → Year</code> in DimDate; <code>Product → Subcategory → Category → Department</code> in DimProduct; <code>Village → District → Province</code> in a geography dimension. Hierarchies power drill-down in reports (year → quarter → month) and must be:</p>
+<ul>
+<li><strong>Complete</strong>: every product has a category; no NULLs breaking the chain (use "Unknown" members instead).</li>
+<li><strong>Consistent</strong>: the rollup path is the same for every row — a month belongs to exactly one quarter.</li>
+<li><strong>Documented</strong>: note where hierarchies are <em>ragged</em> (real-world irregularities). Example: a university hierarchy Faculty → Department works until an interdisciplinary center reports to two faculties. Document the exception and the rule you applied.</li>
+</ul>
+<p><strong>Balanced vs. unbalanced hierarchies:</strong> a balanced hierarchy has the same depth everywhere (every date has day/month/quarter/year). An unbalanced (ragged) hierarchy varies: an org chart where some branches are 3 levels deep and others 6. Tools handle these differently — in Power BI, ragged hierarchies need careful modeling (parent-child hierarchies or flattened paths). Know which kind you have.</p>
+<h3 id="the-grain-matrix-a-design-tool">The grain matrix: a design tool</h3>
+<p>Before building, list your business processes and candidate grains in a <strong>grain matrix</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Business process</th>
+<th>Candidate grain</th>
+<th>Grain statement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Retail sales</td>
+<td>Order line</td>
+<td>One row per product per order</td>
+</tr>
+<tr>
+<td>Website visits</td>
+<td>Page view</td>
+<td>One row per page view per session</td>
+</tr>
+<tr>
+<td>Support tickets</td>
+<td>Ticket</td>
+<td>One row per ticket</td>
+</tr>
+<tr>
+<td>Ticket status changes</td>
+<td>Status change</td>
+<td>One row per ticket per status change</td>
+</tr>
+</tbody>
+</table>
+<p>Notice tickets appear twice: the <em>ticket</em> grain (current state, one row per ticket) and the <em>status change</em> grain (history, one row per change) are two different fact tables at two different grains. <strong>One fact table = one grain.</strong> When tempted to mix, create a second fact table instead.</p>
+<h3 id="drilling-across-fact-tables-the-conformed-dimension-contract">Drilling across fact tables: the conformed-dimension contract</h3>
+<p>"Total sales vs. total support tickets by region and month" combines two fact tables at different grains (order line vs. ticket). This works — it is called <strong>drilling across</strong> — only if both facts share <strong>conformed dimensions</strong> (the same DimDate, the same DimRegion with the same keys). The query aggregates each fact to the common grain (region × month) and then joins the results. Without conformed dimensions, drilling across produces mismatched, meaningless comparisons. This is why Chapter 4's conformed dimensions matter so much.</p>
+<h3 id="the-classic-grain-errors-and-how-to-spot-them">The classic grain errors (and how to spot them)</h3>
+<p><strong>Error 1: Fan-out (double counting).</strong> Joining a fact table to a dimension at the wrong grain multiplies rows. Example: <code>FactSales</code> (one row per order line) joined to a <code>DimPromotions</code> bridge where one order line matched two promotions → the sales amount appears twice in the total. <strong>Symptom:</strong> totals inflate after adding a table. <strong>Fix:</strong> check the join grain; use distinct-count-safe patterns or allocate measures properly.</p>
+<p><strong>Error 2: Mixed grain in one table.</strong> Daily rows and monthly summary rows coexisting in <code>FactSales</code>. <strong>Symptom:</strong> month totals that do not equal the sum of days. <strong>Fix:</strong> separate tables per grain, or a grain-identifying column with strict filtering — separate tables are cleaner.</p>
+<p><strong>Error 3: Chasm traps and fan traps.</strong> A <strong>fan trap</strong>: joining two fact-like tables through a shared dimension incorrectly — e.g., Customers → Orders → OrderLines is fine (a chain), but joining Orders directly to Shipments through Customer when the real path is through Order creates a fan that multiplies. A <strong>chasm trap</strong>: two fact tables sharing a dimension but with no direct relationship — "sales by customer" and "tickets by customer" cannot be joined row-to-row; they must each aggregate to customer first (drilling across). <strong>Fix:</strong> model the real relationships; aggregate before combining.</p>
+<p><strong>Worked check:</strong> given <code>FactSales</code> at order-line grain and <code>DimDate</code> at day grain, "sales by month" aggregates 30 daily rows into one month — safe, because month is <em>coarser</em> than the fact grain. Going the other direction — allocating a monthly target down to days — requires an explicit allocation rule, not a join. <strong>Roll up freely; allocate deliberately.</strong></p>
+<h3 id="parent-child-and-ragged-hierarchies">Parent-child and ragged hierarchies</h3>
+<p>Not all hierarchies are neat. A <strong>parent-child hierarchy</strong> stores each member with a pointer to its parent (the self-referencing pattern from Chapter 2: <code>Employee → Manager</code>). An org chart or a chart of accounts works this way — depth varies by branch, members can be added at any level. The modeling challenge: analytical tools want <em>fixed levels</em> (Level1, Level2, Level3 columns) but parent-child data has <em>variable</em> depth. Solutions: (a) flatten to a fixed number of levels in ETL (works if depth is bounded, e.g., ≤ 6); (b) use the tool's parent-child support (Power BI's PATH() DAX functions); (c) store both — the parent pointer for maintenance, flattened levels for querying. Document the maximum depth and what happens if it is exceeded.</p>
+<p>A <strong>ragged hierarchy</strong> skips levels: a geography <code>City → Province → Country</code> where city-states have no province (NULL level). Options: fill with a placeholder ("N/A — city-state"), or use a parent-child representation. Never leave the level NULL without a policy — NULLs break drill paths silently.</p>
+<h3 id="multiple-hierarchies-one-dimension">Multiple hierarchies, one dimension</h3>
+<p><code>DimDate</code> typically carries several hierarchies at once: calendar (Day → Month → Quarter → Year), fiscal (Day → Fiscal Month → Fiscal Quarter → Fiscal Year), and weekly (Day → Week → Year). They coexist as separate column sets in the same table — no new tables needed. The same applies to <code>DimProduct</code> (category hierarchy vs. brand hierarchy) and geography (administrative vs. sales-territory hierarchy). Rule: <strong>one dimension table, as many hierarchy column-sets as needed</strong> — the table is the conformed entity; the hierarchies are just different ways to roll it up. Name them unambiguously (<code>FiscalQuarter</code> vs. <code>CalendarQuarter</code>) so users never mix them.</p>
+<h3 id="worked-example-grain-matrix-for-a-hospital-study">Worked example: grain matrix for a hospital study</h3>
+<p>A research team models hospital operations data:</p>
+<table>
+<thead>
+<tr>
+<th>Business process</th>
+<th>Fact table</th>
+<th>Grain statement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admissions</td>
+<td>FactAdmissions</td>
+<td>One row per patient per admission</td>
+</tr>
+<tr>
+<td>Lab tests</td>
+<td>FactLabTests</td>
+<td>One row per admission per test per order time</td>
+</tr>
+<tr>
+<td>Daily census</td>
+<td>FactCensusSnapshot</td>
+<td>One row per ward per day (periodic snapshot)</td>
+</tr>
+<tr>
+<td>Patient journey</td>
+<td>FactJourney</td>
+<td>One row per admission, updated at discharge (accumulating snapshot)</td>
+</tr>
+</tbody>
+</table>
+<p>Four processes, four grains, four fact tables — sharing <code>DimPatient</code> (Type 2), <code>DimDate</code>, <code>DimWard</code>, <code>DimTest</code>. "Average length of stay by ward by month" drills across <code>FactJourney</code> (accumulating) and <code>DimDate</code>; "tests per admission" drills across <code>FactLabTests</code> and <code>FactAdmissions</code> at the admission grain. The matrix is the design document the whole team signs off on <em>before</em> anyone builds.</p>
+<h3 id="the-bus-matrix-planning-conformed-dimensions-enterprise-wide">The bus matrix: planning conformed dimensions enterprise-wide</h3>
+<p>When several teams build stars, the <strong>bus matrix</strong> keeps them conformed: rows are business processes (fact tables), columns are dimensions, and a check mark means "this process uses this dimension."</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>DimDate</th>
+<th>DimCustomer</th>
+<th>DimProduct</th>
+<th>DimStore</th>
+<th>DimPromotion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FactSales</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>FactInventory</td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td>FactSupportTickets</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>The matrix is built in a workshop <em>before</em> modeling begins, and it has a political function as much as a technical one: every team agrees on shared dimension definitions up front, which is what makes "sales by region" and "tickets by region" comparable later. A new fact table (a new row) reuses existing columns rather than inventing parallel dimensions. For a research group running multiple studies, the equivalent is a shared codebook: the same respondent, institution, and wave dimensions across projects, so findings compound instead of fragmenting.</p>
+<h3 id="grain-discipline-in-sql-group-by-as-a-contract">Grain discipline in SQL: GROUP BY as a contract</h3>
+<p>In SQL, grain errors surface in <code>GROUP BY</code>. The discipline: <strong>the GROUP BY clause must match the grain you claim.</strong> If <code>FactSales</code> is at order-line grain and you want monthly category totals:</p>
+<pre><code class="language-sql">SELECT d.MonthName, p.Category, SUM(f.SalesAmount) AS TotalSales
+FROM FactSales f
+JOIN DimDate d     ON d.DateKey = f.DateKey
+JOIN DimProduct p  ON p.ProductKey = f.ProductKey
+GROUP BY d.MonthName, p.Category;
+</code></pre>
+<p>The grouped columns (Month, Category) are coarser than the fact grain — safe roll-up. Red flags in review: grouping by a fact's degenerate column (<code>OrderNumber</code>) while summing (double-counts across lines); joining a bridge table before aggregating (fan-out); <code>SELECT DISTINCT</code> used to "fix" inflated totals (masks the grain error instead of fixing it). A useful audit query: compare <code>COUNT(*)</code> to <code>COUNT(DISTINCT &lt;grain columns&gt;)</code> on the fact table — any difference means duplicate grains, and every downstream total is suspect until resolved.</p>
+<p><strong>For your research:</strong> Write a grain statement for every dataset you analyze, and put it in your methods section or data dictionary. "The analysis dataset contains one row per participant per trial (N = 12,000 rows; 60 participants × 200 trials)" tells a reviewer exactly what your N means at every level — and prevents the classic error of treating 12,000 trials as 12,000 independent participants in a statistical test. Grain discipline is statistical discipline.</p>
+<p><strong>Key takeaways:</strong>
+- Grain = what one row means. Write it as an explicit grain statement for every table.
+- Capture the finest grain affordable; you can roll up but never drill down beyond what was captured.
+- Hierarchies must be complete, consistent, and documented — note ragged exceptions.
+- One fact table = one grain; combine fact tables only via conformed dimensions (drilling across).
+- Fan-out double-counting, mixed grains, and fan/chasm traps are the classic grain errors — aggregate at a common grain before combining.</p>
+<hr />
+<p><img alt="Power BI relationships illustration" src="/learn/images/book-25-ch8-pbirel.webp" /></p>
+<p><em>Figure: table relationships with cardinality and filter direction — the heart of a Power BI model.</em></p>
+<hr />
+<h2 id="chapter-8-building-models-in-power-bi-relationships-cardinality-cross-filter-direction">Chapter 8: Building Models in Power BI — Relationships, Cardinality, Cross-Filter Direction</h2>
+<p>Power BI is where many researchers first meet data modeling in practice: you load tables, and Power BI asks you to define relationships between them. Get this right and DAX measures become simple; get it wrong and every visual shows wrong numbers with no error message. This chapter is the complete practical guide.</p>
+<h3 id="the-model-view-your-blueprint-in-power-bi">The model view: your blueprint in Power BI</h3>
+<p>Power BI Desktop's <strong>Model view</strong> shows your tables as boxes and relationships as lines — it is the visual form of everything in Chapters 2–7. A healthy model looks like a star: fact tables in the center, dimensions around, lines radiating outward. If your model view looks like spaghetti — tables chained in long lines, lines crossing everywhere — that is the tool telling you the model needs work.</p>
+<h3 id="relationships-the-four-settings-that-matter">Relationships: the four settings that matter</h3>
+<p>Every relationship in Power BI has four properties you must set deliberately:</p>
+<p><strong>1. The columns.</strong> Pick the key columns on each side — almost always the surrogate keys (<code>DimCustomer[CustomerKey]</code> ↔ <code>FactSales[CustomerKey]</code>). Both columns should contain matching values; data type mismatches (text vs. number) silently break joins — Power BI may auto-create a relationship on the wrong columns if names match, so verify every auto-detected relationship.</p>
+<p><strong>2. Cardinality.</strong> Three options:
+- <strong>One-to-many (1:*)</strong>: DimCustomer (one) → FactSales (many). The standard, correct choice for dimension-to-fact. The "one" side should have unique values — Power BI will warn you if it does not.
+- <strong>One-to-one (1:1)</strong>: both sides unique. Rare; used for the split-table scenarios in Chapter 2.
+- <strong>Many-to-many (<em>:</em>)</strong>: both sides have duplicates. Sometimes legitimate (bridge patterns), but often a sign the model needs a bridge table or a grain fix. Power BI handles <em>:</em> with an internal bridge, but treat it as a yellow flag and verify totals carefully.</p>
+<p><strong>3. Cross-filter direction.</strong> This controls which way filters flow:
+- <strong>Single direction</strong> (dimension → fact): the default and usually correct. Selecting "Electronics" in a DimProduct slicer filters FactSales to electronics rows. Filters flow <em>downhill</em> from dimensions to facts.
+- <strong>Both directions (bi-directional)</strong>: filters also flow from fact to dimension and across to other dimensions. This enables patterns like "show me customers who bought electronics" filtering a customer list — but it is dangerous as a default.</p>
+<p><strong>4. "Make this relationship active."</strong> Only one active relationship can exist between a given pair of tables along the same path. Multiple date roles (OrderDate, ShipDate) need <strong>inactive relationships</strong> activated selectively with <code>USERELATIONSHIP()</code> in DAX — or better, <strong>role-playing dimensions</strong> (see below).</p>
+<h3 id="why-bi-directional-everywhere-is-the-classic-power-bi-mistake">Why "bi-directional everywhere" is the classic Power BI mistake</h3>
+<p>New modelers set every relationship to bi-directional because it makes more visuals "work" — filters seem to flow everywhere. The problems:</p>
+<ul>
+<li><strong>Ambiguous filter paths</strong>: with bi-directional filters, a filter can reach a table via two different routes, and Power BI may error ("ambiguous relationship") or pick a path you did not intend.</li>
+<li><strong>Performance</strong>: bi-directional relationships expand the filter context dramatically; large models slow down.</li>
+<li><strong>Wrong results</strong>: filters flowing <em>uphill</em> from facts to dimensions can produce subtly wrong distinct counts and totals.</li>
+</ul>
+<p><strong>Rule: single direction everywhere; add bi-directional only for a specific, tested need</strong> (the classic legitimate case: a many-to-many bridge where filters must cross the bridge, or a specific "filter the dimension by fact" visual — implement it, test the totals, document why).</p>
+<h3 id="role-playing-dimensions-one-date-table-many-roles">Role-playing dimensions: one date table, many roles</h3>
+<p><code>FactSales</code> has <code>OrderDateKey</code> and <code>ShipDateKey</code> — two roles for dates. Do not import DimDate twice (that creates two competing date tables and confused users). Instead: import <strong>one</strong> <code>DimDate</code>, create <strong>one active</strong> relationship (to OrderDateKey) and <strong>one inactive</strong> relationship (to ShipDateKey). DAX measures for shipped amounts use <code>CALCULATE([Total Sales], USERELATIONSHIP(DimDate[DateKey], FactSales[ShipDateKey]))</code>. Alternatively, create lightweight <strong>role-playing views</strong> (a SQL view or Power Query reference of DimDate named <code>Ship Date</code>) with single active relationships — simpler for business users, slightly more tables. Either is correct; duplicating the physical date logic is not.</p>
+<h3 id="handling-the-standard-tricky-patterns">Handling the standard tricky patterns</h3>
+<p><strong>Many-to-many done right:</strong> Students ↔ Courses via Enrollments. In Power BI: DimStudent 1:<em> Enrollments </em>:1 DimCourse, with the bridge's filter direction set so slicers on either dimension filter the bridge. Measures count bridge rows or aggregate facts through it. Test with a matrix: students × courses should show the right intersections, and totals must equal the unfiltered total.</p>
+<p><strong>Inactive relationships and USERELATIONSHIP:</strong> covered above with dates. The pattern generalizes: any time two tables need two different join paths, one is active, the rest inactive and invoked per-measure.</p>
+<p><strong>Dealing with the date table:</strong> every Power BI model needs a proper date table — continuous dates with no gaps, marked as a date table, with Year/Quarter/Month/Day columns and useful flags (IsWeekend, IsHoliday). Do not use the fact's raw date column for time intelligence; DAX time functions (<code>DATESYTD</code>, <code>SAMEPERIODLASTYEAR</code>) require a proper date table. Build it once in Power Query or DAX (<code>CALENDAR</code>/<code>CALENDARAUTO</code>) and conform it across models.</p>
+<p><strong>Row-level security (RLS):</strong> filters applied per user role (a regional manager sees only their region). RLS is defined on dimension tables and flows downhill through single-direction relationships — another reason single direction is the default. Test every role with "View as" before publishing.</p>
+<h3 id="a-step-by-step-modeling-the-retail-star-in-power-bi">A step-by-step: modeling the retail star in Power BI</h3>
+<ol>
+<li><strong>Load</strong> DimDate, DimProduct, DimCustomer, DimStore, FactSales via Power Query. Check data types: keys as whole numbers (or text consistently), dates as dates.</li>
+<li><strong>Hide key columns</strong> from report view (right-click → Hide) — users should see <code>ProductName</code>, not <code>ProductKey</code>. Keep keys visible only in Model view.</li>
+<li><strong>Create relationships</strong>: DimDate[DateKey] → FactSales[DateKey] (1:*, single); same for Product, Customer, Store. Verify the "one" side shows unique values.</li>
+<li><strong>Set sort order</strong> for month names: sort <code>MonthName</code> by <code>MonthNumber</code>, else April sorts before January alphabetically.</li>
+<li><strong>Write base measures</strong>: <code>Total Sales = SUM(FactSales[SalesAmount])</code>, <code>Total Qty = SUM(FactSales[Quantity])</code>. Never drag raw numeric columns into visuals when a measure will do — measures carry business logic in one place.</li>
+<li><strong>Test the grain</strong>: a card visual with <code>Total Sales</code> (no filters) must equal the source system's total. A matrix of Category × Month must sum to the same total. If not, stop — the model has a grain or relationship problem, not a DAX problem.</li>
+<li><strong>Document</strong>: rename tables/measures in business language, add descriptions (the field wells show them), organize measures in display folders.</li>
+</ol>
+<h3 id="performance-basics-that-are-really-modeling">Performance basics that are really modeling</h3>
+<ul>
+<li><strong>Star schema beats snowflake</strong> in Power BI's engine (VertiPaq) — fewer, wider tables compress and scan better.</li>
+<li><strong>Reduce cardinality</strong>: the fewer unique values in a column, the better compression. Split datetime into date + time-of-day if you do not filter by second.</li>
+<li><strong>Avoid bi-directional</strong> unless justified (see above).</li>
+<li><strong>Hide unused columns</strong>, especially high-cardinality text columns nobody filters by.</li>
+<li><strong>Aggregate tables</strong> for very large facts: a monthly summary table that Power BI uses automatically when the query grain allows.</li>
+</ul>
+<h3 id="essential-dax-measure-patterns-for-a-modeled-star">Essential DAX measure patterns for a modeled star</h3>
+<p>With a clean star, most measures follow a few patterns. Learn these five and you cover 90% of reporting:</p>
+<pre><code class="language-dax">-- 1. Base additive measure
+Total Sales = SUM ( FactSales[SalesAmount] )
+
+-- 2. Ratio computed AFTER aggregation (never stored)
+Avg Unit Price = DIVIDE ( [Total Sales], [Total Qty] )
+
+-- 3. Distinct counts (note: slower on huge tables)
+Active Customers = DISTINCTCOUNT ( FactSales[CustomerKey] )
+
+-- 4. Time intelligence (needs the proper date table)
+Sales YTD = TOTALYTD ( [Total Sales], DimDate[Date] )
+Sales Last Year = CALCULATE ( [Total Sales], SAMEPERIODLASTYEAR ( DimDate[Date] ) )
+
+-- 5. Inactive relationship (role-playing date)
+Shipped Sales =
+CALCULATE ( [Total Sales],
+    USERELATIONSHIP ( DimDate[DateKey], FactSales[ShipDateKey] ) )
+</code></pre>
+<p>Notice how every pattern assumes the model from this book: single-direction 1:<em> relationships, a conformed date table, additive base measures. </em><em>DAX is easy when the model is right and miserable when it is wrong</em>* — most "DAX problems" are modeling problems wearing a disguise.</p>
+<h3 id="troubleshooting-the-modelers-diagnostic-guide">Troubleshooting: the modeler's diagnostic guide</h3>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Measure returns blank</td>
+<td>Relationship on wrong columns; data-type mismatch; inactive relationship not activated</td>
+<td>Check Model view lines; verify key data types match</td>
+</tr>
+<tr>
+<td>Total changes when an unrelated slicer is added</td>
+<td>Bi-directional filter path; ambiguous relationships</td>
+<td>Set single direction; remove ambiguous paths</td>
+</tr>
+<tr>
+<td>"Ambiguous relationship" error</td>
+<td>Two filter paths between tables</td>
+<td>Keep one active path; others inactive</td>
+</tr>
+<tr>
+<td>Month sorts alphabetically</td>
+<td>MonthName sorted by itself</td>
+<td>Sort MonthName by MonthNumber column</td>
+</tr>
+<tr>
+<td>YTD / SAMEPERIODLASTYEAR blank</td>
+<td>No proper date table; gaps in dates</td>
+<td>Build continuous DimDate; mark as date table</td>
+</tr>
+<tr>
+<td>Visual is very slow</td>
+<td>Bi-directional everywhere; high-cardinality columns; snowflake chains</td>
+<td>Single direction; star schema; hide unused columns</td>
+</tr>
+<tr>
+<td>Totals do not match source</td>
+<td>Fan-out join; mixed grain; dropped NULL keys</td>
+<td>Reconcile grain; add Unknown members; check joins</td>
+</tr>
+</tbody>
+</table>
+<p>Work through this table top to bottom before rewriting any DAX — the fix is in the model nine times out of ten.</p>
+<h3 id="directquery-and-composite-models-a-word-of-caution">DirectQuery and composite models: a word of caution</h3>
+<p>Power BI's default <strong>Import</strong> mode loads data into its fast in-memory engine — ideal for star schemas up to millions of rows. <strong>DirectQuery</strong> leaves data in the source database and translates every click into SQL — necessary for real-time or huge data, but every visual becomes a live query, so model shape matters <em>more</em>, not less (a snowflake in DirectQuery is painfully slow). <strong>Composite models</strong> mix both. For research datasets, Import mode is almost always right: your data fits in memory, refreshes are simple, and DAX works fully. Choose DirectQuery only when data freshness or size genuinely demands it.</p>
+<h3 id="orga

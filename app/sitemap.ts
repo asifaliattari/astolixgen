@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL, services, projects, posts, team } from "@/lib/data";
+import books from "@/lib/books.json";
 
 /** Static sitemap: all routes are statically generated. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/about", "/services", "/projects", "/impact", "/blog", "/contact"];
+  const staticRoutes = ["", "/about", "/services", "/projects", "/impact", "/learn", "/blog", "/contact"];
 
   const entries: MetadataRoute.Sitemap = staticRoutes.map((route) => ({
     url: `${SITE_URL}${route}`,
@@ -40,5 +41,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...entries, ...serviceRoutes, ...projectRoutes, ...postRoutes, ...teamRoutes];
+  const bookRoutes = books.map((b) => ({
+    url: `${SITE_URL}/learn/${b.slug}`,
+    lastModified: new Date("2026-10-08"),
+    changeFrequency: "yearly" as const,
+    priority: 0.6,
+  }));
+
+  return [...entries, ...serviceRoutes, ...projectRoutes, ...postRoutes, ...teamRoutes, ...bookRoutes];
 }

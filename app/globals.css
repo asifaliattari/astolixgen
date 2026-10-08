@@ -90,3 +90,146 @@ body {
     scroll-behavior: auto;
   }
 }
+
+/* ---- Book reading typography ---- */
+.book-content {
+  color: #cbd5e1;
+  font-size: 1.05rem;
+  line-height: 1.85;
+  overflow-wrap: break-word;
+}
+.book-content > *:first-child {
+  margin-top: 0;
+}
+.book-content h1 {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 1.2rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.book-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 2.6rem 0 1rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  line-height: 1.35;
+  scroll-margin-top: 5rem;
+}
+.book-content h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 2rem 0 0.8rem;
+  scroll-margin-top: 5rem;
+}
+.book-content h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 1.6rem 0 0.6rem;
+}
+.book-content p {
+  margin: 1.1rem 0;
+}
+.book-content a {
+  color: #22d3ee;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.book-content a:hover {
+  color: #a5f3fc;
+}
+.book-content strong {
+  color: #f1f5f9;
+}
+.book-content ul,
+.book-content ol {
+  margin: 1.1rem 0;
+  padding-left: 1.6rem;
+}
+.book-content ul {
+  list-style: disc;
+}
+.book-content ol {
+  list-style: decimal;
+}
+.book-content li {
+  margin: 0.45rem 0;
+}
+.book-content li::marker {
+  color: #22d3ee;
+}
+.book-content blockquote {
+  margin: 1.4rem 0;
+  padding: 0.9rem 1.2rem;
+  border-left: 3px solid #22d3ee;
+  background: rgba(34, 211, 238, 0.06);
+  border-radius: 0 0.6rem 0.6rem 0;
+  color: #a5b4c9;
+}
+.book-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.6rem auto;
+  display: block;
+  box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.7);
+}
+.book-content table {
+  width: 100%;
+  margin: 1.6rem 0;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+}
+.book-content thead th {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  background: rgba(34, 211, 238, 0.08);
+  color: #fff;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+.book-content tbody td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
+}
+.book-content tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.book-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  background: rgba(34, 211, 238, 0.1);
+  color: #a5f3fc;
+  padding: 0.15em 0.4em;
+  border-radius: 0.35rem;
+}
+.book-content pre {
+  margin: 1.4rem 0;
+  padding: 1.1rem 1.3rem;
+  background: #0a0f1a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0.8rem;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+.book-content pre code {
+  background: none;
+  color: #cbd5e1;
+  padding: 0;
+  font-size: 0.9rem;
+}
+.book-content hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  margin: 2.4rem 0;
+}

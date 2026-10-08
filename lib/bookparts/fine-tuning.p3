@@ -1,0 +1,485 @@
+i>
+<li><strong>No baseline that could win.</strong> If you don't include few-shot prompting, reviewers will assume you were afraid of it. Include the baseline that could beat you; beating it is the result.</li>
+<li><strong>Skipping base-model selection.</strong> Trying 2–3 base models on a 200-example probe before committing costs an afternoon and often matters more than any hyperparameter.</li>
+<li><strong>Confusing demo with experiment.</strong> A demo shows it working once; an experiment shows it working reliably, better than alternatives, with ablations explaining why. Plan the experiment, not the demo.</li>
+</ol>
+<h2 id="from-case-study-to-thesis-chapter-structuring-the-write-up">From Case Study to Thesis Chapter: Structuring the Write-Up</h2>
+<p>If your fine-tuning work becomes a thesis chapter (rather than a standalone paper), the structure differs slightly — a thesis chapter must also teach and justify, not just report. Here's a structure that has worked for MS theses:</p>
+<p><strong>1. Problem and motivation (2–3 pages).</strong> The behavioral gap in plain language, the real-world stakeholder (clinic workers, students querying the database), and why existing approaches fall short. Include the Chapter 1 decision memo's numbers — the prompting/RAG baselines that motivated fine-tuning.</p>
+<p><strong>2. Background (3–5 pages).</strong> Fine-tuning concepts (Chapter 2), LoRA/QLoRA (Chapter 4), and the domain background your examiner needs. Examiners are often not LLM specialists — write this section for a smart non-specialist, defining every term. This section also demonstrates <em>your</em> understanding, which is part of what's being examined.</p>
+<p><strong>3. Data (2–4 pages).</strong> Collection, guidelines, filtering, statistics, examples (show 3–5 real examples verbatim), license/ethics. Include the quality-grading results — examiners love seeing that you measured your own data quality.</p>
+<p><strong>4. Method (2–3 pages).</strong> The full config table (Chapter 12), the justification for each choice, the experimental procedure (staged tuning), and compute details. A thesis allows more detail than a paper — include the dead ends briefly ("r=64 overfit; we retained r=16") since they show scientific process.</p>
+<p><strong>5. Experiments and results (4–6 pages).</strong> Main table, ablations as figures, error taxonomy, forgetting/safety analysis. Every figure needs a caption that states the takeaway, not just describes the axes.</p>
+<p><strong>6. Discussion and limitations (1–2 pages).</strong> What the results mean, what you'd do with more time/data, honest limitations. Examiners probe here in the defense — writing it yourself first means you've already answered their hardest questions.</p>
+<p><strong>7. Conclusion (1 page).</strong> The one-paragraph version of the whole chapter: gap, method, result, significance.</p>
+<p>A practical note: write sections 1–3 <em>before</em> the main training runs (they don't depend on results), and draft the empty tables/figures for section 5 in advance (Chapter 8's pre-registration). Thesis writing then becomes filling in numbers rather than composing from scratch under deadline pressure — the difference between a calm final month and a panicked one.</p>
+<h2 id="the-minimum-viable-fine-tuning-study">The Minimum Viable Fine-Tuning Study</h2>
+<p>Chapter 11's case studies describe full projects. But what if you have four weeks, not four months? Here's the smallest study that still counts as research rather than a demo:</p>
+<p><strong>Week 1: Probe and data.</strong> Run the base-model probe (200 examples, zero-shot + few-shot). Collect or generate 800–1,500 examples with verification. Write the experiment plan (gap sentence, done-criteria, empty results table).</p>
+<p><strong>Week 2: Pipeline.</strong> Build the Chapter 3 data pipeline, run the Chapter 6 walkthrough on your data, debug until a 1-epoch run completes cleanly.</p>
+<p><strong>Week 3: Tune.</strong> Coarse LR check (3 short runs on 30% data), rank ablation {8, 16} on full data, then the full run with checkpoint selection. Two seeds if time permits.</p>
+<p><strong>Week 4: Evaluate and write.</strong> Locked test evaluation, error taxonomy from 50 hand-read outputs, one ablation figure (data size or rank), and the paper/thesis draft following Chapter 12's structure.</p>
+<p>What makes this "viable research" rather than a demo: the baselines (few-shot <em>could</em> win), the locked test set, the ablation (even one), and the honest limitations. A four-week study with these elements is publishable at a workshop; without them, four months of training isn't. Scope is not the enemy of rigor — vagueness is.</p>
+<h2 id="working-with-your-advisor-on-fine-tuning-projects">Working with Your Advisor on Fine-Tuning Projects</h2>
+<p>A practical note most technical books skip: your advisor's role in a fine-tuning project, and how to use their time well.</p>
+<p><strong>The two-page experiment plan (Chapter 11) is your primary collaboration tool.</strong> Advisors can't debug your CUDA errors, but they can destroy a flawed experimental design in twenty minutes — which is exactly what you want, before you spend two months executing it. Bring the plan early, when it's cheap to change.</p>
+<p><strong>What to ask your advisor:</strong> Is the research question well-posed? Are the baselines the right ones? Is the evaluation convincing to someone in our field? Is the scope appropriate for the timeline? These are judgment questions where experience dominates.</p>
+<p><strong>What not to ask:</strong> hyperparameter values, library debugging, cloud pricing. Those are your job (this book is your reference), and bringing them to meetings wastes the scarcest resource in the project — senior judgment.</p>
+<p><strong>The monthly check-in format that works:</strong> one page with (a) what you ran since last time, (b) the key numbers in the pre-registered table format, (c) what you concluded, (d) what you'll run next and why. Advisors who see this format regularly can spot design drift ("why did the baseline change?") and keep the project honest. It also means your thesis practically writes itself — twelve such pages are twelve sections of the results chapter.</p>
+<p>Finally, if your advisor isn't an LLM specialist, this book's plain-language explanations are your translation layer. "We're teaching the model our format using 3,000 verified examples; the base model scores 62%, few-shot prompting 72%, and we're targeting 80% with no loss on general benchmarks" — that sentence, updated monthly, keeps any advisor oriented regardless of specialty.</p>
+<blockquote>
+<p><strong>For your research:</strong> Turn Steps 1–6 above into a two-page "experiment plan" document and review it with your advisor <em>before</em> collecting data. It should contain: the one-sentence gap, the done-criteria, the data inventory with timeline, the method justification, the 3–5 planned ablations, and the empty results table. Advisors catch design flaws in twenty minutes that cost students two months. This document also becomes your paper's introduction-through-methods skeleton.</p>
+</blockquote>
+<h3 id="key-takeaways_10">Key Takeaways</h3>
+<ul>
+<li>Design process: one-sentence behavioral gap → done-criteria → honest data inventory → justified method → planned ablations → pre-registered evaluation.</li>
+<li>Match the data strategy to the verifiability: human verification for medical, execution filtering for SQL, native-speaker rewriting for low-resource languages.</li>
+<li>The ablation set is what makes it research: data-size curves, rank curves, stage ablations, replay on/off.</li>
+<li>Test data must be independent of the training pipeline — human-written or independently sourced.</li>
+<li>Always include the baseline that could beat you (usually few-shot prompting).</li>
+<li>Narrow the task until the data plan is feasible; write the two-page experiment plan and review it before collecting data.</li>
+</ul>
+<hr />
+<h1 id="chapter-12-reporting-fine-tuning-experiments-in-papers-what-reviewers-expect">Chapter 12: Reporting Fine-Tuning Experiments in Papers (What Reviewers Expect)</h1>
+<p>You ran the experiments, the numbers are good, and now you must write them up so that skeptical experts believe you. Reviewers of fine-tuning papers have seen every shortcut — cherry-picked checkpoints, missing baselines, unreproducible configs — and they check for them reflexively. This chapter is a field guide to what they expect, section by section, so your paper reads as careful rather than lucky.</p>
+<h2 id="what-reviewers-check-first">What Reviewers Check First</h2>
+<p>Before reading your argument, an experienced reviewer scans for:</p>
+<ol>
+<li><strong>Baselines:</strong> base model zero-shot and few-shot present? If not, the paper is already in trouble.</li>
+<li><strong>The config:</strong> base model exact version, PEFT method with full hyperparameters, training hyperparameters. "We fine-tuned Llama-3" is a red flag; "Llama-3.1-8B-Instruct (hf revision …), QLoRA r=16/α=32, NF4, LR 2e-4 cosine, 3 epochs, batch 16" is a green flag.</li>
+<li><strong>Data description:</strong> size, source, filtering, splits, license. "We used 5,000 examples" without provenance is a red flag.</li>
+<li><strong>Test discipline:</strong> is there evidence the test set was held out? Single reported number or mean ± std across seeds?</li>
+<li><strong>Compute:</strong> enough detail to estimate reproducibility cost — GPU type, approximate hours.</li>
+</ol>
+<p>Pass these five checks and the reviewer reads charitably. Fail two and they read adversarially. Everything below serves these checks.</p>
+<h2 id="section-by-section-guidance">Section by Section Guidance</h2>
+<p><strong>Introduction.</strong> State the behavioral gap (Chapter 11's one sentence) and why prompting/RAG were insufficient — with numbers, not assertions. "Few-shot prompting reaches 71.8%; our fine-tuned model reaches 78.5%" belongs in the introduction's contribution list, because it <em>is</em> the contribution. End with explicit contributions: the artifact (dataset? adapter? benchmark?), the method finding, the ablation insight.</p>
+<p><strong>Related work.</strong> Cover three threads: (a) your task/domain's prior approaches, (b) fine-tuning methods you build on (LoRA, QLoRA — cite them), (c) evaluation practices for your task. The most common related-work failure is omitting the strongest prior baseline and then "beating" weaker ones. Cite and compare against the best, not the most convenient.</p>
+<p><strong>Method.</strong> This section has a checklist — include all of it:</p>
+<ul>
+<li>Base model: exact name, version/revision, where obtained.</li>
+<li>Data: collection procedure, size per split, filtering steps, format/template (show the template verbatim — reviewers want to see it), license.</li>
+<li>Training: PEFT config (method, rank, alpha, dropout, target modules, quantization details), optimizer, LR + schedule + warmup, batch size (micro × accumulation), epochs, max sequence length, seed(s), library versions.</li>
+<li>Compute: GPU type, total GPU hours (approximate is fine), training framework (TRL/Axolotl + version).</li>
+<li>Anything unusual: replay data mix, multi-stage procedures, data augmentation.</li>
+</ul>
+<p>A good test: could a competent graduate student reproduce your training run from this section plus your released code? If yes, you've written enough.</p>
+<p><strong>Experiments.</strong> Lead with the main results table (Chapter 8's format): baselines + your model, task metrics + format checks + regression benchmark, mean ± std. Then the ablations, each as a figure or small table answering one question: data-size curve, rank curve, replay on/off, stage ablation. Then qualitative analysis: the error taxonomy table (Chapter 8) with 2–3 illustrative examples. Reviewers remember the error analysis — it signals honesty more than any metric does.</p>
+<p><strong>Limitations.</strong> State them plainly: data size limits, languages/domains not tested, forgetting observed, compute constraints that prevented ablations. A limitations section doesn't weaken a paper; its absence weakens it, because reviewers will supply the limitations themselves, less generously.</p>
+<p><strong>Reproducibility artifacts.</strong> Release: the adapter weights, the training code or Axolotl config, the dataset (or the generation/verification scripts if the data can't be shared), the eval script, and a requirements file with pinned versions. Link a single repository. Papers with working repositories get cited; papers without them get doubted.</p>
+<h2 id="the-hyperparameter-and-data-tables">The Hyperparameter and Data Tables</h2>
+<p>Two tables reviewers look for explicitly. The hyperparameter table:</p>
+<table>
+<thead>
+<tr>
+<th>Hyperparameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base model</td>
+<td>Llama-3.1-8B (revision abc123)</td>
+</tr>
+<tr>
+<td>PEFT method</td>
+<td>QLoRA (NF4, double quant)</td>
+</tr>
+<tr>
+<td>LoRA rank / alpha / dropout</td>
+<td>16 / 32 / 0.05</td>
+</tr>
+<tr>
+<td>Target modules</td>
+<td>q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj</td>
+</tr>
+<tr>
+<td>Learning rate / schedule / warmup</td>
+<td>2e-4 / cosine / 30 steps</td>
+</tr>
+<tr>
+<td>Batch size (micro × accum)</td>
+<td>2 × 8 = 16</td>
+</tr>
+<tr>
+<td>Epochs</td>
+<td>3 (best checkpoint by val loss)</td>
+</tr>
+<tr>
+<td>Max seq length</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>Optimizer</td>
+<td>paged_adamw_8bit</td>
+</tr>
+<tr>
+<td>Seeds</td>
+<td>42, 43, 44</td>
+</tr>
+<tr>
+<td>Library versions</td>
+<td>transformers==4.44.2, peft==0.12.0, trl==0.9.6</td>
+</tr>
+<tr>
+<td>Compute</td>
+<td>1× T4 16 GB, ~25 GPU-hours total</td>
+</tr>
+</tbody>
+</table>
+<p>And the data table: splits with counts, source, license, and the template shown verbatim. These tables are boring to write and invaluable to readers — they are the difference between "inspired by this paper" and "reproduced this paper."</p>
+<h2 id="handling-the-questions-reviewers-always-ask">Handling the Questions Reviewers Always Ask</h2>
+<ul>
+<li><strong>"Why not just prompt?"</strong> → Your introduction already answers with the few-shot baseline numbers (Chapter 1's memo, Chapter 8's table).</li>
+<li><strong>"Is the gain just more compute/data?"</strong> → Your data-size ablation shows where the curve saturates; your baselines used comparable effort.</li>
+<li><strong>"Did you tune the baselines fairly?"</strong> → State baseline prompts (put them in the appendix) and any baseline tuning you did. An untuned baseline vs. a tuned method is a comparison reviewers reject.</li>
+<li><strong>"What about contamination?"</strong> → Describe your dedup procedure and test-set independence (Chapter 8's hygiene). For sensitive claims, report results on a freshly collected test slice.</li>
+<li><strong>"Will this generalize?"</strong> → Paraphrase tests, out-of-distribution slices, and the honest limitations section. Don't overclaim; "on our test distribution" is a respectable, defensible scope.</li>
+<li><strong>"Where's the code?"</strong> → The repository link. Have it live at submission time, not "upon acceptance."</li>
+</ul>
+<h2 id="common-writing-mistakes">Common Writing Mistakes</h2>
+<ol>
+<li><strong>Burying the lede.</strong> The main result (fine-tuned vs. best baseline, with numbers) belongs in the abstract and introduction, not on page 6.</li>
+<li><strong>Metric soup.</strong> Six metrics with no designated primary metric reads as fishing. Name one primary metric per claim; the rest are supporting.</li>
+<li><strong>Hiding negative results.</strong> The ablation that failed is often the most informative — "rank 64 did not help" tells readers where the capacity ceiling is. Report it.</li>
+<li><strong>Overclaiming generality.</strong> "Our method works for medical Q&amp;A" when you tested one dataset in one language. Scope your claims to your evidence; reviewers punish scope creep.</li>
+<li><strong>No error analysis.</strong> A paper with 82% accuracy and no discussion of the remaining 18% reads as if the authors never looked at their outputs. Always discuss the failures.</li>
+</ol>
+<h2 id="responding-to-reviewer-critiques-a-playbook">Responding to Reviewer Critiques: A Playbook</h2>
+<p>Even a well-reported paper gets critical reviews. Here are the five most common critiques of fine-tuning papers and how to respond — ideally by having already addressed them, but also in the rebuttal if they arrive:</p>
+<p><strong>"The baseline is weak / unfair."</strong> The deadliest critique. In the rebuttal, don't just argue — <em>run the stronger baseline</em>. Add the few-shot result with a tuned prompt (show the prompt in the appendix), or the RAG comparison, and update the table. One new experiment in rebuttal beats three paragraphs of argument. Prevention: include the strong baselines from the start (Chapter 8).</p>
+<p><strong>"The improvement is marginal."</strong> If the gap is small, check: is it statistically significant (paired test across seeds)? Does it concentrate in important slices (e.g., +2% overall but +15% on the hard subset)? Reframe honestly around where the gain matters, or concede and pivot the paper's claim to the ablation insight ("the contribution is the data-efficiency finding, not the absolute score"). Reviewers respect a narrowed claim; they punish a defended overclaim.</p>
+<p><strong>"Ablations are missing."</strong> Run the single most informative one — usually the data-size curve or the rank curve — and add the figure. If compute truly prevents it, say exactly what you ran, what you couldn't, and why the existing evidence still supports the claim. "We could not run X due to compute; however, Y and Z jointly imply…" is acceptable once, not as a pattern.</p>
+<p><strong>"Concerns about contamination / test leakage."</strong> Describe your dedup procedure precisely (normalization, threshold, counts removed), and if possible add results on a freshly collected test slice the model never saw during development. This is the critique where prevention (Chapter 8's hygiene, documented from day one) matters most — reconstructed hygiene in rebuttal is far less convincing.</p>
+<p><strong>"Limited scope / only one dataset."</strong> Acknowledge the scope, state it as a limitation (you already did — Chapter 12's limitations section), and add whatever generalization evidence is cheap: a second small dataset, a paraphrase-robustness test, or an out-of-distribution slice. You don't need to match a lab's resources; you need to show the finding isn't a one-dataset accident.</p>
+<p><strong>Rebuttal tone:</strong> factual, grateful, specific. "We thank the reviewer for this point. We have added the few-shot baseline (Table 3, now 76.1 ± 0.8 vs. our 78.5 ± 0.7); the gap persists." Never argue that a requested experiment is unnecessary — either run it or explain precisely why it's infeasible and what evidence substitutes. Reviewers are volunteers; the rebuttal that makes their job easy (numbered responses, exact locations of changes) gets the benefit of the doubt.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before submitting, do a "reviewer pass": print the five checks from this chapter's opening and verify each against your draft with page numbers. Then hand the draft to a colleague with the instruction "try to disbelieve the main claim" — the objections they raise in an hour predict the reviews you'll get in three months. Fix them now, when it's cheap.</p>
+</blockquote>
+<h3 id="key-takeaways_11">Key Takeaways</h3>
+<ul>
+<li>Reviewers scan five things first: baselines, full config, data provenance, test discipline, compute. Pass all five.</li>
+<li>Methods checklist: exact base model, data pipeline + template verbatim, complete PEFT/training hyperparameters, library versions, GPU hours.</li>
+<li>Results: main table (baselines + yours + regression benchmark, mean ± std), ablations as figures, error taxonomy with examples.</li>
+<li>Always include: limitations section, hyperparameter table, data table, live repository with adapter + code + eval.</li>
+<li>Pre-answer the standard objections: why not prompt, fair baselines, contamination, generalization scope.</li>
+<li>Name one primary metric per claim; report negative ablations; scope claims to evidence; do a reviewer pass before submitting.</li>
+</ul>
+<hr />
+<h1 id="learning-dashboard">Learning Dashboard</h1>
+<p>Quick-reference appendix. Keep this open while you train.</p>
+<h2 id="method-comparison-prompt-vs-rag-vs-fine-tune">Method Comparison: Prompt vs RAG vs Fine-Tune</h2>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Prompting</th>
+<th>RAG</th>
+<th>Fine-tuning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Changes model weights?</td>
+<td>No</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Solves</td>
+<td>Eliciting existing capability</td>
+<td>Missing/changing facts</td>
+<td>Behavioral gaps, internalized skills</td>
+</tr>
+<tr>
+<td>Data needed</td>
+<td>0–10 examples</td>
+<td>Document corpus</td>
+<td>100s–1000s of curated examples</td>
+</tr>
+<tr>
+<td>Time to first result</td>
+<td>Minutes</td>
+<td>Days</td>
+<td>Days–weeks</td>
+</tr>
+<tr>
+<td>Inference cost</td>
+<td>High (long prompts / big model)</td>
+<td>Medium (+ retrieval)</td>
+<td>Low (small tuned model possible)</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Edit text</td>
+<td>Update index</td>
+<td>Retrain</td>
+</tr>
+<tr>
+<td>Main risk</td>
+<td>Prompt brittleness</td>
+<td>Retrieval errors, context limits</td>
+<td>Overfitting, forgetting</td>
+</tr>
+<tr>
+<td>Combine with others?</td>
+<td>Yes</td>
+<td>Yes — with fine-tuning</td>
+<td>Yes — with RAG</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hyperparameter-cheat-sheet-qlora-instruction-tuning">Hyperparameter Cheat Sheet (QLoRA Instruction Tuning)</h2>
+<table>
+<thead>
+<tr>
+<th>Hyperparameter</th>
+<th>Start here</th>
+<th>Try if...</th>
+<th>Warning sign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Learning rate</td>
+<td>2e-4</td>
+<td>loss flat → 3e-4; spikes → 1e-4</td>
+<td>NaN loss, wild oscillation</td>
+</tr>
+<tr>
+<td>LoRA rank r</td>
+<td>16</td>
+<td>hard task → 32/64</td>
+<td>val gap train/val widening</td>
+</tr>
+<tr>
+<td>LoRA alpha</td>
+<td>2 × r</td>
+<td>— (keep ratio constant)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Epochs</td>
+<td>3</td>
+<td>small data → 2; large data → 2</td>
+<td>val loss rising</td>
+</tr>
+<tr>
+<td>Effective batch</td>
+<td>16–32</td>
+<td>unstable → 64–128</td>
+<td>OOM → lower micro batch first</td>
+</tr>
+<tr>
+<td>Warmup steps</td>
+<td>30–100</td>
+<td>—</td>
+<td>early loss spikes</td>
+</tr>
+<tr>
+<td>Scheduler</td>
+<td>cosine</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Optimizer</td>
+<td>paged_adamw_8bit</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Dropout</td>
+<td>0.05</td>
+<td>overfitting → 0.1</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Max seq length</td>
+<td>95th pct of data</td>
+<td>OOM → lower</td>
+<td>truncated examples</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cost-estimation-table">Cost Estimation Table</h2>
+<table>
+<thead>
+<tr>
+<th>Setup</th>
+<th>Hardware</th>
+<th>Approx. cost</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Colab free</td>
+<td>T4 16 GB</td>
+<td>$0 (limited hours)</td>
+<td>Learning, debugging, small runs</td>
+</tr>
+<tr>
+<td>Colab Pro</td>
+<td>T4/V100-class</td>
+<td>~$10/month</td>
+<td>Real student projects</td>
+</tr>
+<tr>
+<td>Kaggle</td>
+<td>T4/P100</td>
+<td>$0 (weekly quota)</td>
+<td>Overflow experiments</td>
+</tr>
+<tr>
+<td>Cloud spot</td>
+<td>A100 40/80 GB</td>
+<td>~$0.50–1.50/hr (verify current)</td>
+<td>Big/fast runs</td>
+</tr>
+<tr>
+<td>Cloud on-demand</td>
+<td>A100 80 GB</td>
+<td>~$1.50–4/hr (verify current)</td>
+<td>Deadline runs</td>
+</tr>
+<tr>
+<td>University cluster</td>
+<td>Varies</td>
+<td>$0 — ask your dept!</td>
+<td>Everything</td>
+</tr>
+</tbody>
+</table>
+<p>Estimation recipe: 100-step calibration run → sec/step → total steps = (examples × epochs) / batch → × number of planned runs → +50% buffer.</p>
+<h2 id="troubleshooting-matrix">Troubleshooting Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix (in order)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Loss NaN</td>
+<td>LR too high; corrupt example</td>
+<td>Halve LR; scan data for garbage</td>
+</tr>
+<tr>
+<td>Loss flat from step 0</td>
+<td>LR too small; label masking bug</td>
+<td>Raise LR 3×; check template/labels</td>
+</tr>
+<tr>
+<td>Loss oscillates wildly</td>
+<td>LR too high</td>
+<td>Halve LR; add warmup</td>
+</tr>
+<tr>
+<td>Train ↓, val ↑</td>
+<td>Overfitting</td>
+<td>Early stop; lower rank; more data; dropout 0.1</td>
+</tr>
+<tr>
+<td>Val flat, train ↓</td>
+<td>Capacity/data ceiling</td>
+<td>More diverse data; higher rank</td>
+</tr>
+<tr>
+<td>CUDA OOM</td>
+<td>Batch/sequence too large</td>
+<td>micro batch 1 → shorter seq len → grad checkpointing</td>
+</tr>
+<tr>
+<td>Good train, bad paraphrase</td>
+<td>Memorization</td>
+<td>Paraphrase augmentation; lower rank; more data</td>
+</tr>
+<tr>
+<td>Task ↑, MMLU ↓↓</td>
+<td>Catastrophic forgetting</td>
+<td>Add 5–15% replay data; fewer epochs; lower LR</td>
+</tr>
+<tr>
+<td>Outputs ignore format</td>
+<td>Template mismatch train vs inference</td>
+<td>Use identical template; check chat template</td>
+</tr>
+<tr>
+<td>Slow training</td>
+<td>Padding waste; small batches</td>
+<td>packing=True; larger effective batch</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="references">References</h1>
+<p>[1] E. J. Hu et al., "LoRA: Low-rank adaptation of large language models," in <em>Proc. Int. Conf. Learning Representations (ICLR)</em>, 2022.</p>
+<p>[2] T. Dettmers, A. Pagnoni, A. Holtzman, and L. Zettlemoyer, "QLoRA: Efficient finetuning of quantized LLMs," in <em>Proc. Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 36, 2023.</p>
+<p>[3] J. Wei et al., "Finetuned language models are zero-shot learners," in <em>Proc. Int. Conf. Learning Representations (ICLR)</em>, 2022.</p>
+<p>[4] H. W. Chung et al., "Scaling instruction-finetuned language models," <em>arXiv preprint arXiv:2210.11416</em>, 2022.</p>
+<p>[5] L. Ouyang et al., "Training language models to follow instructions with human feedback," in <em>Proc. Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 35, 2022.</p>
+<p>[6] P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," in <em>Proc. Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 33, 2020.</p>
+<p>[7] T. Brown et al., "Language models are few-shot learners," in <em>Proc. Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 33, 2020.</p>
+<p>[8] J. Kaplan et al., "Scaling laws for neural language models," <em>arXiv preprint arXiv:2001.08361</em>, 2020.</p>
+<p>[9] T. Dettmers, M. Lewis, S. Shleifer, and L. Zettlemoyer, "8-bit optimizers via block-wise quantization," in <em>Proc. Int. Conf. Learning Representations (ICLR)</em>, 2022.</p>
+<p>[10] I. J. Goodfellow, M. Mirza, D. Xiao, A. Courville, and Y. Bengio, "An empirical investigation of catastrophic forgetting in gradient-based neural networks," <em>arXiv preprint arXiv:1312.6211</em>, 2013.</p>
+<p>[11] C. Zhou et al., "LIMA: Less is more for alignment," in <em>Proc. Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 36, 2023.</p>
+<p>[12] L. von Werra et al., "TRL: Transformer reinforcement learning," GitHub repository, 2020. [Online]. Available: https://github.com/huggingface/trl</p>
+<hr />
+<h1 id="glossary">Glossary</h1>
+<ul>
+<li><strong>Adapter:</strong> A small set of trainable parameters added to a frozen base model (e.g., LoRA matrices). Saved and shared independently of the base model.</li>
+<li><strong>Backpropagation:</strong> The algorithm that computes how much each weight contributed to the prediction error, so the optimizer knows which direction to adjust each weight.</li>
+<li><strong>Base model:</strong> A pre-trained language model before task-specific fine-tuning — fluent and knowledgeable but not specialized.</li>
+<li><strong>Batch size:</strong> The number of training examples processed before each weight update. Effective batch size includes gradient accumulation.</li>
+<li><strong>Catastrophic forgetting:</strong> Loss of previously learned capabilities when a model is trained on new data; the mirror image of overfitting.</li>
+<li><strong>Chat template:</strong> The formatting (special tokens, role labels) a tokenizer applies to conversational messages before the model sees them.</li>
+<li><strong>Checkpoint:</strong> A saved snapshot of model/adapter weights during training, allowing resuming or selecting the best-performing point.</li>
+<li><strong>Distillation (data):</strong> Using a stronger model's outputs as training examples for a smaller model, with verification.</li>
+<li><strong>DoRA:</strong> A LoRA variant that decomposes weights into magnitude and direction components; a drop-in alternative in the PEFT library.</li>
+<li><strong>Early stopping:</strong> Ending training (or selecting a checkpoint) at the point of best validation performance rather than training for a fixed duration.</li>
+<li><strong>Epoch:</strong> One complete pass through the training dataset.</li>
+<li><strong>Few-shot prompting:</strong> Including a handful of examples in the prompt so the model imitates the pattern without any training.</li>
+<li><strong>Full fine-tuning:</strong> Updating all of a model's weights during training, as opposed to parameter-efficient methods.</li>
+<li><strong>Gradient accumulation:</strong> Simulating a large batch by summing gradients over several small micro-batches before updating weights.</li>
+<li><strong>Instruction tuning:</strong> Fine-tuning on instruction → response pairs so the model learns to follow instructions (also called supervised fine-tuning, SFT).</li>
+<li><strong>Learning rate (LR):</strong> The scaling factor applied to each weight update; the most consequential hyperparameter.</li>
+<li><strong>LoRA (Low-Rank Adaptation):</strong> A PEFT method that freezes base weights and trains the update as a product of two small low-rank matrices.</li>
+<li><strong>Loss:</strong> A single number measuring prediction error on training examples; training minimizes it.</li>
+<li><strong>Loss masking:</strong> Excluding certain tokens (e.g., the instruction) from the loss so the model only learns to produce the response.</li>
+<li><strong>Mixed precision:</strong> Training with a mix of 16-bit and 32-bit numbers to save memory and speed up computation.</li>
+<li><strong>NF4 (NormalFloat4):</strong> A 4-bit number format designed for normally distributed neural network weights, used by QLoRA.</li>
+<li><strong>Optimizer:</strong> The algorithm applying weight updates (e.g., AdamW); it often keeps extra per-parameter statistics.</li>
+<li><strong>Overfitting:</strong> Memorizing training examples instead of learning general patterns; detected when validation loss rises while training loss falls.</li>
+<li><strong>PEFT (Parameter-Efficient Fine-Tuning):</strong> Methods that train a small fraction of parameters (LoRA, adapters, prefix tuning, …).</li>
+<li><strong>QLoRA:</strong> LoRA applied on top of a 4-bit quantized base model, enabling large-model fine-tuning on modest GPUs.</li>
+<li><strong>Quantization:</strong> Storing model weights in fewer bits (e.g., 4-bit instead of 16-bit) to reduce memory.</li>
+<li><strong>RAG (Retrieval-Augmented Generation):</strong> Generating answers grounded in documents retrieved at query time, without changing model weights.</li>
+<li><strong>Rank (r):</strong> In LoRA, the inner dimension of the adapter matrices; controls adapter capacity.</li>
+<li><strong>Replay data:</strong> General examples mixed into task-specific training to prevent catastrophic forgetting.</li>
+<li><strong>Seed:</strong> The random-number seed fixing shuffling and initialization for reproducibility.</li>
+<li><strong>Test set:</strong> Held-out examples evaluated once at the end; the unbiased estimate of performance.</li>
+<li><strong>Token:</strong> The unit of text models process (roughly a word piece); text is tokenized before training.</li>
+<li><strong>Validation set:</strong> Held-out examples used during training to monitor progress and select checkpoints/hyperparameters.</li>
+<li><strong>Warmup:</strong> Gradually increasing the learning rate over the first training steps to avoid early instability.</li>
+<li><strong>Weight decay:</strong> Regularization that penalizes large weights, discouraging overfitting.</li>
+</ul>
+<hr />
+<h1 id="practice-exercises">Practice Exercises</h1>
+<ol>
+<li><strong>Decision memo (writing).</strong> Pick a real problem from your research area. Write the one-page method-selection memo from Chapter 1: the task, quick prompting and RAG experiments with scores on 50 examples, and a justified choice. Bring it to your advisor.</li>
+<li><strong>Baseline bake-off (hands-on).</strong> Take 100 examples of a task you care about. Score a base model zero-shot and few-shot (5 examples). Record both scores — these are the baselines your future fine-tune must beat.</li>
+<li><strong>Toy fine-tune (hands-on).</strong> Run the Chapter 6 walkthrough verbatim on Colab with a tiny model (e.g., a 1–2B model) and 200 toy examples. Confirm the adapter changes the output format. Save the notebook as your debugging baseline.</li>
+<li><strong>Data grading (hands-on).</strong> Collect or generate 150 candidate instruction examples for your task. Grade 100 against Chapter 3's five quality criteria. Compute the failure rate and fix your pipeline until it's under 10%.</li>
+<li><strong>Template consistency check (hands-on).</strong> Train two tiny runs identical except for the prompt template, then evaluate each with the <em>other</em> template. Measure the mismatch penalty — this teaches why train/inference templates must match.</li>
+<li><strong>Rank ablation (hands-on).</strong> On your toy data, train LoRA with r ∈ {4, 16, 64}. Plot validation loss for each. Write two sentences explaining the curve — this is the seed of a paper figure.</li>
+<li><strong>Loss-curve diagnosis (analysis).</strong> Given these curves — train loss falling smoothly, val loss flat after epoch 2 — write a diagnosis and a three-step remediation plan, citing Chapters 7 and 9.</li>
+<li><strong>Forgetting probe (hands-on).</strong> Take any fine-tuned adapter you can download (or your toy model). Score base vs. fine-tuned on 30 general-knowledge questions you write. Quantify the regression and write it up as a mini "forgetting report."</li>
+<li><strong>Budget plan (writing).</strong> Fill in the Chapter 10 budgeting template for your thesis project: data hours, calibration + ablation + final GPU hours, buffer, dollar figure. Identify the single biggest cost and one way to halve it.</li>
+<li><strong>Paper autopsy (analysis).</strong> Find a published fine-tuning paper in your area. Grade it against Chapter 12's five reviewer checks (baselines, config, data, test discipline, compute). Write a half-page review noting what's missing — then make sure your own paper doesn't repeat it.</li>
+</ol>
+<hr />
+<p><em>End of Book 17 — Fine-Tuning LLMs on Your Own Data. Next in the series: Book 18.</em></p>

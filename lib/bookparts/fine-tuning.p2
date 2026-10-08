@@ -1,0 +1,398 @@
+ts: late epochs take tiny steps, so extra epochs cost less in forgetting than they would at constant LR.</p>
+<p><strong>Sequence length × batch size (the memory interaction).</strong> GPU memory is shared between them: doubling max sequence length roughly doubles activation memory, forcing you to halve the batch. Since most examples are short (Chapter 7's 95th-percentile advice), cutting max length is usually the cheaper side of this trade — you keep batch size (stable gradients) and only truncate the rare long example.</p>
+<p><strong>What this means for your tuning procedure:</strong> the staged approach works because these interactions are second-order for typical ranges — tuning LR first, then rank, then epochs gets you to a good neighborhood. But when you change something big (10× data, different model size, 4× batch change), re-check the earlier stages rather than assuming they transfer. And in your paper, report the final configuration as a <em>joint</em> choice ("selected by staged search; LR 2e-4 and rank 16 were co-validated") rather than implying each was optimized in isolation — reviewers know about interactions, and acknowledging them reads as competence.</p>
+<h2 id="when-defaults-fail-a-diagnostic-decision-tree">When Defaults Fail: A Diagnostic Decision Tree</h2>
+<p>The cheat sheet gives starting points; this tree handles the cases where they don't work. Start at the top with your symptom:</p>
+<p><strong>Training loss won't go below ~2.5 and outputs look untrained.</strong>
+→ Is the loss <em>exactly</em> flat, or noisy-flat? Exactly flat: check label masking (is the model training on empty responses? print one tokenized batch with labels). Noisy-flat: LR too small — try 5e-4. Still flat: your data may not be in the format the template expects — decode 3 training examples fully and read them.</p>
+<p><strong>Training loss falls beautifully but validation is terrible from the start.</strong>
+→ Data distribution mismatch between splits (check: are val examples systematically different — longer, harder, different template?). Or label leakage in reverse: the model learned a spurious training-set pattern. Stratify your split by the important dimensions (topic, length, difficulty) instead of pure random.</p>
+<p><strong>Everything worked on the subset but the full run diverged.</strong>
+→ The subset wasn't representative (too easy, too clean). Or: you scaled epochs without scaling warmup — warmup steps should scale with total steps; 30 warmup steps for a 3,000-step run is proportionally nothing. Set warmup to ~3–5% of total steps.</p>
+<p><strong>Results vary wildly between seeds (±5 points).</strong>
+→ Your test set is too small or your task too noisy for the claimed precision. Either enlarge the test set, or report the variance honestly and shrink your claims. Seed variance <em>is</em> a finding — it tells you the task is unstable, which is worth one paragraph.</p>
+<p><strong>The model got worse than the base model.</strong>
+→ Almost always one of: LR far too high (check for the loss spike signature), training on the wrong objective (e.g., full next-token loss including instructions, teaching the model to <em>generate instructions</em> instead of following them), or catastrophic data corruption (duplicated examples, wrong language). Roll back to the walkthrough baseline and diff every setting.</p>
+<p>Work this tree before asking for help or buying more compute — nine times out of ten, the answer is in it.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your paper should contain a hyperparameters table (the full config) and ideally one ablation figure — e.g., validation performance vs. LoRA rank, or vs. data size. These are cheap to produce during the tuning procedure above and they transform "we fine-tuned a model" into "we systematically studied fine-tuning for this task." The difference is the difference between a workshop paper and a conference paper.</p>
+</blockquote>
+<h3 id="key-takeaways_6">Key Takeaways</h3>
+<ul>
+<li>The big four: learning rate (start 2e-4), LoRA rank (start 16), epochs (2–5, pick by checkpoint), effective batch size (16–128 via accumulation).</li>
+<li>Diagnose from curves: flat = LR too small or data bug; spiking = LR too large; val rising while train falls = overfitting.</li>
+<li>Second tier: cosine schedule + warmup, paged_adamw_8bit, dropout 0.05, max length matched to your data, fixed seed.</li>
+<li>Tune in stages: coarse LR on subset → rank ablation → epoch/checkpoint selection → multi-seed final runs. ~8–10 runs total.</li>
+<li>Always log training and validation loss; never train blind.</li>
+<li>Publish the full config table and at least one ablation figure.</li>
+</ul>
+<hr />
+<h1 id="chapter-8-evaluating-fine-tuned-models-beforeafter-comparisons">Chapter 8: Evaluating Fine-Tuned Models (Before/After Comparisons)</h1>
+<p>Training produces a model. Evaluation tells you whether the model is actually better — and "better" is a claim that requires evidence, not enthusiasm. This chapter is about building that evidence: what to measure, what to compare against, and how to avoid the self-deception that fine-tuning makes so easy. If Chapter 3's dataset is the steering wheel, evaluation is the dashboard. Driving blind is not brave; it is just blind.</p>
+<h2 id="the-golden-rule-compare-against-the-right-baselines">The Golden Rule: Compare Against the Right Baselines</h2>
+<p>A fine-tuned model's score, alone, means nothing. "Our model scores 82%" is empty until you know what the base model scored (maybe 81%), what a good prompt scored (maybe 84%), and what chance scored (maybe 50%). Every evaluation needs <strong>baselines</strong>, and for fine-tuning papers the expected set is:</p>
+<ol>
+<li><strong>The base model, zero-shot:</strong> the unmodified model with a plain instruction. This measures what fine-tuning added over the starting point.</li>
+<li><strong>The base model, few-shot:</strong> the base model with 3–10 examples in the prompt. This is the strongest cheap baseline — it tells you whether your fine-tuning beat what prompting alone could do (Chapter 1's whole point).</li>
+<li><strong>The base model + RAG (if applicable):</strong> if your task involves knowledge, compare against retrieval too.</li>
+<li><strong>Ablations of your own method:</strong> your model with key components removed or varied (different rank, noisier data, fewer examples). These show <em>which part</em> of your approach caused the improvement.</li>
+</ol>
+<p>Report all of them in one table. The pattern reviewers look for — and the pattern that makes a paper convincing — is: base &lt; few-shot &lt; your fine-tune, with ablations showing the gain survives when you vary the details. If few-shot prompting matches your fine-tune, say so honestly; that is itself a publishable finding ("for this task, prompting suffices"), and claiming otherwise will not survive review.</p>
+<h2 id="what-to-measure-metrics-by-task-type">What to Measure: Metrics by Task Type</h2>
+<p>Match the metric to what you actually care about:</p>
+<ul>
+<li><strong>Classification / multiple choice:</strong> accuracy, plus F1 when classes are imbalanced. Report per-class scores if some classes matter more.</li>
+<li><strong>Structured generation (JSON, SQL, code):</strong> exact-match rate or execution accuracy (does the SQL run and return the right answer? does the code pass tests?). Prefer execution-based metrics over string matching — they measure what you actually want.</li>
+<li><strong>Open-ended generation (summaries, answers, explanations):</strong> this is the hard one. Automated metrics like ROUGE or BLEU measure word overlap with a reference, which correlates weakly with quality. Better options:</li>
+<li><strong>LLM-as-judge:</strong> a strong model rates outputs against a rubric. Cheap and scalable, but biased (judges favor their own style, longer answers, and the first-presented option). Mitigate with blinded, order-swapped comparisons and a human-validated subset.</li>
+<li><strong>Human evaluation:</strong> the gold standard. Even 100–200 examples rated by 2–3 annotators with measured agreement beats 10,000 LLM-judged examples for credibility. Report inter-annotator agreement.</li>
+<li><strong>Task-grounded checks:</strong> for instruction following, verify format compliance programmatically (valid JSON? correct schema? required sections present?). These are objective and cheap — use them wherever the task has checkable structure.</li>
+<li><strong>Behavioral suites:</strong> for instruction-tuned models generally, public benchmarks (MMLU for knowledge, MT-Bench or AlpacaEval-style for instruction following, IFEval for format compliance) test whether your fine-tuning helped or hurt broadly. Use them as <em>regression</em> tests (Chapter 9).</li>
+</ul>
+<p><strong>One metric is never enough.</strong> Report a small panel: your task metric, a format-compliance check, and one broad benchmark for regressions. Three numbers tell a story; one number tells a slogan.</p>
+<h2 id="the-test-set-discipline">The Test Set Discipline</h2>
+<p>From Chapter 3: your test set is locked until the final evaluation. Here is why this matters so much in fine-tuning specifically. During development you will look at validation results dozens of times, adjusting data, prompts, and hyperparameters. Every adjustment informed by validation <em>leaks</em> a little information about validation into your model. By the end, your validation score is optimistic — you have, in effect, trained on it indirectly. The locked test set is the only unbiased estimate you have. Evaluate it <strong>once</strong>, on the final model, and report whatever it says — even if it is worse than validation. Reporting the worse number honestly is what separates research from marketing.</p>
+<p>Additional hygiene:</p>
+<ul>
+<li><strong>No train/test overlap:</strong> check for duplicate or near-duplicate examples across splits (normalize whitespace/case, then compare). Paraphrased test questions that appear verbatim in training are contamination, not generalization.</li>
+<li><strong>Multiple seeds:</strong> training is stochastic. Report mean and standard deviation across 2–3 seeds, not the best seed's score. A "gain" smaller than the seed variance is not a gain.</li>
+<li><strong>Statistical testing:</strong> for close comparisons, a paired test (e.g., McNemar's for classification, paired bootstrap for generation metrics) tells you whether the difference is real. You don't need heavy statistics — just don't claim victory on a 0.5% gap from a single run.</li>
+</ul>
+<h2 id="qualitative-analysis-read-the-outputs">Qualitative Analysis: Read the Outputs</h2>
+<p>Numbers hide as much as they reveal. For every major experiment, <strong>read 50–100 outputs by hand</strong> — from the base model and the fine-tuned model side by side — and categorize the differences. You will discover things no metric shows: the fine-tuned model fixed formatting but introduced a new hedging tic; it answers correctly but dropped the citation style you wanted; it improved on common cases but got worse on rare ones.</p>
+<p>Build a small <strong>error taxonomy</strong>: the 4–6 most common failure modes, with example counts before and after fine-tuning. "Hallucinated clause numbers: 31/100 → 4/100; wrong output language: 12/100 → 2/100; refused valid requests: 0/100 → 9/100" — this table is worth more than three paragraphs of prose, and it directly suggests your next experiment (the refusal spike means your data over-represents refusals — fix the data mix).</p>
+<h2 id="a-concrete-evaluation-script">A Concrete Evaluation Script</h2>
+<pre><code class="language-python">import json, re
+
+# Load locked test set (untouched until now)
+test = [json.loads(l) for l in open(&quot;data/test.json&quot;)]
+
+def format_ok(response):
+    # Example task-grounded check: response must be valid JSON with required keys
+    try:
+        obj = json.loads(response)
+        return &quot;answer&quot; in obj and &quot;justification&quot; in obj
+    except Exception:
+        return False
+
+def evaluate(model, tokenizer):
+    correct, wellformed, total = 0, 0, 0
+    for ex in test:
+        prompt = ex[&quot;instruction&quot;]  # adapt to your template
+        inputs = tokenizer(prompt, return_tensors=&quot;pt&quot;).to(model.device)
+        out = model.generate(**inputs, max_new_tokens=200, do_sample=False)
+        resp = tokenizer.decode(out[0], skip_special_tokens=True)
+        total += 1
+        if format_ok(resp):
+            wellformed += 1
+        # task-specific correctness check goes here
+    return {&quot;n&quot;: total, &quot;wellformed_rate&quot;: wellformed/total}
+
+# Run for: base zero-shot, base few-shot, fine-tuned — same script, same test set
+for name, model in [(&quot;base&quot;, base_model), (&quot;finetuned&quot;, ft_model)]:
+    print(name, evaluate(model, tokenizer))
+</code></pre>
+<p>The discipline that matters: <strong>the same script, the same test set, the same decoding settings</strong> (temperature, max tokens) for every model compared. Changing decoding between baseline and fine-tuned runs invalidates the comparison silently.</p>
+<h2 id="presenting-results-the-beforeafter-table">Presenting Results: The Before/After Table</h2>
+<p>Your paper's results section centers on one table. Columns: model/baseline. Rows: metrics. Something like:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Task accuracy</th>
+<th>Format compliance</th>
+<th>MMLU (regression)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base, zero-shot</td>
+<td>54.2 ± 1.1</td>
+<td>61%</td>
+<td>68.4</td>
+</tr>
+<tr>
+<td>Base, few-shot (5 ex)</td>
+<td>71.8 ± 0.9</td>
+<td>83%</td>
+<td>68.4</td>
+</tr>
+<tr>
+<td>Fine-tuned (ours)</td>
+<td><strong>78.5 ± 0.7</strong></td>
+<td><strong>97%</strong></td>
+<td>67.9</td>
+</tr>
+</tbody>
+</table>
+<p>This fictional-but-typical table tells the whole story at a glance: fine-tuning beat few-shot prompting on the task (+6.7), massively improved format reliability, and barely dented general knowledge (−0.5 MMLU, the forgetting check from Chapter 9). Write the paragraph around the table, not instead of it.</p>
+<h2 id="llm-as-judge-done-responsibly">LLM-as-Judge, Done Responsibly</h2>
+<p>Using a strong model to evaluate your fine-tuned model's outputs is now standard practice — it's the only scalable option for open-ended generation. But naive LLM judging is biased in documented ways, and reviewers know them. Here's how to do it defensibly:</p>
+<p><strong>The known biases (and mitigations):</strong>
+- <em>Position bias:</em> judges favor the first-presented answer. Mitigation: present pairs in both orders and average, or use absolute scoring (rate each output 1–5 alone) instead of pairwise comparison.
+- <em>Verbosity bias:</em> judges reward longer answers. Mitigation: instruct the judge to penalize unnecessary length explicitly in the rubric, or control for length statistically.
+- <em>Self-preference:</em> a judge from the same model family as your fine-tuned model favors its sibling's style. Mitigation: use a judge from a <em>different</em> family than your base model, and disclose which judge you used.
+- <em>Rubric vagueness:</em> "rate quality 1–10" produces noise. Mitigation: write a concrete rubric with anchored descriptions ("5 = correct answer, correct format, cites clause; 3 = correct answer, wrong format; 1 = wrong answer").</p>
+<p><strong>The validation step you must not skip:</strong> have humans rate 100–200 of the same outputs and measure agreement between human and LLM judge (correlation for scores, Cohen's kappa for categories). Report this number. "Our LLM judge agrees with human raters at r=0.81 on a 200-example validation set" transforms the judge from a black box into a calibrated instrument. Without it, a skeptical reviewer can dismiss all your judged results in one sentence.</p>
+<p><strong>Blinding:</strong> the judge must not know which output came from which model — strip model identifiers, randomize order, and use identical formatting for both candidates. This sounds obvious; it's skipped surprisingly often.</p>
+<p><strong>Cost control:</strong> judging 10,000 outputs with a frontier API model gets expensive. Judge a random, pre-registered subset (e.g., 500–1,000) with the strong judge, use programmatic checks (Chapter 8's format verification) on the full set, and human-rate 100–200. Three tiers, each doing what it's best at: programs for scale, LLM judges for nuance at moderate scale, humans for ground truth.</p>
+<h2 id="statistical-rigor-on-a-student-budget">Statistical Rigor on a Student Budget</h2>
+<p>"Mean ± std across seeds" was Chapter 8's advice; here's how to actually compute and interpret it without a statistics degree:</p>
+<p><strong>How many seeds?</strong> Three is the practical minimum (42, 43, 44 — or any three you fix in advance). Five is better but costs 5× the final-run compute. Never report the best of N seeds as "the result" — that's selection bias, and reviewers check for it by asking whether you reported the max or the mean.</p>
+<p><strong>Reading the interval.</strong> Suppose your fine-tuned model scores 78.5 ± 0.7 and few-shot scores 71.8 ± 0.9. The intervals don't overlap — the improvement is real beyond seed noise. But 78.5 ± 0.7 vs. 78.1 ± 0.8 <em>do</em> overlap substantially — that "gain" is indistinguishable from luck. Don't claim it; report both numbers and move on. Overlapping intervals don't prove <em>no</em> difference, only that your experiment can't resolve one — a paired test (below) is more sensitive.</p>
+<p><strong>A simple paired test for classification.</strong> When comparing two models on the same test set, McNemar's test asks: on examples where the models <em>disagree</em>, does one win significantly more often? It's a one-function call in most stats libraries and far more appropriate than eyeballing percentages. For generation metrics, a paired bootstrap (resample the test set with replacement 1,000 times, compute the score difference each time, check whether 95% of differences favor your model) achieves the same thing with no distributional assumptions. You don't need to derive these — just use them and report "paired bootstrap, p &lt; 0.05."</p>
+<p><strong>What "significant" doesn't mean.</strong> Statistical significance is not practical significance. A 0.4% gain with p &lt; 0.01 on 50,000 test examples is real but probably irrelevant; a 6% gain with p = 0.08 on 200 examples is suggestive but unresolved — collect more test data rather than claiming victory. Report effect size (the actual point difference) alongside the p-value, always.</p>
+<p><strong>The pre-registration payoff.</strong> Because you wrote the eval script and empty table before training (Chapter 8's discipline), you can't be accused of choosing the metric that happened to look good — the classic "researcher degrees of freedom" problem. Mention this explicitly in the paper: "Metrics and baselines were fixed before training; see our experiment plan." It's a single sentence that substantially raises reviewer trust.</p>
+<blockquote>
+<p><strong>For your research:</strong> Design your evaluation <em>before</em> you train — write the eval script and the empty results table first. This "evaluation-driven development" prevents the most common failure mode in student fine-tuning projects: training for two weeks and then discovering you have no clean way to say whether it worked. Your empty table with its baselines and metrics is also the skeleton of your paper's experiments section. Fill it in as results arrive.</p>
+</blockquote>
+<h3 id="key-takeaways_7">Key Takeaways</h3>
+<ul>
+<li>Never report a fine-tuned score alone — always include base zero-shot, base few-shot, and ablations as baselines.</li>
+<li>Match metrics to the task; for open-ended generation combine task-grounded checks, LLM-as-judge (with bias controls), and human eval on a subset.</li>
+<li>Lock the test set until the final run; report mean ± std across seeds; don't claim sub-variance gains.</li>
+<li>Read 50–100 outputs by hand and build an error taxonomy — metrics hide failure modes.</li>
+<li>Keep decoding settings, scripts, and test data identical across every comparison.</li>
+<li>Write the eval script and the empty results table before training, not after.</li>
+</ul>
+<hr />
+<h1 id="chapter-9-overfitting-catastrophic-forgetting-and-how-to-detect-them">Chapter 9: Overfitting, Catastrophic Forgetting, and How to Detect Them</h1>
+<p>Fine-tuning has two characteristic failure modes, and they are mirror images. <strong>Overfitting</strong> is learning your training data too well — the model memorizes instead of generalizing. <strong>Catastrophic forgetting</strong> is learning your training data <em>at the expense</em> of everything else — the model gains your task and loses its general abilities. Both are detectable, both are fixable, and both must be checked in any serious fine-tuning project. This chapter gives you the detection toolkit and the standard remedies.</p>
+<h2 id="overfitting-memorization-disguised-as-learning">Overfitting: Memorization Disguised as Learning</h2>
+<p>Overfitting means the model performs well on training examples but poorly on new ones. In fine-tuning it is especially sneaky, because your training examples <em>look like</em> success — the model produces beautiful outputs on exactly the cases you show it. The illusion breaks on the first unfamiliar input.</p>
+<p><strong>Why fine-tuning overfits easily:</strong> your dataset is small relative to the model's capacity. An 8B model with a 42M-parameter adapter can memorize thousands of examples verbatim without breaking a sweat. Memorization is the path of least resistance for the optimizer — reproducing exact training outputs reduces loss faster than learning the general pattern. The model takes the shortcut unless your data and settings force it onto the longer road.</p>
+<p><strong>Detection — the loss curves (primary signal):</strong> as Chapter 7's figure showed, overfitting's signature is unmistakable: training loss keeps falling while validation loss bottoms out and starts rising. The epoch/checkpoint where validation loss is lowest is approximately where generalization peaked — everything after is memorization. This is why you save checkpoints and pick by validation, not by recency.</p>
+<p><strong>Detection — the memorization probe:</strong> take 20 training examples and 20 fresh examples of the same type. If the model is dramatically better on the training 20 (near-perfect) than the fresh 20, it memorized. A generalizing model shows a smaller gap. For text, an even simpler probe: feed the model the first half of a training example and see if it reproduces the second half verbatim — verbatim reproduction is memorization, not learning.</p>
+<p><strong>Detection — the paraphrase test:</strong> paraphrase your test inputs (same meaning, different wording). A model that learned the task handles paraphrases; a model that memorized patterns collapses. Large paraphrase-sensitivity gaps are a red flag reviewers know to ask about.</p>
+<p><strong>Fixes, in order of effectiveness:</strong></p>
+<ol>
+<li><strong>More (diverse) data.</strong> The single best cure. Memorization thrives on small, repetitive datasets; diversity forces generalization. If you can only do one thing, do this.</li>
+<li><strong>Fewer epochs / early stopping.</strong> Stop at the validation minimum. Don't train 5 epochs because the config said so.</li>
+<li><strong>Lower LoRA rank.</strong> Less adapter capacity = less room for memorization. If r=32 overfits and r=8 doesn't, the task didn't need the capacity.</li>
+<li><strong>More regularization:</strong> raise <code>lora_dropout</code> to 0.1, add weight decay, or use data augmentation (paraphrase your training examples to multiply diversity cheaply).</li>
+<li><strong>Smaller learning rate.</strong> Gentler updates memorize less aggressively — though this is a weaker lever than the above.</li>
+</ol>
+<h2 id="catastrophic-forgetting-the-price-of-specialization">Catastrophic Forgetting: The Price of Specialization</h2>
+<p>Catastrophic forgetting is the mirror problem: the model learns your task but <em>loses</em> capabilities it had before — general knowledge, other languages, reasoning skills, instruction-following breadth. The name comes from Goodfellow et al.'s 2013 study showing neural networks abruptly lose old tasks when trained on new ones. In LLMs the effect is usually gradual rather than abrupt, but it is real and measurable: fine-tune a model exclusively on medical Q&amp;A for enough epochs and its MMLU score, its poetry, and its low-resource-language ability all degrade.</p>
+<p><strong>Why it happens:</strong> Chapter 2's trade intuition — every update that helps your examples can hurt others, because capabilities share the same weights. Your narrow data pulls the weights toward a specialist configuration; the generalist configuration erodes. The narrower your data and the longer you train, the worse it gets.</p>
+<p><strong>Detection — regression benchmarks:</strong> before fine-tuning, score the base model on broad benchmarks (MMLU for knowledge across subjects, plus whatever covers your model's other important abilities — multilingual tests if relevant, code tests if relevant). Score the fine-tuned model on the same benchmarks. A drop of 1–2 points is normal noise and acceptable; a drop of 5+ points is forgetting worth addressing. This is why Chapter 8's results table includes a regression column — it is not decoration, it is the forgetting detector.</p>
+<p><strong>Detection — capability probes:</strong> hand-write 20–30 prompts testing abilities your fine-tuning <em>shouldn't</em> have touched: general knowledge questions, a different language, simple reasoning, refusal of disallowed content (safety behavior can degrade too — check it). Compare base vs. fine-tuned qualitatively. Automated benchmarks miss subtle degradations; reading outputs catches them.</p>
+<p><strong>Fixes, in order of effectiveness:</strong></p>
+<ol>
+<li><strong>Mix in general data (replay).</strong> Add 5–15% general instruction examples (from public instruction datasets) to your training mix. This is the oldest and most reliable fix — the model keeps practicing its general abilities while learning your task. Think of it as the model going to the gym for old muscles while training new ones.</li>
+<li><strong>Train for fewer epochs.</strong> Forgetting accumulates with training time. The checkpoint with the best task validation score often already shows minimal forgetting — another reason to early-stop.</li>
+<li><strong>Lower learning rate / lower rank.</strong> Smaller updates disturb pre-trained capabilities less. LoRA's small footprint is itself a forgetting reducer versus full fine-tuning — one more reason PEFT is the student default.</li>
+<li><strong>Regularization toward the base model.</strong> Advanced techniques (e.g., adding a KL penalty against the base model's outputs) explicitly anchor the model near its starting behavior. TRL supports such penalties in some trainers; for standard SFT, replay data is simpler and usually sufficient.</li>
+</ol>
+<h2 id="the-tension-between-the-two">The Tension Between the Two</h2>
+<p>Notice the uncomfortable symmetry: the cures overlap. More epochs → more overfitting <em>and</em> more forgetting. Higher rank → more capacity to memorize <em>and</em> more disturbance of old weights. Lower LR → less memorization <em>and</em> less forgetting, but slower learning. You are always balancing three goals: learn the new task (fit), generalize to new inputs (not overfit), retain old abilities (not forget).</p>
+<p>The practical resolution is the <strong>validation panel</strong>: don't watch one curve, watch three — task validation score (want: high), held-out generalization probes like paraphrases (want: stable), regression benchmark (want: not much lower than base). Pick the checkpoint and hyperparameters that satisfy all three. A model that scores 80% on your task but lost 8 MMLU points is not "better" than one scoring 78% with no regression — it is differently broken, and the second is usually the one you want.</p>
+<h2 id="a-worked-diagnostic-example">A Worked Diagnostic Example</h2>
+<p>Imagine your curves and scores look like this after training:</p>
+<ul>
+<li>Training loss: 0.4 (keeps falling) | Validation loss: 1.8, rising since epoch 3 (you trained 5)</li>
+<li>Task test accuracy: 76% | Paraphrased test accuracy: 58% | MMLU: base 68.4 → fine-tuned 63.1</li>
+</ul>
+<p>Diagnosis: <strong>both</strong> failure modes. Rising validation loss + 18-point paraphrase gap = overfitting. 5.3-point MMLU drop = forgetting. Prescription: roll back to the epoch-3 checkpoint (fixes the worst of both), then rerun with: 10% replay data mixed in, r reduced 32→16, dropout 0.05→0.1, and stop at the new validation minimum. Re-measure all three panels. This diagnostic loop — measure three panels, adjust, re-measure — is the core skill of this chapter, and it is worth practicing deliberately on toy runs before your thesis depends on it.</p>
+<h2 id="safety-degradation-the-forgetting-nobody-checks">Safety Degradation: The Forgetting Nobody Checks</h2>
+<p>Chapter 9 covered forgetting of <em>capabilities</em> — knowledge, languages, reasoning. There's a second kind of forgetting with sharper consequences: <strong>safety degradation</strong>. Instruction-tuned base models carry safety behaviors from their alignment training (refusing disallowed requests, hedging on medical/legal advice, avoiding biased outputs). Fine-tuning — even on completely benign data — can erode these.</p>
+<p>Why it happens is straightforward: your data never demonstrates refusal behavior, so the gradients never reinforce it, while everything else shifts. The model doesn't "decide" to become unsafe; the safety-relevant weight configurations simply drift as the model optimizes for your task. Research on this is active, but the practical finding is consistent: fine-tuning on narrow benign data measurably increases compliance with harmful requests in several published studies, and the effect grows with epochs and learning rate.</p>
+<p><strong>What to check (cheap, non-negotiable if you publish or deploy):</strong>
+1. Assemble 30–50 prompts spanning the safety behaviors you care about: direct disallowed requests, jailbreak-style framings ("pretend you're…"), and domain-adjacent edge cases (for the medical case study: "should I stop taking my medication?").
+2. Score base vs. fine-tuned responses blindly (the rater doesn't know which model produced which).
+3. Report the comparison. A small change is normal; a large one means your training undid alignment — add refusal/hedging examples to your data (the "replay" principle applied to safety) and re-measure.</p>
+<p><strong>The data fix:</strong> include 2–5% safety-relevant examples in training — refusals of disallowed requests in your domain, proper hedging ("I'm not a doctor; consult one") on advice questions. These don't teach the model <em>new</em> safety behavior; they keep the existing behavior exercised while everything else changes. Think of it as replay data for alignment.</p>
+<p><strong>For researchers, this is opportunity, not just obligation.</strong> Safety degradation from benign fine-tuning is an active research area with open questions: which training choices (rank? epochs? data mix?) degrade safety most? How little safety data suffices to preserve it? If your thesis involves fine-tuning in a sensitive domain (medicine, law, finance), a careful safety-degradation analysis with ablations is a genuine contribution — and reviewers in those domains increasingly expect at least the basic check.</p>
+<h2 id="the-recovery-playbook-when-everything-looks-bad">The Recovery Playbook: When Everything Looks Bad</h2>
+<p>So your run finished and the three panels (Chapter 9) all look wrong: task score mediocre, paraphrase gap large, MMLU down 6 points. Don't despair and don't start over randomly — diagnose systematically:</p>
+<p><strong>Step 1: Check the data first (60% of disasters).</strong> Before touching hyperparameters, re-grade 100 training examples (Chapter 3's ritual). In most failed student runs, the root cause is data: mislabeled examples, template bugs (labels including the instruction text), or train/test contamination discovered late. No hyperparameter fixes bad data.</p>
+<p><strong>Step 2: Find the best checkpoint, not the last one.</strong> Plot validation loss across all saved checkpoints. If the minimum was at 40% of training, your "final model" was overtrained — evaluate the best checkpoint on the test set. You may already have a good model sitting in your outputs directory.</p>
+<p><strong>Step 3: Isolate one variable.</strong> Change exactly one thing and rerun on a data subset: halve the learning rate, or halve the rank, or add 10% replay data. If the subset run improves, apply to the full run. Changing three things at once teaches you nothing — you'll never know which fix worked, and your paper can't report it.</p>
+<p><strong>Step 4: Shrink the problem.</strong> If the full task still resists, fine-tune on a <em>narrower</em> slice (one question type, one document type) and check whether that works. Success on the slice proves the pipeline is sound and the problem is task difficulty or data coverage — actionable diagnoses. Failure on the slice too points back to pipeline bugs.</p>
+<p><strong>Step 5: Know when to stop.</strong> Some tasks genuinely don't yield to the resources available — the base model may simply lack the prerequisite capability (Chapter 11's low-resource warning). Stopping is a decision, not a failure, if it's evidence-based: "three rank settings, two data sizes, and replay ablations all plateau at ~62%; the base model's probe scored 41%, so fine-tuning added real value but the task needs a stronger base model or more data than available." That's a defensible thesis conclusion. Endless tuning without a diagnosis is not persistence — it's the sunk-cost fallacy with GPUs.</p>
+<p>Keep a lab notebook (a simple dated markdown file) recording every run: config, data version, result, and your one-sentence interpretation. When you find the fix six runs later, the notebook tells you what changed — and it becomes the methods section's tuning narrative.</p>
+<blockquote>
+<p><strong>For your research:</strong> Forgetting analysis is an underused source of paper content. Most fine-tuning papers report only task gains; a paper that additionally reports <em>what was retained and what was lost</em> — with the replay-data ablation showing the trade-off curve — answers a question every practitioner has and few papers address. If your domain is specialized (law, medicine, low-resource languages), the forgetting profile across capabilities is itself a novel empirical contribution.</p>
+</blockquote>
+<h3 id="key-takeaways_8">Key Takeaways</h3>
+<ul>
+<li>Overfitting = memorizes training data, fails on new inputs. Detect via val-loss rising, memorization probes, paraphrase tests.</li>
+<li>Catastrophic forgetting = gains your task, loses general abilities. Detect via regression benchmarks (MMLU etc.) and capability probes.</li>
+<li>Cures overlap: replay/general data mix, early stopping at val minimum, lower rank, lower LR, more dropout, more diverse data.</li>
+<li>Watch three panels, not one: task score, generalization (paraphrase) score, regression benchmark. Optimize the balance.</li>
+<li>The epoch-3 checkpoint often beats the epoch-5 one — always save checkpoints and pick by validation.</li>
+<li>Forgetting analysis (what was lost, what replay fixes) is publishable content most papers skip.</li>
+</ul>
+<hr />
+<h1 id="chapter-10-compute-costs-and-budgeting-for-students">Chapter 10: Compute Costs and Budgeting for Students</h1>
+<p>Fine-tuning used to be priced for institutions. QLoRA and free-tier GPUs repriced it for students — but "cheap" is not "free," and the real budget includes data labor, failed runs, and your time. This chapter gives you honest numbers, a budgeting method, and the tricks that stretch a student budget furthest. No invented price lists: GPU rental prices move constantly, so we give you the <em>estimation method</em> plus the magnitudes to sanity-check against, and tell you exactly where to look up current prices.</p>
+<h2 id="the-cost-components-all-of-them">The Cost Components (All of Them)</h2>
+<p><strong>1. Data cost (usually the largest).</strong> Human-written or human-verified examples cost human hours. Writing 2,000 quality instruction pairs might take one person 3–6 weeks part-time. Even "free" distillation needs verification labor. When students say "fine-tuning is free on Colab," they are ignoring the 100+ hours of data work. Budget it explicitly: hours × your (opportunity) cost. This is also why Chapter 3's quality-over-quantity finding is a <em>budget</em> finding — 1,000 excellent examples cost a fifth of 5,000 mediocre ones and often perform better.</p>
+<p><strong>2. Compute cost.</strong> The GPU hours for training runs, including failed runs, ablations, and final multi-seed runs. A QLoRA run on 5,000 examples for 3 epochs on a T4 takes roughly 3–8 hours; the full experimental program from Chapter 7 (8–10 runs) might total 30–80 GPU hours. On free Colab, that's wall-clock days with session limits; on paid cloud, it's tens of dollars, not hundreds — <em>for 7–8B models</em>. Costs scale roughly with model size and data size: a 70B run is an order of magnitude more.</p>
+<p><strong>3. Storage and misc.</strong> Model downloads (tens of GB), checkpoints (each full-precision checkpoint of an 8B model is ~16 GB; adapters are ~100 MB — another reason to save adapters, not merged models, during experimentation), dataset storage. Mostly negligible in cost, occasionally painful in Colab disk limits.</p>
+<p><strong>4. Your time.</strong> Debugging environment issues, reading loss curves, doing qualitative analysis. Budget 2–3× the pure training time for the human loop around it. This is normal and not a sign you're slow.</p>
+<h2 id="the-free-tier-whats-actually-available">The Free Tier: What's Actually Available</h2>
+<ul>
+<li><strong>Google Colab (free):</strong> T4 GPUs (16 GB) with usage limits — typically a few hours per day of GPU time, sessions disconnect after idle timeouts, and heavy users get throttled. Enough for: the Chapter 6 walkthrough, small ablations, final runs on modest data. Strategy: develop and debug on short runs, launch long runs with checkpointing so a disconnection loses minutes, not hours.</li>
+<li><strong>Colab Pro (~$10/month):</strong> more reliable GPU access, longer runtimes, better GPUs sometimes. The single best $10 a student can spend on fine-tuning — it removes most free-tier friction.</li>
+<li><strong>Kaggle:</strong> free GPU hours weekly (around 30 hours of T4/P100 time per week, historically). A genuine alternative for overflow compute.</li>
+<li><strong>University clusters:</strong> many universities have GPU clusters students don't know about — ask your department's IT or your advisor before paying for anything. A single lab GPU hour is worth more than ten Colab hours because there's no queue roulette.</li>
+</ul>
+<p><strong>Rule of thumb:</strong> do all development, debugging, and small ablations on free resources; pay (a little) only for the final multi-seed runs if free tiers can't finish them reliably.</p>
+<h2 id="estimating-a-run-before-you-launch-it">Estimating a Run Before You Launch It</h2>
+<p>You can estimate training time with a quick calibration run instead of guessing:</p>
+<ol>
+<li>Train for 100 steps and note the time and the examples-per-second rate.</li>
+<li>Total steps ≈ (dataset size × epochs) / effective batch size.</li>
+<li>Total time ≈ total steps × seconds-per-step, plus ~10% overhead for eval/checkpointing.</li>
+</ol>
+<p>Example: 5,000 examples, 3 epochs, effective batch 16 → ~940 steps. At 15 sec/step on a T4 → ~4 hours. Now multiply by your experimental program: coarse LR search (3 short runs on 20% data ≈ 3 × 0.8h), rank ablation (3 runs ≈ 3 × 4h), final seeds (3 runs ≈ 3 × 4h) → roughly 27 GPU hours. On Colab Pro that's a few days of sessions; on a cloud A100 (~$1–2/hr at current market rates — verify on the provider's pricing page) that's roughly $30–60. The method matters more than the numbers: calibrate, multiply by your run count, add 50% buffer for failures.</p>
+<p><strong>Cost estimation table (magnitudes, verify current prices):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Setup</th>
+<th>Hardware</th>
+<th>~Cost</th>
+<th>Good for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Colab free</td>
+<td>T4 16 GB</td>
+<td>$0 (time-limited)</td>
+<td>Walkthroughs, debugging, small ablations</td>
+</tr>
+<tr>
+<td>Colab Pro</td>
+<td>T4/V100-ish</td>
+<td>~$10/month</td>
+<td>Serious student projects, final runs</td>
+</tr>
+<tr>
+<td>Kaggle</td>
+<td>T4/P100</td>
+<td>$0 (weekly quota)</td>
+<td>Overflow/parallel experiments</td>
+</tr>
+<tr>
+<td>Cloud spot/preemptible</td>
+<td>A100 40–80 GB</td>
+<td>~$0.50–1.50/hr (verify)</td>
+<td>Large runs, 70B models, fast ablations</td>
+</tr>
+<tr>
+<td>Cloud on-demand</td>
+<td>A100 80 GB</td>
+<td>~$1.50–4/hr (verify)</td>
+<td>Deadline-driven runs</td>
+</tr>
+<tr>
+<td>University cluster</td>
+<td>Varies</td>
+<td>$0 (ask!)</td>
+<td>Everything, if available</td>
+</tr>
+</tbody>
+</table>
+<p>Check current prices on the provider's own pricing page before budgeting — they change quarterly. Never trust a blog post's price table, including (eventually) this book's.</p>
+<h2 id="stretching-the-budget-the-highest-leverage-tricks">Stretching the Budget: The Highest-Leverage Tricks</h2>
+<ol>
+<li><strong>Start small, scale once.</strong> Debug everything on 500 examples and 1 epoch. Only the final configuration touches the full dataset. Most wasted compute comes from launching full runs before the pipeline works.</li>
+<li><strong>Subset your ablations.</strong> LR and rank ablations on 20–30% of data predict the full-data winner reliably for these hyperparameters. Save full-data runs for the finalists.</li>
+<li><strong>Checkpoint aggressively.</strong> Save every 100–200 steps with <code>save_total_limit</code> to cap disk. A crashed 6-hour run with checkpoints is a 10-minute resume; without them it's a 6-hour loss.</li>
+<li><strong>Use adapters, not merged models, during experimentation.</strong> 100 MB vs 16 GB per checkpoint changes what "save often" costs.</li>
+<li><strong>Pack sequences</strong> (<code>packing=True</code> in SFTTrainer, <code>sample_packing: true</code> in Axolotl) once the pipeline works — it can nearly double training throughput on short examples by eliminating padding waste.</li>
+<li><strong>Right-size the model.</strong> A well-tuned 8B often beats a sloppily-tuned 70B on a narrow task, at ~1/10th the cost. Bigger is not automatically better for specialization — Chapter 1's decision framework applies to model size too.</li>
+<li><strong>Share and reuse.</strong> Publish your adapter and your data (Chapter 12). The community's shared adapters and datasets are why you don't have to redo others' work — contribute back and the ecosystem compounds.</li>
+</ol>
+<h2 id="budgeting-template-for-a-thesis-project">Budgeting Template for a Thesis Project</h2>
+<p>Fill this in at project start and revisit monthly:</p>
+<ul>
+<li><strong>Data:</strong> ___ examples × ___ min/example = ___ hours (who does it? by when?)</li>
+<li><strong>Calibration:</strong> 1 pilot run, ___ GPU hours</li>
+<li><strong>Ablations:</strong> ___ runs × ___ GPU hours = ___</li>
+<li><strong>Final runs:</strong> ___ seeds × ___ GPU hours = ___</li>
+<li><strong>Buffer:</strong> +50% for failures and surprises</li>
+<li><strong>Total GPU hours:</strong> ___ → mapped to: free tier (<strong><em> days) / paid ($</em></strong>)</li>
+<li><strong>Human time:</strong> ___ hours over ___ weeks</li>
+</ul>
+<p>A typical MS-thesis fine-tuning project lands around 30–80 GPU hours and 100–200 human hours, most of it data and evaluation. If your plan says 500 GPU hours, either narrow the task or find cluster access before you start — discovering this in month four is how theses stall.</p>
+<h2 id="the-hidden-costs-failed-runs-and-how-to-budget-for-them">The Hidden Costs: Failed Runs and How to Budget for Them</h2>
+<p>The estimation recipe in this chapter assumes runs succeed. They won't — at least not all of them. Here's an honest accounting of where GPU hours actually go in a student project, and how to budget for the waste:</p>
+<p><strong>Environment debugging (5–15 hours).</strong> CUDA version mismatches, bitsandbytes compilation issues, tokenizer quirks, gated-model access approvals. This is front-loaded and mostly one-time — which is exactly why Chapter 6's walkthrough exists: it concentrates the debugging into a single cheap session before the real work starts.</p>
+<p><strong>Data pipeline iterations (10–30 hours).</strong> You discover mid-project that 15% of examples are malformed, or the template needs changing, which invalidates earlier runs. Mitigation: the Chapter 3 pilot (50 examples end-to-end) and the data-grading ritual catch most of this before any serious training.</p>
+<p><strong>Aborted training runs (20–40% overhead).</strong> Wrong LR discovered at step 300, OOM at step 50, eval revealing a template bug at epoch 1. This is normal and healthy — aborting early is the skill. Budget it as a multiplier: multiply your "successful runs" estimate by 1.5×, not by wishful thinking.</p>
+<p><strong>The "one more ablation" (10–20 hours).</strong> Reviewers (or your advisor) will ask for exactly one experiment you didn't run. This is why the budget template includes a buffer — and why keeping your pipeline runnable (Chapter 5's version control) matters: the cost of one more ablation is hours if the pipeline is intact, days if you've let it rot.</p>
+<p><strong>Putting it together — a realistic ledger for a thesis project:</strong>
+| Phase | GPU hours | Human hours |
+|---|---|---|
+| Walkthrough + env setup | 5 | 15 |
+| Data collection + verification | 0 | 80–120 |
+| Pipeline debugging + pilots | 10 | 20 |
+| Coarse tuning (short runs) | 8 | 10 |
+| Main ablations | 20 | 15 |
+| Failed/aborted runs (buffer) | 15 | 10 |
+| Final multi-seed runs | 15 | 5 |
+| Evaluation + analysis | 5 | 30 |
+| <strong>Total</strong> | <strong>~78</strong> | <strong>~200</strong> |</p>
+<p>The GPU column is the smaller number. Internalize that: in fine-tuning projects, <em>compute is rarely the binding constraint for students — human time is.</em> Every hour you spend on data quality and evaluation design pays back more than an hour of extra training. Spend the budget accordingly.</p>
+<h2 id="free-tier-tactics-surviving-colab-limits">Free-Tier Tactics: Surviving Colab Limits</h2>
+<p>Free Colab is the most common student training environment, and it has sharp edges. Here's how practitioners work within them:</p>
+<p><strong>Session timeouts.</strong> Colab disconnects idle sessions (~90 minutes idle) and caps total GPU time per day. Never leave a run unattended without checkpointing — <code>save_steps=100</code> means a disconnection costs you at most 100 steps. For runs longer than a few hours, prefer Colab Pro or split the run: train 2 epochs, save, resume later with <code>resume_from_checkpoint</code> (Chapter 6).</p>
+<p><strong>The disk limit.</strong> Colab gives roughly 100+ GB of disk, but model downloads plus checkpoints plus datasets add up. Defenses: download the base model once per session (it's cached in <code>~/.cache/huggingface</code>); keep <code>save_total_limit=2</code> so old checkpoints delete themselves; save adapters (100 MB) not merged models (16 GB) during experimentation; clean the pip cache (<code>pip cache purge</code>) if space gets tight.</p>
+<p><strong>The RAM limit.</strong> Colab's CPU RAM (~12 GB free tier) matters when loading datasets or tokenizing large files. If preprocessing OOMs the CPU (not the GPU), process the dataset in streaming mode (<code>datasets.load_dataset(..., streaming=True)</code>) or preprocess once, save to disk, and load the processed version.</p>
+<p><strong>Getting throttled.</strong> Heavy free-tier use triggers Colab's usage limits ("you've used your GPU quota"). Tactics: do CPU work (data prep, analysis, writing) in non-GPU runtimes; batch your GPU needs into focused sessions; use Kaggle's separate weekly quota as overflow; and treat the $10 Colab Pro as the obvious upgrade the moment throttling costs you more than an hour a week — your time is worth more than $10/month.</p>
+<p><strong>Reproducibility across sessions.</strong> Colab sessions are ephemeral — the VM resets. Everything durable lives in three places: your git repository (code, configs), your Drive or Hugging Face Hub (adapters, datasets), and your notebook with pinned installs. At the start of each session, the ritual is: mount Drive (or pull from Hub), <code>pip install -r requirements.txt</code>, verify GPU, resume. Write this ritual as the first cells of your notebook so future-you doesn't improvise it each time.</p>
+<h2 id="when-to-pay-vs-when-to-wait">When to Pay vs. When to Wait</h2>
+<p>A final budgeting judgment call students face repeatedly: is this slowdown worth paying to fix? A decision heuristic:</p>
+<p><strong>Pay (small amounts) when the bottleneck is <em>waiting</em>, not <em>thinking</em>.</strong> If your pipeline is debugged, your data is ready, and you're losing days to Colab throttling or queue times before a deadline — $10–50 for Colab Pro or a few cloud GPU hours is obviously worth it. Compute spending should buy <em>calendar time</em>, not substitute for experimental design.</p>
+<p><strong>Don't pay to avoid <em>thinking</em>.</strong> If runs keep failing for unclear reasons, a bigger GPU just fails faster and more expensively. OOM errors, flat losses, and bad evals are design problems; solve them on the free tier with small runs. Only scale spending after small runs succeed reliably.</p>
+<p><strong>The monthly budget rule.</strong> Set a fixed monthly compute budget you're comfortable with ($0, $10, $50 — whatever fits) and design the experimental program to fit it, rather than spending reactively. The Chapter 10 template plus the free-tier tactics make a $10/month budget cover a full thesis project comfortably: free Colab/Kaggle for development and ablations, Pro for reliability during final runs. Students who blow past $200 usually did so by launching full-scale runs before the pipeline worked — the most expensive mistake in this book, and entirely preventable.</p>
+<blockquote>
+<p><strong>For your research:</strong> Funders, advisors, and thesis committees respond to budgets, not vibes. A one-page compute plan — with the calibration method, the run count, and the dollar figure — attached to your proposal signals that you've done this before (even if this book is your first time). It also protects you: when results need one more ablation, the buffer you budgeted is the reason you can afford it.</p>
+</blockquote>
+<h3 id="key-takeaways_9">Key Takeaways</h3>
+<ul>
+<li>Budget four things: data labor (biggest), GPU hours, storage/misc, and your time (2–3× training time).</li>
+<li>Free tier (Colab, Kaggle) covers development and small runs; ~$10/month Colab Pro removes most friction; verify cloud prices on provider pages.</li>
+<li>Estimate with a 100-step calibration run: total steps × sec/step, × run count, +50% buffer.</li>
+<li>Stretch tricks: debug on subsets, ablate on 20–30% data, checkpoint often, save adapters not merged models, pack sequences, right-size the model.</li>
+<li>Typical thesis project: 30–80 GPU hours, 100–200 human hours. Plan it on one page before you start.</li>
+</ul>
+<hr />
+<h1 id="chapter-11-fine-tuning-for-your-research-problem-case-study-guidance">Chapter 11: Fine-Tuning for Your Research Problem (Case-Study Guidance)</h1>
+<p>Everything so far has been general. This chapter is personal: how to take <em>your</em> research problem — the one your thesis or paper depends on — and turn it into a well-designed fine-tuning study. We work through the design process as a sequence of decisions, illustrated with three realistic case studies drawn from the kinds of problems MS/PhD students actually bring to fine-tuning. Adapt the pattern, not the details.</p>
+<h2 id="the-design-process-from-problem-to-experiment-plan">The Design Process: From Problem to Experiment Plan</h2>
+<p><strong>Step 1: State the behavioral gap in one sentence.</strong> Not "we want a better model for X" but "the base model does X, we need it to do Y." Examples: "The base model answers Urdu medical questions in English medical jargon; we need plain-Urdu answers with citations." "The base model writes SQL that references non-existent columns; we need schema-faithful SQL." If you cannot state the gap crisply, you are not ready to fine-tune — go back to Chapter 1's framework and run the prompting/RAG checks first.</p>
+<p><strong>Step 2: Define "done" before you start.</strong> Write down the metric, the target, and the baseline you must beat. "Task accuracy ≥ 80% on the locked test set, beating few-shot prompting (currently 71%), with MMLU regression under 2 points." This is your contract with yourself. Without it, every result looks publishable and none of them are.</p>
+<p><strong>Step 3: Inventory your data honestly.</strong> How many examples can you realistically produce or verify? Who writes them? What is the timeline? Map this against Chapter 3's brackets: if your gap needs 10,000 examples and you can produce 800, redesign the task (narrower scope, better base model, RAG assist) rather than training on 800 and hoping.</p>
+<p><strong>Step 4: Choose the method and justify it.</strong> QLoRA at r=16 is the default; deviate deliberately. Full fine-tuning because your cluster has A100s? Higher rank because the domain shift is large? Write the justification down — it becomes your methods paragraph.</p>
+<p><strong>Step 5: Plan the ablations that make it research.</strong> A fine-tuned model is an engineering result; a fine-tuning <em>study</em> is research. The difference is the ablations: data-size curves, rank curves, with/without replay, prompting vs. fine-tuning vs. combined. Plan 3–5 ablations that each answer a question someone in your field would ask. Chapter 12 shows how these become figures.</p>
+<p><strong>Step 6: Pre-register the evaluation.</strong> Write the eval script and empty results table now (Chapter 8). Decide the statistical bar for "improvement" in advance.</p>
+<h2 id="case-study-1-urdu-medical-qa-for-rural-clinics">Case Study 1: Urdu Medical Q&amp;A for Rural Clinics</h2>
+<p><strong>The problem.</strong> A public-health MS student wants a model that answers common medical questions in plain Urdu, citing which answers need a doctor's visit. The base model (a strong multilingual 8B) answers in English-heavy jargon and never hedges.</p>
+<p><strong>Behavioral gap:</strong> language register + safety hedging — both behavioral, not factual. RAG over a medical FAQ could supply facts, but the <em>style</em> problem (plain Urdu, consistent "see a doctor when…" framing) needs fine-tuning.</p>
+<p><strong>Data plan:</strong> 3,000 real questions collected from clinic workers, answers drafted by distillation from a frontier model, then verified and rewritten into plain Urdu by two medical students. Budget: ~6 weeks. Format: instruction (question) → response (plain-Urdu answer + triage line). 10% general Urdu instruction data mixed in as replay.</p>
+<p><strong>Method:</strong> QLoRA, r=32 (medical domain shift is substantial), base model with the best Urdu among candidates (compare 2–3 base models on a 200-question probe <em>before</em> committing — base model selection is an underrated decision).</p>
+<p><strong>Evaluation:</strong> locked test of 400 questions; metrics: medical accuracy (rated by the two medical students, blinded, base vs. fine-tuned), plain-language score (rubric), triage-line presence (programmatic check), MMLU + an Urdu benchmark for regression. Baselines: base zero-shot, base few-shot, RAG-only, fine-tuned + RAG.</p>
+<p><strong>Ablations:</strong> data size {500, 1500, 3000}, rank {16, 32}, with/without replay. The data-size curve alone answers "how much verified data does this task need?" — a citable result for low-resource medical NLP.</p>
+<h2 id="case-study-2-schema-faithful-text-to-sql-for-a-university-database">Case Study 2: Schema-Faithful Text-to-SQL for a University Database</h2>
+<p><strong>The problem.</strong> A CS MS student building a natural-language interface to their university's student-records database. The schema is fixed (47 tables), the SQL dialect is fixed, and the system will serve thousands of queries daily. Base model prompting gets 68% execution accuracy; errors are mostly hallucinated column names.</p>
+<p><strong>Behavioral gap:</strong> internalized schema knowledge — the model must <em>know</em> the 47 tables cold. The schema fits in the prompt, but at thousands of queries/day, stuffing it into every prompt is expensive, and the model still slips. This is Chapter 1's canonical fine-tuning case: narrow task, high volume, behavior to internalize.</p>
+<p><strong>Data plan:</strong> synthetic generation with verification — programmatically generate thousands of (question, SQL) pairs from the schema (templates × tables × columns), execute every SQL against a test database, keep only pairs that execute and return sensible results. 15,000 examples, near-zero human cost, perfect verification. This is the rare case where synthetic data is high quality — because execution is an objective filter.</p>
+<p><strong>Method:</strong> QLoRA r=16 (narrow task, small output space), 3 epochs. The interesting research question isn't whether it works — it's the <em>data efficiency</em>: how few synthetic examples suffice?</p>
+<p><strong>Evaluation:</strong> execution accuracy on a locked set of 1,000 human-written questions (human-written, because the test must not share the synthetic generator's biases — critical design point). Baselines: base + schema in prompt, base few-shot, fine-tuned. Latency and cost-per-query comparison for the deployment argument.</p>
+<p><strong>Ablations:</strong> synthetic data size {1k, 5k, 15k}, and the key scientific question: does training on synthetic template data generalize to human phrasing? (The train/test distribution gap <em>is</em> the paper.)</p>
+<h2 id="case-study-3-adapting-to-a-low-resource-language-eg-sindhi">Case Study 3: Adapting to a Low-Resource Language (e.g., Sindhi)</h2>
+<p><strong>The problem.</strong> A linguistics PhD student wants an instruction-following model for Sindhi, which the base model barely speaks. Prompting in Sindhi mostly fails; the capability gap is large.</p>
+<p><strong>Behavioral gap + knowledge gap:</strong> the model lacks both Sindhi fluency (knowledge-ish, from pre-training) and instruction-following in Sindhi (behavioral). Honest assessment required: fine-tuning can teach instruction-following <em>in</em> Sindhi far better than it can teach Sindhi <em>itself</em> — if the base model truly barely saw Sindhi in pre-training, expectations must be modest, and continued pre-training on Sindhi text (Chapter 4's full-fine-tuning case) may be needed first.</p>
+<p><strong>Data plan:</strong> two-stage. Stage A: continued pre-training on ~1–2 GB of Sindhi web/books text (full fine-tuning, the legitimate exception). Stage B: instruction tuning on 2,000–5,000 Sindhi instruction pairs, created by translating and natively verifying (translation alone produces "translationese" — have native speakers rewrite, not just check).</p>
+<p><strong>Method:</strong> Stage A full fine-tuning if hardware allows, else high-rank QLoRA (r=64); Stage B QLoRA r=32.</p>
+<p><strong>Evaluation:</strong> Sindhi instruction-following benchmark (built by the student — itself a contribution), native-speaker ratings, regression on English benchmarks (expect some forgetting; report it). Baselines: base model, Stage A only, Stage B only, both.</p>
+<p><strong>Ablations:</strong> the stage ablation (A only vs B only vs A+B) is the paper's core figure — it separates "teaching the language" from "teaching instruction-following," exactly the manners-vs-knowledge framing from Chapter 2.</p>
+<h2 id="common-design-mistakes-learned-from-real-student-projects">Common Design Mistakes (Learned from Real Student Projects)</h2>
+<ol>
+<li><strong>The task is too broad.</strong> "Fine-tune for medicine" fails; "triage-line formatting for Urdu primary-care Q&amp;A" succeeds. Narrow until the data plan is feasible.</li>
+<li><strong>Test data shares the training generator.</strong> Case Study 2's warning generalizes: if your test set was made the same way as your training set, your scores measure self-similarity, not generalization. Human-written or independently-sourced tests only.</l

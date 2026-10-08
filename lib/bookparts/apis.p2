@@ -1,0 +1,526 @@
+ publication students, the portfolio doubles as evidence of transferable skills — "designed and operated five automated data pipelines" is a line that belongs on a CV, and the portfolio is what backs it up in an interview.</p>
+<h3 id="documenting-no-code-workflows">Documenting no-code workflows</h3>
+<p>No-code's weak versioning (Chapter 7's comparison table) is manageable with discipline: export the workflow definition regularly (most platforms offer JSON export), screenshot the flow with step settings visible, and keep a change log — date, what changed, why. Store these next to your other project docs. It isn't git, but it turns "who changed the filter?" from a mystery into a five-minute lookup, and it gives you a migration blueprint if you ever rebuild the flow in code.</p>
+<h3 id="the-exit-strategy">The exit strategy</h3>
+<p>Every no-code workflow should have a documented exit strategy: where its logic lives (exported definition + written spec), what replaces it if the platform raises prices or retires a connector, and how you'd migrate data out. You may never use it — but writing it forces you to keep workflows simple and documented, which pays off regardless. Platform independence is a spectrum, and even a paragraph of exit notes moves you along it.</p>
+<blockquote>
+<p><strong>For your research:</strong> List three admin chores in your research life (tracking applications, logging reading notes, scheduling meetings, monitoring deadlines). For each, run the six-question decision procedure above and write down the verdict: no-code, code, or hybrid — with one sentence of reasoning. This is the beginning of an automation portfolio, and it trains the judgment this chapter is really about: matching tool to task.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- No-code platforms (Zapier, Make, n8n, Power Automate) connect apps visually: trigger → steps → actions, hosted and scheduled for you.
+- No-code wins on speed and app coverage for simple glue; code wins on scale, cost, complex logic, debugging, and reproducibility.
+- n8n is the notable bridge: open-source, self-hostable, with code nodes — good for labs with data-sovereignty needs.
+- Decide with the six questions: linearity, connectors, volume, data complexity, reproducibility, sensitivity.
+- Watch pricing cliffs (prefer webhook triggers over polling), weak versioning, and platform risk; keep a spec of critical workflows.</p>
+<hr />
+<h2 id="chapter-8-error-handling-retries-and-rate-limits">Chapter 8: Error Handling, Retries, and Rate Limits</h2>
+<p>So far our scripts assumed a friendly world: servers answer promptly, data is well-formed, and nobody minds how fast we ask. Production automation lives in a messier world — networks drop, servers have bad days, data surprises you, and every API rations how fast you may call it. This chapter is about building scripts that survive that world: treating failure as a normal, planned-for event rather than an exception to the plan.</p>
+<h3 id="the-failure-taxonomy-what-can-go-wrong">The failure taxonomy: what can go wrong</h3>
+<p>Failures fall into three families, each demanding a different response:</p>
+<ul>
+<li><strong>Transient failures</strong> — temporary and self-healing: network timeouts, <code>503 Service Unavailable</code>, <code>429 Too Many Requests</code>, DNS hiccups. Response: wait and retry.</li>
+<li><strong>Client errors</strong> — your fault, retrying identically will fail identically: <code>400 Bad Request</code> (malformed parameters), <code>401</code> (bad credentials), <code>404</code> (wrong ID), <code>422</code> (validation failed). Response: fix the request, log loudly, do not retry blindly.</li>
+<li><strong>Data errors</strong> — the call succeeded but the payload surprised you: missing fields, unexpected types, empty pages, encoding issues. Response: validate defensively (Chapter 4's <code>.get()</code> habits), quarantine bad records, continue the run.</li>
+</ul>
+<p>The cardinal rule: <strong>never retry a client error without changing something</strong>, and <strong>always bound your retries</strong> — an unbounded retry loop against a dead server is how a small script becomes a denial-of-service incident.</p>
+<h3 id="retries-with-exponential-backoff">Retries with exponential backoff</h3>
+<p>The standard retry strategy is <strong>exponential backoff with jitter</strong>: wait 1 second, then 2, then 4, then 8… plus a small random jitter so that many clients retrying simultaneously do not synchronize into a thundering herd. Retry only transient failures (timeouts, 5xx, 429), cap the attempts (5 is a common default), and log each attempt:</p>
+<pre><code class="language-python">import random, time
+import requests
+
+def get_with_retry(session, url, params=None, max_attempts=5, timeout=15):
+    delay = 1.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            r = session.get(url, params=params, timeout=timeout)
+            if r.status_code == 429 or 500 &lt;= r.status_code &lt; 600:
+                raise requests.exceptions.HTTPError(f&quot;retryable status {r.status_code}&quot;, response=r)
+            r.raise_for_status()
+            return r
+        except (requests.exceptions.Timeout,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.HTTPError) as e:
+            if attempt == max_attempts:
+                raise                                   # out of attempts: fail loudly
+            wait = delay + random.uniform(0, 1)         # exponential + jitter
+            print(f&quot;Attempt {attempt} failed ({e}); retrying in {wait:.1f}s…&quot;)
+            time.sleep(wait)
+            delay *= 2
+</code></pre>
+<p>Note the deliberate choice: <code>raise_for_status()</code> inside the try means genuine client errors (400/401/404) raise <code>HTTPError</code> too — but we only convert 429 and 5xx into retries; other 4xx errors propagate immediately because retrying them is pointless. Distinguishing retryable from fatal is the heart of the function.</p>
+<h3 id="rate-limits-playing-by-the-house-rules">Rate limits: playing by the house rules</h3>
+<p>Every shared API rations usage through <strong>rate limits</strong>: N requests per minute/hour/day, sometimes with separate buckets per endpoint or per key. Providers communicate limits through response headers — commonly <code>X-RateLimit-Limit</code> (your quota), <code>X-RateLimit-Remaining</code> (what is left), and <code>X-RateLimit-Reset</code> (when the window renews, as a Unix timestamp) — and enforce them with <code>429 Too Many Requests</code>, often including a <code>Retry-After</code> header telling you exactly how many seconds to wait.</p>
+<p>A respectful client does four things:</p>
+<ol>
+<li><strong>Reads the documentation's limits first</strong> and designs the harvest to fit (requests per second, daily caps).</li>
+<li><strong>Honors <code>Retry-After</code></strong> when it receives a 429, rather than applying its own guess.</li>
+<li><strong>Checks remaining quota proactively</strong> when doing large jobs, slowing down before hitting zero.</li>
+<li><strong>Identifies itself</strong> with a contact <code>User-Agent</code> (Chapter 2) so the provider can warn rather than block.</li>
+</ol>
+<pre><code class="language-python">import time
+
+def respect_rate_limit(response):
+    remaining = response.headers.get(&quot;X-RateLimit-Remaining&quot;)
+    reset = response.headers.get(&quot;X-RateLimit-Reset&quot;)
+    if remaining is not None and int(remaining) &lt; 5 and reset:
+        sleep_for = max(0, int(reset) - int(time.time()) + 2)
+        print(f&quot;Quota nearly exhausted; sleeping {sleep_for}s…&quot;)
+        time.sleep(sleep_for)
+
+def handle_429(response):
+    retry_after = response.headers.get(&quot;Retry-After&quot;)
+    wait = int(retry_after) if retry_after else 60
+    print(f&quot;Rate limited; waiting {wait}s as instructed…&quot;)
+    time.sleep(wait)
+</code></pre>
+<p>For free scholarly APIs without published headers, the practical rule is simpler: keep a steady, modest pace (a request every second or two), harvest off-peak, and never parallelize aggressively against a free service. Your script's speed is not worth getting your university's IP range throttled.</p>
+<h3 id="pagination-done-right">Pagination done right</h3>
+<p>Chapter 4 showed basic page looping. Production pagination adds three refinements. First, <strong>prefer cursors over page numbers</strong> when the API offers both — cursors survive mid-harvest data changes. Second, <strong>checkpoint your progress</strong>: write completed pages to disk as you go, so a crash on page 87 resumes at page 87 instead of restarting. Third, <strong>validate page integrity</strong>: check that each page's size and ordering look sane, because a silently truncated harvest is worse than a crashed one — it produces confident, wrong datasets.</p>
+<pre><code class="language-python">import json
+
+checkpoint = &quot;harvest_checkpoint.json&quot;
+try:
+    state = json.load(open(checkpoint))          # {&quot;next_cursor&quot;: &quot;...&quot;, &quot;count&quot;: 1234}
+except FileNotFoundError:
+    state = {&quot;next_cursor&quot;: None, &quot;count&quot;: 0}
+
+while True:
+    params = {&quot;cursor&quot;: state[&quot;next_cursor&quot;], &quot;per-page&quot;: 100} if state[&quot;next_cursor&quot;] else {&quot;per-page&quot;: 100}
+    r = get_with_retry(session, url, params=params)
+    respect_rate_limit(r)
+    body = r.json()
+    batch = body.get(&quot;results&quot;, [])
+    append_to_storage(batch)                      # your storage function
+    state[&quot;count&quot;] += len(batch)
+    state[&quot;next_cursor&quot;] = body.get(&quot;meta&quot;, {}).get(&quot;next_cursor&quot;)
+    json.dump(state, open(checkpoint, &quot;w&quot;))       # checkpoint EVERY page
+    if not state[&quot;next_cursor&quot;]:
+        break
+print(f&quot;Harvest complete: {state['count']} records.&quot;)
+</code></pre>
+<p>Checkpointing converts a fragile multi-hour harvest into a resumable one — the difference between "the job failed overnight" being a disaster and being a minor inconvenience.</p>
+<h3 id="timeouts-circuit-breakers-and-graceful-degradation">Timeouts, circuit breakers, and graceful degradation</h3>
+<p>Set timeouts at two levels: per-request (<code>timeout=15</code>) and per-run (an overall deadline after which the job stops and reports partial results). For workflows calling flaky services repeatedly, consider a <strong>circuit breaker</strong>: after N consecutive failures, stop calling the service for a cooldown period and fail fast instead — this protects both you (no wasted hours) and the struggling provider (no pile-on traffic). Even a simple counter-based version ("5 failures in a row → sleep 10 minutes before trying again") captures most of the benefit.</p>
+<p><strong>Graceful degradation</strong> means deciding in advance what a partial success looks like: if the enrichment API is down, do you store unenriched records and flag them, or halt the whole run? For research pipelines, storing raw records with a <code>needs_enrichment</code> flag is usually right — the irreplaceable asset is the collected data; enrichment can be re-run later from the raw log (the same "persist raw first" principle as Chapter 5's webhook receiver).</p>
+<h3 id="logging-failures-for-humans">Logging failures for humans</h3>
+<p>Every retry, skip, quarantine, and abort should be logged with context: timestamp, step name, the request that failed (URL without credentials), the error, and what the script decided to do. Python's <code>logging</code> module, configured once, beats <code>print</code> because it timestamps, levels (INFO/WARNING/ERROR), and routes to files:</p>
+<pre><code class="language-python">import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=&quot;%(asctime)s [%(levelname)s] %(name)s: %(message)s&quot;,
+    handlers=[logging.FileHandler(&quot;harvest.log&quot;), logging.StreamHandler()],
+)
+log = logging.getLogger(&quot;harvest&quot;)
+
+log.warning(&quot;Page 12 returned 0 results unexpectedly; continuing.&quot;)
+log.error(&quot;Authentication failed (401); aborting run — check RESEARCH_API_TOKEN.&quot;)
+</code></pre>
+<p>A log file is the difference between "the script broke" and "the script broke at step 3 on record 4,112 because the API returned HTML instead of JSON, and here is the exact timestamp to correlate with the provider's status page." Chapter 9 builds monitoring on top of these logs.</p>
+<h3 id="going-deeper-validating-responses-bulkheads-and-failure-drills">Going deeper: validating responses, bulkheads, and failure drills</h3>
+<p>Retries handle failures you <em>detect</em>; <strong>response validation</strong> catches failures that look like success. An API can return 200 with an HTML error page (a proxy hiccup), a truncated body, or a schema it changed overnight. A lightweight shape check before processing turns silent corruption into a loud, catchable error:</p>
+<pre><code class="language-python">def validate_work_payload(body):
+    if not isinstance(body, dict) or &quot;results&quot; not in body:
+        raise ValueError(f&quot;unexpected response shape: {str(body)[:200]}&quot;)
+    if not isinstance(body[&quot;results&quot;], list):
+        raise ValueError(&quot;results is not a list&quot;)
+    return body
+</code></pre>
+<p>Run every response through a validator matched to what the code actually consumes. It's five lines that have saved many datasets.</p>
+<p><strong>Bulkheads</strong> — borrowed from shipbuilding — isolate failures so one bad dependency can't sink the whole workflow. In practice: separate sessions (and separate retry budgets) per external service, so a slow geocoding API can't starve the main harvest of threads or time; per-step timeouts in addition to per-request ones; and for concurrent work, bounded worker pools rather than unbounded threads. If step 3 of 5 depends on a flaky service, the bulkhead lets steps 1–2 bank their results safely while step 3 retries on its own.</p>
+<p>A <strong>dead-letter queue</strong> is where hopeless items go instead of blocking the run: records that fail validation after retries, events that can't be processed, API calls that exhaust the retry budget. Implement it as simply as an append-only file or table storing the raw item plus the error and timestamp. The discipline that makes it work is the <strong>review ritual</strong>: someone looks at the dead-letter file weekly, fixes systemic causes (a changed schema, a bad mapping rule), and replays the fixable items. Without the ritual, a dead-letter queue is just a trash can; with it, it's a diagnostic instrument.</p>
+<p>Finally, run <strong>failure drills</strong> the way pilots run simulator sessions. Quarterly, pick a workflow and break it on purpose in a safe environment: revoke a test credential, return garbage from a mock endpoint, kill the network mid-harvest. Watch what happens. Every drill teaches you something the happy path never will — usually that an alert goes to the wrong address, a log is missing the crucial field, or the runbook's first step is outdated. Update the runbook after each drill; that's the drill's real output.</p>
+<h3 id="going-deeper-pagination-edge-cases-and-the-429-playbook">Going deeper: pagination edge cases and the 429 playbook</h3>
+<p>Pagination has sharp edges worth knowing. <strong>Inconsistent page sizes</strong>: the last page is short (normal), but some APIs also return short pages mid-result when under load — never treat a short page as the end; only an empty page or an absent cursor means "done." <strong>Total counts lie</strong>: the <code>meta.count</code> many APIs report is often an estimate that shifts as you page — use it for progress display, never as a loop bound. <strong>Deep paging degrades</strong>: page 1,000 can be slower and less consistent than page 1; cursor pagination exists precisely to avoid this, so prefer it for harvests beyond a few thousand records.</p>
+<p>Keep a <strong>429 playbook</strong> — a fixed procedure your code follows every time it's throttled:</p>
+<ol>
+<li>Read the <code>Retry-After</code> header; if present, sleep exactly that long.</li>
+<li>If absent, sleep 60 seconds and retry the same request (not the whole job — checkpointing means you resume mid-harvest).</li>
+<li>On the third consecutive 429, double the politeness delay for the rest of the run and log a warning — you're systematically over the limit, not unlucky.</li>
+<li>Alert (don't just log) if throttling persists beyond 15 minutes — something changed upstream, and a human should check the provider's status page.</li>
+</ol>
+<p>And know the <strong>politeness ladder</strong> for free scholarly APIs: 1 request/second is safe nearly everywhere; 2–5/second is fine for many; beyond that, check the docs or ask. Parallel requests multiply your effective rate — four workers at 1/second each is 4/second total. When in doubt, be the courteous guest: these free services run on goodwill and grants, and researchers who harvest politely keep them alive for everyone.</p>
+<h3 id="going-deeper-status-pages-changelogs-and-the-sunset-header">Going deeper: status pages, changelogs, and the Sunset header</h3>
+<p>When an API misbehaves, check the <strong>provider's status page</strong> before debugging your code — most serious providers publish one, and a surprising share of "my script broke" incidents are upstream outages. Bookmark the status pages of every API you depend on; better, subscribe to their incident feeds where offered. Equally important over longer timescales: <strong>deprecation signals</strong>. Responsible APIs announce breaking changes via changelogs, email lists, and the <code>Sunset</code> HTTP response header (RFC 8594), which names the date an endpoint will stop working. Treat any <code>Sunset</code> header or deprecation notice as a scheduled task: diary it, plan the migration, and don't discover the shutdown on the morning it happens. Finally, keep a <strong>dependency watch</strong> habit: quarterly, re-read the changelog of each API you automate against. Ten minutes every three months prevents the archetypal automation failure — code that worked for a year dying silently because v1 was retired.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take any script from Chapters 4–6 and harden it: wrap its API calls in the retry function above, add checkpointing to its longest loop, and replace its <code>print</code> statements with proper logging. Then deliberately break it — disconnect your network mid-run, revoke a test token, point it at a bad URL — and watch it behave. The confidence you gain from watching a script fail <em>well</em> is what lets you trust automation with real work.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Classify failures: transient (retry), client errors (fix, don't blindly retry), data errors (validate, quarantine, continue).
+- Retry with exponential backoff + jitter, bounded attempts, and only for retryable failures; never retry 4xx blindly.
+- Respect rate limits: read docs, honor <code>Retry-After</code>, watch quota headers, keep a polite pace on free APIs.
+- Paginate with cursors when available; checkpoint every page so long harvests are resumable.
+- Persist raw data first; enrich later. Log every failure with context. Design partial success deliberately.</p>
+<hr />
+<h2 id="chapter-9-scheduling-and-monitoring-your-automations">Chapter 9: Scheduling and Monitoring Your Automations</h2>
+<p>A script you run by hand is a tool; a script that runs itself, handles its own failures, and tells you when it needs attention is <em>infrastructure</em>. This chapter covers the two disciplines that complete that transformation: <strong>scheduling</strong> (running jobs automatically at the right times) and <strong>monitoring</strong> (knowing they ran, knowing they are healthy, and being alerted when they are not).</p>
+<h3 id="scheduling-options-from-simplest-upward">Scheduling options, from simplest upward</h3>
+<p><strong>cron</strong> is the classic Unix scheduler — a timetable that runs commands at specified minutes, hours, days. A line in your crontab like <code>0 7 * * *</code> means "at 07:00 every day," and the command can be your Python script:</p>
+<pre><code class="language-bash"># crontab entry: run the citation digest every weekday at 07:00
+0 7 * * 1-5 /usr/bin/python3 /home/you/automation/cite_digest.py &gt;&gt; /home/you/automation/logs/cite_digest.log 2&gt;&amp;1
+</code></pre>
+<p>cron is simple, free, and everywhere — ideal for a personal workstation or a lab server that stays on. Its weaknesses: it assumes the machine is awake at the scheduled time (laptops sleep), it has no built-in retry or dependency handling, and its failure notifications are limited to local email. Always use absolute paths in cron jobs (cron's environment is minimal), and redirect output to a log file — a cron job whose output goes nowhere is unobservable.</p>
+<p><strong>OS-level schedulers</strong> fill the non-Unix gaps: Windows Task Scheduler and macOS's <code>launchd</code> both run programs on timetables with options like "run when the machine wakes" or "retry if missed." <strong>Managed schedulers</strong> — GitHub Actions' scheduled workflows, cloud cron services, or a platform like n8n's scheduler — run your jobs on someone else's always-on infrastructure, which solves the sleeping-laptop problem and usually adds run history and notifications. GitHub Actions is a particularly researcher-friendly option: your automation script lives in a repository, a workflow file schedules it, secrets live in the repo's encrypted secret store, and every run is logged and visible.</p>
+<p>For workflows with dependencies ("run the harvest, and only if it succeeds, run the analysis, then the report"), step up to a <strong>workflow orchestrator</strong> (Apache Airflow, Prefect, or even a Makefile for simple chains). Orchestrators model pipelines as directed graphs of tasks with retries, alerting, and backfill — overkill for a daily digest, essential for a multi-stage data pipeline feeding a thesis.</p>
+<h3 id="designing-the-schedule-deliberately">Designing the schedule deliberately</h3>
+<p>Two questions determine every schedule. <strong>How fresh must the data be?</strong> A citation digest is fine daily; a conference-deadline tracker might be weekly; a sensor-monitoring workflow might be every 15 minutes. Match frequency to genuine need — each run costs API quota, compute, and log storage. <strong>When should it run?</strong> Prefer off-peak hours for heavy harvests (be kind to free APIs), avoid running exactly on the hour (everyone else's cron fires then — the :07 or :23 is less contended), and consider time zones: "7am" means something different to the server than to you. Document the schedule and its reasoning in the workflow's README; "why daily?" is a question your future self will ask.</p>
+<h3 id="monitoring-the-four-signals">Monitoring: the four signals</h3>
+<p>A monitored automation answers four questions at all times:</p>
+<ol>
+<li><strong>Did it run?</strong> (liveness) — A job that silently stops running is the most dangerous failure. Track the last successful run timestamp; alert if it goes stale.</li>
+<li><strong>Did it succeed?</strong> (correctness) — Exit code 0 and no ERROR lines in the log. Non-zero exit or error keywords trigger investigation.</li>
+<li><strong>Did it do the expected amount of work?</strong> (volume) — A harvest that usually collects 300 records and today collected 3 is suspicious even with exit code 0. Log counts and compare against rough expectations.</li>
+<li><strong>How long did it take?</strong> (performance) — A job drifting from 10 minutes to 3 hours signals a problem (API slowdown, growing data, a stuck page loop).</li>
+</ol>
+<p>Implementing this need not be elaborate. A <strong>health-check file</strong> pattern covers liveness and basic correctness with almost no infrastructure:</p>
+<pre><code class="language-python">import json, datetime, sys
+
+HEALTH_FILE = &quot;health.json&quot;
+
+def report_health(status, detail=&quot;&quot;):
+    json.dump({
+        &quot;last_run&quot;: datetime.datetime.utcnow().isoformat(),
+        &quot;status&quot;: status,          # &quot;ok&quot;, &quot;warning&quot;, &quot;error&quot;
+        &quot;detail&quot;: detail,
+    }, open(HEALTH_FILE, &quot;w&quot;))
+
+def main():
+    try:
+        count = run_workflow()     # your workflow; returns records processed
+        if count == 0:
+            report_health(&quot;warning&quot;, &quot;run succeeded but collected 0 records&quot;)
+        else:
+            report_health(&quot;ok&quot;, f&quot;collected {count} records&quot;)
+    except Exception as e:
+        report_health(&quot;error&quot;, str(e))
+        raise                      # non-zero exit so the scheduler marks failure
+</code></pre>
+<p>A second tiny script — or a no-code check — reads <code>health.json</code> daily and messages you if <code>last_run</code> is stale or <code>status</code> is <code>error</code>. This two-file pattern (worker + watcher) is monitoring in its most honest form: the worker reports, the watcher verifies, and silence from either is itself a signal.</p>
+<h3 id="alerting-without-alert-fatigue">Alerting without alert fatigue</h3>
+<p>Alerts should be rare, actionable, and specific. "Citation digest failed: 401 from api.openalex.org at 07:03 — check credentials" gets fixed; a daily "job completed successfully" email gets filtered into oblivion and trains you to ignore the channel — so when a real failure arrives in the same channel, you miss it. Good alerting rules:</p>
+<ul>
+<li>Alert on <strong>failure and on silence</strong> (no successful run within 1.5× the schedule interval).</li>
+<li>Include <strong>what failed, when, and the most likely fix</strong> in the message; link the log file.</li>
+<li><strong>Aggregate</strong>: one message per incident, not one per retry attempt.</li>
+<li>Keep a <strong>runbook</strong>: a short note per workflow — "if the digest fails with 401, the token expired; regenerate at this URL and update the secret store." Your 2am self will thank you.</li>
+</ul>
+<p>For delivery, email works, but chat webhooks (a POST to a team channel's incoming-webhook URL — Chapter 5 in reverse) are often better: visible to the whole lab, searchable, and easy to thread discussions around.</p>
+<h3 id="logs-as-a-first-class-asset">Logs as a first-class asset</h3>
+<p>Chapter 8 introduced logging for failures; monitoring extends it to runs. Keep structured, timestamped logs per run (one file per date is a simple scheme), retain them long enough to diagnose trends (weeks, not hours), and log the numbers that matter: records fetched, records stored, records quarantined, duration, quota remaining. When your supervisor asks "how did you build this dataset?" — or a reviewer asks — those logs plus the versioned script are your provenance record. Reproducibility is not just about code; it is about evidence that the code ran as claimed.</p>
+<h3 id="going-deeper-scheduling-on-github-actions-a-complete-example">Going deeper: scheduling on GitHub Actions — a complete example</h3>
+<p>For researchers, <strong>GitHub Actions</strong> scheduled workflows hit a sweet spot: the code lives in a repository, the schedule is a versioned YAML file, secrets live in the repo's encrypted secret store, and every run leaves a visible log. Here's a complete workflow file (<code>.github/workflows/observatory.yml</code>) for the capstone project:</p>
+<pre><code class="language-yaml">name: field-observatory
+on:
+  schedule:
+    - cron: &quot;30 6 * * *&quot;      # 06:30 UTC daily (&quot;30 6&quot; = minute 30, hour 6)
+  workflow_dispatch:          # also allow manual runs from the Actions tab
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: &quot;3.12&quot;
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run observatory
+        env:
+          RESEARCH_API_TOKEN: ${{ secrets.RESEARCH_API_TOKEN }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python observatory.py
+      - name: Upload logs
+        if: always()                       # keep logs even when the run fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/
+</code></pre>
+<p>Key details: <code>workflow_dispatch</code> gives you a manual "run now" button for testing; secrets are referenced as <code>${{ secrets.NAME }}</code> and never appear in logs (GitHub redacts them automatically); the log-upload step with <code>if: always()</code> preserves evidence from failed runs. Cron in Actions uses UTC — convert your desired local time accordingly, and remember Pakistan (PKT, UTC+5) doesn't observe daylight saving, so the offset is stable year-round.</p>
+<p><strong>Log retention</strong> deserves a deliberate policy: keep detailed per-run logs for 30–90 days (long enough to diagnose trends and answer questions), then archive or delete. On a VM, a tiny <code>logrotate</code> configuration or a cleanup snippet in the workflow prevents the classic failure of a disk filled by years of logs. And for the health-watcher pattern from this chapter, note that Actions itself can be the watcher: a second scheduled workflow that reads the first workflow's recent run status via the GitHub API and messages you on failure — monitoring composed from the same primitives as the work itself.</p>
+<h3 id="going-deeper-the-watcher-monitoring-on-a-budget">Going deeper: the watcher — monitoring on a budget</h3>
+<p>Chapter 9 introduced the health-file pattern; here is the other half — the <strong>watcher script</strong> that reads it and raises the alarm. It runs on its own schedule (slightly less frequent than the workflow it watches) and checks two things: freshness and status.</p>
+<pre><code class="language-python"># watcher.py: alert if the observatory has not reported healthy recently.
+import json, os, smtplib, datetime
+from email.message import EmailMessage
+
+HEALTH_FILE = &quot;state/health.json&quot;
+MAX_AGE_HOURS = 30          # workflow runs daily; 30h of silence is suspicious
+
+def send_alert(subject, body):
+    msg = EmailMessage()
+    msg[&quot;Subject&quot;] = subject
+    msg[&quot;From&quot;] = os.environ[&quot;SMTP_USER&quot;]
+    msg[&quot;To&quot;] = os.environ[&quot;ALERT_TO&quot;]
+    msg.set_content(body)
+    with smtplib.SMTP(os.environ[&quot;SMTP_HOST&quot;], 587) as s:
+        s.starttls()
+        s.login(os.environ[&quot;SMTP_USER&quot;], os.environ[&quot;SMTP_PASS&quot;])
+        s.send_message(msg)
+
+def main():
+    try:
+        health = json.load(open(HEALTH_FILE))
+    except FileNotFoundError:
+        return send_alert(&quot;WATCHER: no health file&quot;,
+                          &quot;The workflow has never reported. Check the scheduler.&quot;)
+    age = datetime.datetime.utcnow() - datetime.datetime.fromisoformat(health[&quot;last_run&quot;])
+    if age &gt; datetime.timedelta(hours=MAX_AGE_HOURS):
+        send_alert(&quot;WATCHER: stale workflow&quot;,
+                   f&quot;Last healthy run {age} ago. Check the scheduler and logs.&quot;)
+    elif health[&quot;status&quot;] == &quot;error&quot;:
+        send_alert(&quot;WATCHER: workflow reported error&quot;, health.get(&quot;detail&quot;, &quot;&quot;))
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+<p>Schedule the watcher with its own cron line or Actions workflow, offset from the main job. Note the deliberate asymmetry: the worker writes health, the watcher reads it, and the watcher itself is simple enough to rarely fail — but do give the watcher a heartbeat too (even a weekly "watcher alive" log line you glance at). Monitoring the monitor sounds recursive, but one level of it is exactly right: it bounds the "who watches the watcher" problem at a point where failure is visible and cheap.</p>
+<h3 id="going-deeper-writing-the-runbook">Going deeper: writing the runbook</h3>
+<p>Every scheduled workflow needs a <strong>runbook</strong> — the document a half-asleep human follows at 2am. Keep it to one page with five sections: <strong>1. What this does</strong> (one paragraph). <strong>2. Normal signs</strong> (what a healthy run's log looks like; expected record counts and duration). <strong>3. Common failures</strong> — a table of symptom → likely cause → fix: e.g., "401 on all requests → token expired → regenerate at <URL>, update secret store, re-run"; "0 records three days running → upstream schema change → check changelog, update mapper"; "stale health file → scheduler down → check cron/Actions status." <strong>4. Dangerous actions</strong> (what NOT to do — "don't delete state/seen_ids.json; you'll re-notify everything"). <strong>5. Contacts and links</strong> (provider status page, credential revocation URLs, who owns this). Write the runbook when the workflow is fresh in your mind, update it after every incident drill, and store it next to the code. A workflow with a runbook is infrastructure; without one, it's a personal mystery.</p>
+<h3 id="daylight-saving-and-schedule-drift">Daylight saving and schedule drift</h3>
+<p>Cron runs on system time, and most servers use UTC — which is why the Actions example uses UTC cron. If your server uses local time in a region with daylight saving, a 07:00 job silently becomes 06:00 or 08:00 twice a year. Pakistan (PKT, UTC+5) doesn't observe DST, so local scheduling is stable there — but any collaborator's server or cloud scheduler elsewhere may shift. Prefer UTC everywhere for scheduled automation, convert to local time only for display, and note the timezone next to every schedule in the README.</p>
+<blockquote>
+<p><strong>For your research:</strong> Pick your most useful script from earlier chapters and schedule it: cron on a machine that stays on, or a scheduled GitHub Actions workflow. Add the health-file reporting, and set up one alert (email or chat message) for failure-or-silence. Run it for two weeks. The operational lessons — a token expiring, a daylight-saving shift, a log file filling a disk — are the ones that turn a scripter into someone who runs reliable infrastructure.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Schedule with the right tool for the job: cron for simple always-on machines, OS schedulers for laptops, managed schedulers (GitHub Actions) for visibility, orchestrators for dependent pipelines.
+- Match frequency to genuine freshness needs; run heavy harvests off-peak and off the hour.
+- Monitor four signals: liveness (did it run?), correctness (did it succeed?), volume (expected amount of work?), performance (expected duration?).
+- The worker-reports / watcher-verifies pattern (health file + staleness check) is simple, robust monitoring.
+- Alert rarely and specifically — on failure and on silence — with the likely fix included; keep a runbook per workflow.
+- Logs are provenance: structured, timestamped, retained — they back your methods section.</p>
+<hr />
+<h2 id="chapter-10-mapping-and-transforming-data-between-systems">Chapter 10: Mapping and Transforming Data Between Systems</h2>
+<p>APIs give you data; different APIs describe the <em>same reality</em> in <em>different shapes</em>. One service calls it <code>author</code>, another <code>creator</code>, a third <code>authors[]</code>; one stores dates as <code>2026-10-08</code>, another as <code>08/10/2026</code>, a third as a Unix timestamp; one identifies a paper by DOI, another by an internal ID, a third by title string. <strong>Data mapping and transformation</strong> — converting data from system A's conventions to system B's — is the unglamorous work that determines whether chained workflows actually work. This chapter makes it systematic.</p>
+<h3 id="the-mapping-mindset">The mapping mindset</h3>
+<p>Treat every system boundary as a translation problem. Before writing code, build a <strong>field map</strong>: a simple table listing each source field, its format, the destination field, and the transformation rule:</p>
+<table>
+<thead>
+<tr>
+<th>Source (OpenAlex)</th>
+<th>Format</th>
+<th>Destination (lab DB)</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td>string</td>
+<td><code>paper_title</code></td>
+<td>strip whitespace; title-case not applied (preserve original)</td>
+</tr>
+<tr>
+<td><code>publication_year</code></td>
+<td>int</td>
+<td><code>year</code></td>
+<td>direct copy; must be 1900–2100</td>
+</tr>
+<tr>
+<td><code>doi</code></td>
+<td>URL string</td>
+<td><code>doi</code></td>
+<td>strip <code>https://doi.org/</code> prefix; lowercase</td>
+</tr>
+<tr>
+<td><code>authorships[].author.display_name</code></td>
+<td>nested list</td>
+<td><code>authors</code></td>
+<td>join with <code>;</code>; max 500 chars</td>
+</tr>
+<tr>
+<td><code>cited_by_count</code></td>
+<td>int</td>
+<td><code>citation_count</code></td>
+<td>direct copy</td>
+</tr>
+<tr>
+<td><code>primary_location.source.display_name</code></td>
+<td>nested, nullable</td>
+<td><code>journal</code></td>
+<td><code>None</code> → <code>"Unknown"</code></td>
+</tr>
+</tbody>
+</table>
+<p>Writing this table takes twenty minutes and prevents the most common integration bug: assuming fields line up when they do not. It also becomes documentation — future you (or a lab mate) can see exactly what each transformation decided.</p>
+<h3 id="transformation-functions-small-pure-tested">Transformation functions: small, pure, tested</h3>
+<p>Implement each row of the map as a small <strong>pure function</strong> (same input → same output, no side effects). Pure functions are trivially testable, which matters because transformations encode judgment calls that deserve verification:</p>
+<pre><code class="language-python">import re
+from datetime import datetime
+
+def clean_doi(raw):
+    &quot;&quot;&quot;Normalize any DOI-ish string to bare lowercase '10.xxxx/...' form.&quot;&quot;&quot;
+    if not raw:
+        return None
+    doi = raw.strip().lower()
+    doi = re.sub(r&quot;^https?://(dx\.)?doi\.org/&quot;, &quot;&quot;, doi)
+    return doi if doi.startswith(&quot;10.&quot;) else None
+
+def parse_date_flexible(raw):
+    &quot;&quot;&quot;Accept several date formats; return ISO 'YYYY-MM-DD' or None.&quot;&quot;&quot;
+    if not raw:
+        return None
+    for fmt in (&quot;%Y-%m-%d&quot;, &quot;%d/%m/%Y&quot;, &quot;%m/%d/%Y&quot;, &quot;%Y-%m&quot;, &quot;%Y&quot;):
+        try:
+            return datetime.strptime(raw.strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+def join_authors(authorships, sep=&quot;; &quot;):
+    names = [a.get(&quot;author&quot;, {}).get(&quot;display_name&quot;, &quot;&quot;).strip()
+             for a in (authorships or [])]
+    return sep.join(n for n in names if n) or None
+</code></pre>
+<p>Then compose them into a record-level mapper:</p>
+<pre><code class="language-python">def map_openalex_to_labdb(work):
+    return {
+        &quot;paper_title&quot;: (work.get(&quot;title&quot;) or &quot;&quot;).strip() or None,
+        &quot;year&quot;: work.get(&quot;publication_year&quot;),
+        &quot;doi&quot;: clean_doi(work.get(&quot;doi&quot;)),
+        &quot;authors&quot;: join_authors(work.get(&quot;authorships&quot;)),
+        &quot;citation_count&quot;: work.get(&quot;cited_by_count&quot;, 0),
+        &quot;journal&quot;: ((work.get(&quot;primary_location&quot;) or {}).get(&quot;source&quot;) or {}).get(&quot;display_name&quot;),
+        &quot;retrieved_at&quot;: datetime.utcnow().isoformat(),
+    }
+</code></pre>
+<p>Test each function with a handful of tricky inputs (empty strings, <code>None</code>, malformed dates, Unicode names) — a five-minute test script catches the edge cases that would otherwise corrupt thousands of records silently.</p>
+<h3 id="identifiers-the-hard-problem">Identifiers: the hard problem</h3>
+<p>The deepest mapping challenge is <strong>identity</strong>: deciding that record A in system 1 and record B in system 2 describe the same real-world entity. Prefer <strong>stable external identifiers</strong> wherever they exist: DOIs for papers, ORCID iDs for researchers, ISBNs for books, ROR IDs for institutions. These are designed to be unambiguous and persistent — matching on DOI beats matching on title every time.</p>
+<p>When no shared identifier exists, fall back to <strong>fuzzy matching</strong> with explicit confidence rules: normalize (lowercase, strip punctuation), compare on multiple fields (title + year + first author), and set a threshold above which you auto-match, below which you quarantine for human review — never auto-merge on a weak match. Record <em>how</em> each match was made (which identifier, which rule, what score) in a provenance column; "these two records were merged because DOIs matched" is auditable, "the script thought they looked similar" is not.</p>
+<p>Deduplication within a single harvest follows the same logic: key records on the strongest available identifier, keep the first (or best) copy, and log duplicates rather than silently dropping them — a sudden spike in duplicates often signals an upstream data change worth knowing about.</p>
+<h3 id="handling-schema-drift">Handling schema drift</h3>
+<p>APIs evolve: fields get renamed, deprecated, or restructured, and your mapper breaks. Defend with three habits. First, <strong>pin and record the API version</strong> you built against (many APIs version via URL path like <code>/v1/</code> or a header). Second, <strong>validate incoming shapes</strong> before mapping — a lightweight check that expected top-level keys exist, logging a loud warning when they do not, so drift announces itself instead of corrupting data quietly. Third, <strong>keep the raw payloads</strong> (Chapter 4's advice again): if the schema changes, you can re-run the updated mapper over stored raw data instead of re-harvesting.</p>
+<h3 id="character-encoding-and-the-usual-suspects">Character encoding and the usual suspects</h3>
+<p>A short field guide to the transformation bugs that ambush researchers: <strong>encoding</strong> (assume UTF-8 everywhere; when reading files, specify <code>encoding="utf-8"</code> explicitly rather than trusting platform defaults); <strong>whitespace</strong> (strip it; also watch non-breaking spaces in copy-pasted data); <strong>numbers as strings</strong> (<code>"2026"</code> vs <code>2026</code> — convert deliberately); <strong>booleans as strings</strong> (<code>"true"</code>, <code>"True"</code>, <code>"1"</code>, <code>"yes"</code> — normalize to real booleans); <strong>empty vs missing</strong> (decide whether <code>""</code>, <code>null</code>, and absent mean different things in your destination, and document the choice); <strong>time zones</strong> (store timestamps in UTC with the offset or a <code>Z</code> suffix; convert to local time only for display). Each of these has corrupted a real dataset; the defense is always the same — explicit conversion functions, tested on hostile inputs.</p>
+<h3 id="going-deeper-a-worked-merge-unifying-two-bibliographic-exports">Going deeper: a worked merge — unifying two bibliographic exports</h3>
+<p>Theory solidifies with a full example. Suppose you have <code>library.csv</code> (your reference manager export: title, year, DOI, journal) and <code>harvest.json</code> (API results). The merge job: unify on DOI, fill gaps, log conflicts.</p>
+<pre><code class="language-python">import csv, json
+
+def load_library(path):
+    rows = {}
+    with open(path, encoding=&quot;utf-8&quot;) as f:
+        for r in csv.DictReader(f):
+            doi = clean_doi(r.get(&quot;doi&quot;))
+            if doi:
+                rows[doi] = {&quot;title&quot;: r.get(&quot;title&quot;, &quot;&quot;).strip(),
+                             &quot;year&quot;: r.get(&quot;year&quot;, &quot;&quot;).strip(),
+                             &quot;journal&quot;: r.get(&quot;journal&quot;, &quot;&quot;).strip(),
+                             &quot;source&quot;: &quot;library&quot;}
+    return rows
+
+def merge(library, harvested):
+    merged, conflicts, unmatched = {}, [], []
+    for work in harvested:
+        doi = clean_doi(work.get(&quot;doi&quot;))
+        mapped = map_openalex_to_labdb(work)
+        if not doi:
+            unmatched.append(mapped)          # no DOI: human review pile
+            continue
+        if doi in library:
+            lib = library[doi]
+            rec = {&quot;doi&quot;: doi, &quot;source&quot;: &quot;both&quot;}
+            for field in (&quot;title&quot;, &quot;year&quot;, &quot;journal&quot;):
+                a, b = (lib.get(field) or &quot;&quot;), (mapped.get(field) or &quot;&quot;)
+                if a and b and str(a).lower() != str(b).lower():
+                    conflicts.append({&quot;doi&quot;: doi, &quot;field&quot;: field,
+                                      &quot;library&quot;: a, &quot;harvested&quot;: b})
+                rec[field] = a or b           # prefer library, fill from harvest
+            merged[doi] = rec
+        else:
+            mapped[&quot;source&quot;] = &quot;harvest-only&quot;
+            merged[doi] = mapped
+    return merged, conflicts, unmatched
+</code></pre>
+<p>Three decisions are doing quiet work here. <strong>Conflict policy is explicit</strong>: mismatches go to a review list with both values shown — never silently overwritten, never silently kept. <strong>Provenance is recorded</strong>: every merged record notes whether it came from the library, the harvest, or both, so any number in the final dataset is traceable. <strong>The unmatched pile is a first-class output</strong>: records without DOIs aren't dropped; they're queued for the fuzzy-matching pass or manual review from Chapter 10.</p>
+<p><strong>Controlled vocabularies</strong> deserve a mention as the long-term fix for merge pain. Wherever you control data entry — your lab's sample IDs, survey codebooks, file-naming conventions — define the allowed values up front (a simple list in the README, or an enum in code) and validate against it at ingest. Every hour spent on vocabulary discipline saves ten in dedupe and mapping later. For units, normalize at the boundary: convert everything to SI on ingest (<code>kWh</code> → <code>J</code>, <code>°F</code> → <code>°C</code>) with a named conversion function, and record the original unit alongside — because "was that Celsius or Fahrenheit?" is a question you never want to ask of a two-year-old dataset.</p>
+<h3 id="going-deeper-mapping-survey-data-scales-codebooks-and-multi-selects">Going deeper: mapping survey data — scales, codebooks, and multi-selects</h3>
+<p>Bibliographic merging was one domain; <strong>survey and field data</strong> is the other mapping-heavy area researchers automate. The same principles apply, with domain-specific traps. <strong>Likert scales</strong>: one system exports "Strongly agree…Strongly disagree" as text, another as 5…1, a third as 1…5 reversed. Your mapper must normalize to one convention <em>and record the direction</em> — a silently flipped scale inverts your findings. Write the mapping as an explicit dictionary, not arithmetic: <code>{"Strongly disagree": 1, ...}</code> is auditable; <code>6 - x</code> is a puzzle.</p>
+<p><strong>Codebooks</strong>: survey tools export choice labels ("Daily") while your analysis needs codes (<code>7</code>). Keep a codebook file (CSV or JSON) mapping every label to its code, version it with the project, and validate incoming labels against it — a new label appearing mid-collection (someone edited the form) should raise an alert, not silently become <code>None</code>. <strong>Multi-select questions</strong> arrive as delimiter-joined strings (<code>"Solar;Wind;Hydro"</code>) or boolean columns per option; normalize to one representation (a list, or a set of boolean columns — pick one and document it) at ingest, because mixed representations downstream are a constant source of wrong counts.</p>
+<p><strong>Timestamps from survey tools</strong> deserve special care: they may be in the respondent's timezone, the server's, or UTC, and the export rarely says which. Determine it once (submit a test response and compare), convert to UTC at ingest with the zone recorded, and never do timezone arithmetic in analysis code. Like units, like scales: normalize at the boundary, record the original, move on.</p>
+<h3 id="going-deeper-flat-or-nested-choosing-your-storage-shape">Going deeper: flat or nested — choosing your storage shape</h3>
+<p>Mapping decisions don't end at field names; the <strong>storage shape</strong> matters too. <strong>Flat CSV</strong> is unbeatable for analysis: every tool reads it, pandas loves it, supervisors can open it. But CSV flattens nested data lossily — a paper's five authors become one joined string, and the structure is gone. <strong>JSON Lines (JSONL)</strong> preserves nesting (one JSON object per line) and appends cleanly, making it ideal as the raw/mapped archive; pandas reads it with <code>read_json(lines=True)</code>. The professional pattern is <strong>both</strong>: JSONL as the durable, append-only record of what was collected, CSV as the flattened, analysis-ready snapshot regenerated from it. Never treat the CSV as the source of truth — if you need a new column or a different flattening, regenerate from JSONL rather than re-harvesting. Storage is cheap; re-harvesting politely is slow, and re-harvesting rudely gets you throttled.</p>
+<h3 id="validating-the-merged-result">Validating the merged result</h3>
+<p>After any merge, run sanity checks before trusting the output: row counts (merged ≈ library + harvest-only − overlaps), spot-check ten random records against the sources, verify no DOI appears twice, and confirm value distributions look plausible (years within range, no empty titles). Save these checks as a small script and run it after every merge — data pipelines rot quietly, and a five-minute validation is the cheapest quality gate in research computing.</p>
+<h3 id="mapping-as-living-documentation">Mapping as living documentation</h3>
+<p>Treat your field map (Chapter 10's table) as a living document, not a one-time sketch. When the source API adds a field, when the destination schema changes, when a transformation rule proves wrong — update the table first, then the code. Teams that do this find onboarding new members takes hours instead of weeks, because the table answers "what does this pipeline believe about the data?" at a glance. Version it with the code; review it in the same pull request.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take two exports describing the same items — e.g., a spreadsheet of papers from your reference manager and a CSV harvested from an API — and write a mapper that merges them on DOI, filling gaps in each from the other. Log every conflict (same DOI, different year) to a review file instead of resolving it silently. That conflict log is often where the interesting data-quality discoveries hide, and the merge script is directly reusable for systematic-review screening stages.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Every system boundary is a translation problem: write the field map table before writing code.
+- Implement transformations as small pure functions; test them on hostile inputs (None, empty, malformed, Unicode).
+- Match entities on stable external identifiers (DOI, ORCID, ROR) first; fuzzy-match only with explicit thresholds and human review below them.
+- Record match provenance; log duplicates instead of silently dropping them.
+- Defend against schema drift: pin API versions, validate incoming shapes loudly, keep raw payloads for re-mapping.
+- Normalize encoding (UTF-8), whitespace, number/boolean strings, and time zones explicitly — never by accident.</p>
+<hr />
+<h2 id="chapter-11-security-best-practices-for-api-automation">Chapter 11: Security Best Practices for API Automation</h2>
+<p>Automation multiplies your power — and multiplies the blast radius of a mistake. A script holding your credentials, running unattended, touching production data, is a high-value target and a potent accident vector. This chapter collects the security practices that separate professional automation from a liability: least privilege, secret hygiene, transport security, input validation, and auditability. None of this requires security expertise — only discipline.</p>
+<h3 id="threat-model-what-are-you-defending-against">Threat model: what are you defending against?</h3>
+<p>Be concrete about the risks, because vague fear produces vague defenses:</p>
+<ul>
+<li><strong>Credential theft</strong> — a leaked API key lets an attacker act as you: read private data, spend quota, corrupt or delete resources.</li>
+<li><strong>Accidental damage</strong> — your own script, with broad permissions and a bug, deletes or overwrites the wrong records at machine speed.</li>
+<li><strong>Data exposure</strong> — participant data, unpublished findings, or personal information flowing through logs, error messages, or third-party platforms.</li>
+<li><strong>Supply-chain compromise</strong> — a malicious or hijacked library in your dependency tree running inside your automation with your credentials.</li>
+<li><strong>Repudiation gaps</strong> — something changed and nobody can say which script, run, or credential did it.</li>
+</ul>
+<p>Each practice below maps to one or more of these. Security is not paranoia; it is matching defenses to plausible failures.</p>
+<h3 id="least-privilege-everywhere">Least privilege, everywhere</h3>
+<p>Give every credential and every script the <strong>minimum access needed for its job</strong> — and nothing more:</p>
+<ul>
+<li>API tokens scoped to exactly the required operations (read-only where possible; write scope only for the specific resources the job touches).</li>
+<li>Separate credentials per workflow, so revoking one does not break others and a compromise is contained.</li>
+<li>File-system permissions: automation files readable only by the owning user; secret files at <code>600</code> (owner read/write only).</li>
+<li>Database/API accounts for automation distinct from your personal account, with no admin rights unless the job genuinely needs them.</li>
+<li>For scheduled jobs, a dedicated service identity rather than your personal login — when you change your password, the jobs keep working, and when you leave a project, handoff is clean.</li>
+</ul>
+<p>The test question for every permission: "if this credential leaked today, what is the worst that happens?" If the answer is frightening, narrow the scope until it is merely annoying.</p>
+<h3 id="secret-hygiene-storage-rotation-revocation">Secret hygiene: storage, rotation, revocation</h3>
+<p>Chapter 3 covered the basics; production adds rigor:</p>
+<ul>
+<li><strong>Storage:</strong> environment variables for simple setups; a proper secret manager (cloud vault, or at minimum OS-level credential storage) for anything shared or scheduled. Never in code, never in chat, never in screenshots, never in URLs (URLs land in server logs).</li>
+<li><strong>Rotation:</strong> regenerate keys on a schedule (quarterly is a sane default for important ones) and immediately on any suspected exposure — a key pasted into a forum, committed to Git, or visible in a screenshare is compromised, full stop.</li>
+<li><strong>Revocation plan:</strong> know <em>before</em> an incident where each provider's "revoke key" page is and which workflows will break when you revoke. Keep that list in the workflow README.</li>
+<li><strong>Git safety:</strong> <code>.env</code> in <code>.gitignore</code> from day one; consider a pre-commit hook or secret scanner for repositories holding automation code. If a secret ever reaches a remote repository, revoke it — deleting the commit is not enough.</li>
+</ul>
+<h3 id="transport-and-endpoint-security">Transport and endpoint security</h3>
+<ul>
+<li><strong>HTTPS everywhere.</strong> Never send credentials or data over plain HTTP; verify TLS certificates (the default in <code>requests</code> — do not disable verification to "fix" an error; fix the certificate problem instead).</li>
+<li><strong>Webhook receivers</strong> (Chapter 5) validate HMAC signatures, require HTTPS, and validate payload shapes before acting.</li>
+<li><strong>Pin down network exposure:</strong> a receiver or dashboard that only your lab needs should not be on the public internet without authentication — bind to localhost plus an SSH tunnel, or put it behind authenticated access.</li>
+<li><strong>Keep dependencies updated:</strong> <code>pip install --upgrade</code> on a schedule, or a dependency bot on the repository; unpatched libraries are the most common real-world entry point.</li>
+</ul>
+<h3 id="input-validation-and-safe-execution">Input validation and safe execution</h3>
+<p>Your automation consumes untrusted input: API responses, webhook payloads, form submissions, file uploads. Validate before use:</p>
+<ul>
+<li>Check types and ranges (a "year" of <code>99999</code> or a string where a number belongs is rejected, not stored).</li>
+<li>Bound sizes (a 2 GB "abstract" is not an abstract — cap field lengths and total payload sizes).</li>
+<li>Never interpolate untrusted data into shell commands, SQL, or file paths — use parameterized queries and safe path joining; this is how injection attacks happen even in "internal" tools.</li>
+<li>Treat filenames from external sources as hostile: sanitize before writing to disk.</li>
+</ul>
+<h3 id="auditability-knowing-what-happened">Auditability: knowing what happened</h3>
+<p>When something goes wrong — or when an ethics board, supervisor, or reviewer asks — you need answers: which script ran, when, with which credential identity, what it read, what it wrote, what it changed. Build this in:</p>
+<ul>
+<li>Log the workflow name, version (git commit hash), start/end times, and record counts per run.</li>
+<li>Log <em>which</em> records were created/updated/deleted (IDs, not full payloads containing sensitive data).</li>
+<li>Never log secret values; log their presence/fingerprint ("using token ending …4f2a") at most.</li>
+<li>Keep logs long enough to matter and protect them like the data they describe.</li>
+</ul>
+<p>A script that cannot explain itself after the fact is a liability in any environment with accountability requirements — which, in research, is all of them.</p>
+<h3 id="the-human-layer">The human layer</h3>
+<p>Technical controls fail without human habits: lock your workstation; do not run automation from a shared or borrowed machine without considering what credentials it holds; review OAuth grants periodically and revoke apps you no longer use; and when collaborating, share <em>access</em> through proper roles and scoped tokens, never by handing over your personal API key. In a lab, write these expectations down — a one-page "automation security norms" note prevents the folk practice of keys in shared chat channels.</p>
+<h3 id="going-deeper-incident-response-and-dependency-safety">Going deeper: incident response and dependency safety</h3>
+<p>Even careful automation has incidents — the question is whether you have a plan. A <strong>one-page incident response note</strong> per critical workflow beats improvisation:</p>
+<ol>
+<li><strong>Detect</strong>: how you'll know (the watcher alert, the stale health file).</li>
+<li><strong>Contain</strong>: revoke the suspect credential <em>first</em>, then stop the scheduler — in that order, because a running job with a compromised key keeps doing damage while you investigate.</li>
+<li><strong>Assess</strong>: which runs were affected? The per-run logs plus the audit trail of created/updated IDs bound the blast radius.</li>
+<li><strong>Recover</strong>: rotate credentials, fix the cause, replay from raw logs/checkpoints (this is why Chapters 5, 8, and 10 insist on keeping raw data).</li>
+<li><strong>Learn</strong>: a short post-mortem note — what happened, what detected it, what changes prevent recurrence. File it next to the runbook.</li>
+</ol>
+<p>Rehearse containment once: time yourself revoking a test key and disabling a schedule. If it takes more than a few minutes, your runbook needs better links.</p>
+<p><strong>Dependency safety</strong> is the supply-chain half of the story. Pin your dependencies (<code>pip freeze &gt; requirements.txt</code>, or version ranges you've actually tested) so a fresh install reproduces today's working environment instead of pulling whatever is newest. Prefer well-maintained, widely-used libraries; check a package's maintenance signs (recent releases, issue responsiveness) before building on it. For anything handling credentials or network input, keep the dependency tree shallow — every transitive package is code running with your secrets. And never <code>pip install</code> from an untrusted source or a bare URL in a forum answer without verifying what it is; typosquatted pac

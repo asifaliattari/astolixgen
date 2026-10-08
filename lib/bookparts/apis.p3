@@ -1,0 +1,294 @@
+kage names are a real attack vector, and automation servers that auto-install are prime targets.</p>
+<p>Finally, an <strong>audit log entry</strong> should be boring and complete. Aim for lines like:</p>
+<pre><code>2026-10-08T06:31:04Z run_id=20261008-0630 workflow=field-observatory version=a3f9c1d
+  step=harvest_topic fetched=142 stored=37 quarantined=2 duration_s=48 actor=svc-harvester
+</code></pre>
+<p>Who (service identity, not a person), what, when, how many, how long, which code version. If every automation you build emits lines like this, incident assessment becomes reading rather than archaeology — and a supervisor, ethics board, or reviewer asking "exactly what did this do?" gets an answer in minutes.</p>
+<h3 id="going-deeper-the-pre-flight-security-checklist">Going deeper: the pre-flight security checklist</h3>
+<p>Consolidate this chapter into a checklist you run before any automation goes live — especially scheduled, unattended automation. Copy it into each project's README and initial every line:</p>
+<p><strong>Credentials</strong>
+- [ ] No secret appears in code, notebooks, chat logs, screenshots, or URLs.
+- [ ] Secrets live in environment variables or a secret manager; <code>.env</code> is gitignored.
+- [ ] Each credential has the minimum scope its job needs; separate keys per workflow.
+- [ ] I know where to revoke each credential and what's affected when I do.</p>
+<p><strong>Transport &amp; endpoints</strong>
+- [ ] All traffic uses HTTPS; TLS verification is enabled (never disabled to "fix" errors).
+- [ ] Webhook receivers verify signatures and require HTTPS.
+- [ ] Nothing listens on the public internet without authentication unless designed to.</p>
+<p><strong>Code &amp; data</strong>
+- [ ] All external input (API responses, payloads, filenames) is validated before use.
+- [ ] No untrusted data is interpolated into shell commands, SQL, or file paths.
+- [ ] Dependencies are pinned; I know what each direct dependency does.
+- [ ] Destructive operations (delete, overwrite, publish) have a dry-run mode and were tested in it.</p>
+<p><strong>Operations</strong>
+- [ ] Runs log who/what/when/counts/version — without logging secret values.
+- [ ] Failures alert a human; silence (no successful run) also alerts.
+- [ ] Raw inputs are retained long enough to replay after an incident.
+- [ ] A second person knows the system exists and where the runbook is.</p>
+<p>The last item is the most neglected and among the most valuable: automation nobody else knows about becomes a mystery outage the day you're unreachable. A runbook in a shared location, plus one informed colleague, turns a personal script into lab infrastructure.</p>
+<h3 id="going-deeper-participant-data-privacy-as-a-design-constraint">Going deeper: participant data — privacy as a design constraint</h3>
+<p>When automation touches <strong>human-participant data</strong> (survey responses, interview transcripts, behavioral logs), security becomes an ethics obligation, not just good practice. Apply <strong>data minimization</strong>: collect only the fields the research needs — every extra field is liability. <strong>Anonymize at ingest</strong>: strip names, emails, and IP addresses in the receiver/mapper before storage, keeping any re-identification key in a separate, access-controlled location if the protocol requires it. <strong>Encrypt at rest</strong> for sensitive datasets (most cloud storage and modern filesystems offer this as a toggle — turn it on). Set a <strong>retention policy</strong> with an actual deletion date, matching what the ethics approval promised participants, and implement deletion rather than intending it. Finally, check <strong>jurisdiction</strong>: if participants are in regions with data-protection law (the EU's GDPR being the strictest commonly encountered), know the lawful basis and the participants' rights before the first response arrives — retrofitting compliance onto a running pipeline is painful. When in doubt, ask your institution's ethics board early; "the automation made it easy to collect" is never a justification for collecting more.</p>
+<h3 id="sharing-automation-safely-with-collaborators">Sharing automation safely with collaborators</h3>
+<p>When a lab mate needs your workflow, share <em>access</em>, never credentials: create a separate token for them (or better, have them mint their own), walk them through the <code>.env</code> setup, and point them at the runbook. Review what the shared workflow can touch — a script with your personal token and broad scopes becomes their power too. For team-owned automation, migrate to a service identity (Chapter 3) so no individual's credentials are load-bearing, and keep the collaborator list in the README so access reviews take minutes.</p>
+<blockquote>
+<p><strong>For your research:</strong> Audit one of your own scripts against this chapter's checklist: credential storage, scopes, HTTPS, input validation, logging of actions without logging secrets. Fix the worst gap today — it is usually a key sitting in a notebook or a repo. Then write the one-page norms note for your lab or project group. Security practiced on small scripts becomes reflex before the stakes get high.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Model the threats concretely: credential theft, accidental damage at machine speed, data exposure, supply-chain risk, repudiation gaps.
+- Least privilege for every credential, file, and account; ask "what's the worst if this leaks?" and narrow until the answer is tolerable.
+- Secrets in vaults or env vars, rotated on schedule, revoked instantly on suspicion — with a written revocation plan.
+- HTTPS always (never disable TLS verification); signed webhooks; minimal network exposure; patched dependencies.
+- Validate all untrusted input; never interpolate it into shells, SQL, or paths.
+- Log what ran, when, and what changed — without logging secrets — so every run is explainable.</p>
+<hr />
+<h2 id="chapter-12-capstone-building-a-complete-automated-workflow">Chapter 12: Capstone: Building a Complete Automated Workflow</h2>
+<p>You now own every piece: APIs and REST (Chapters 1–2), authentication (3), Python requests (4), webhooks (5), workflow design (6), platform choice (7), error handling (8), scheduling and monitoring (9), data mapping (10), and security (11). The capstone assembles them into one complete, documented, production-minded project: <strong>an automated research observatory</strong> — a scheduled workflow that monitors new literature in your field, harvests metadata, maintains a clean local dataset, and delivers a digest — with logging, health checks, and a README fit for a methods section.</p>
+<h3 id="project-specification">Project specification</h3>
+<p><strong>Name:</strong> Field Observatory — automated literature and citation monitoring for a research topic.</p>
+<p><strong>Goal:</strong> Every morning, detect newly published works in your topic area and new citations to your seed papers, merge them into a deduplicated local dataset, and email a digest. All runs logged, health-checked, and resumable.</p>
+<p><strong>Architecture</strong> (the five-part workflow anatomy from Chapter 6):</p>
+<ol>
+<li><strong>Trigger:</strong> scheduled daily at 06:30 (cron or GitHub Actions).</li>
+<li><strong>Step 1 — topic harvest:</strong> query OpenAlex for works matching your topic query, published in the last 2 days, paginated with cursors, checkpointed per page.</li>
+<li><strong>Step 2 — citation check:</strong> for each seed DOI, fetch works citing it from the last 7 days.</li>
+<li><strong>Step 3 — normalize and dedupe:</strong> map all records through the transformation functions (Chapter 10), keyed on DOI with fallback matching; skip already-seen IDs (state file).</li>
+<li><strong>Step 4 — persist:</strong> append new records to a JSONL dataset and update a CSV snapshot for analysis.</li>
+<li><strong>Step 5 — digest and notify:</strong> render a Markdown/HTML digest of new items; email it; update the health file.</li>
+</ol>
+<p><strong>Failure branches:</strong> transient API errors → retry with backoff (max 5); 429 → honor <code>Retry-After</code>; auth failure → abort and alert immediately; malformed records → quarantine file, continue run; zero new items → "all clear" health status, no email (or a terse one — your documented choice).</p>
+<h3 id="project-layout">Project layout</h3>
+<p>Organize the project like software, because that is what it is:</p>
+<pre><code>field-observatory/
+├── README.md               # what, why, how to run, credentials needed, runbook
+├── requirements.txt        # requests, python-dotenv, pandas
+├── .env.example            # variable names WITHOUT values (committed)
+├── .env                    # real secrets (gitignored, never committed)
+├── .gitignore              # .env, *.log, state files
+├── config.py               # topic query, seed DOIs, schedule notes, thresholds
+├── api_client.py           # session setup, retry wrapper, rate-limit helpers
+├── mapping.py              # transformation + dedupe functions (Chapter 10)
+├── observatory.py          # orchestration: the five steps
+├── notify.py               # digest rendering + email sending
+├── health.py               # health-file reporting (Chapter 9)
+├── state/
+│   ├── seen_ids.json       # idempotency state
+│   ├── checkpoint.json     # pagination checkpoint
+│   └── dataset.jsonl       # the growing raw dataset
+└── logs/
+    └── observatory-YYYY-MM-DD.log
+</code></pre>
+<p>This layout is not bureaucracy — each file maps to one chapter's concern, so debugging means opening the right file, and handoff means handing over a comprehensible system.</p>
+<h3 id="the-core-modules">The core modules</h3>
+<p><code>config.py</code> holds every judgment call in one visible place — the topic query, seed papers, lookback windows, politeness delays:</p>
+<pre><code class="language-python">TOPIC_QUERY = &quot;indoor air quality sensors low-cost&quot;
+SEED_DOIS = [&quot;10.1234/your-first-key-paper&quot;, &quot;10.1234/your-second-key-paper&quot;]
+TOPIC_LOOKBACK_DAYS = 2
+CITATION_LOOKBACK_DAYS = 7
+PER_PAGE = 50
+POLITENESS_DELAY = 1.0          # seconds between requests
+MAX_RETRIES = 5
+CONTACT_EMAIL = &quot;you@university.edu&quot;
+</code></pre>
+<p><code>api_client.py</code> centralizes the session, retry logic, and rate-limit respect from Chapter 8 — every API call in the project flows through it, so improvements (better backoff, new headers) happen once:</p>
+<pre><code class="language-python">import os, time, random, logging
+import requests
+
+log = logging.getLogger(&quot;observatory.api&quot;)
+
+def build_session():
+    s = requests.Session()
+    s.headers.update({
+        &quot;User-Agent&quot;: f&quot;FieldObservatory/1.0 (mailto:{os.environ['CONTACT_EMAIL']})&quot;,
+    })
+    token = os.environ.get(&quot;RESEARCH_API_TOKEN&quot;)
+    if token:
+        s.headers[&quot;Authorization&quot;] = f&quot;Bearer {token}&quot;
+    return s
+
+def get_with_retry(session, url, params=None, max_attempts=5, timeout=20):
+    delay = 1.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            r = session.get(url, params=params, timeout=timeout)
+            if r.status_code == 429:
+                wait = int(r.headers.get(&quot;Retry-After&quot;, 60))
+                log.warning(&quot;Rate limited; sleeping %ss (attempt %d)&quot;, wait, attempt)
+                time.sleep(wait)
+                continue
+            if 500 &lt;= r.status_code &lt; 600:
+                raise requests.exceptions.HTTPError(f&quot;server error {r.status_code}&quot;)
+            r.raise_for_status()
+            return r
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError,
+                requests.exceptions.HTTPError) as e:
+            if attempt == max_attempts:
+                log.error(&quot;Giving up after %d attempts: %s %s&quot;, attempt, url, e)
+                raise
+            wait = delay + random.uniform(0, 1)
+            log.warning(&quot;Attempt %d failed (%s); retrying in %.1fs&quot;, attempt, e, wait)
+            time.sleep(wait)
+            delay *= 2
+</code></pre>
+<p><code>observatory.py</code> orchestrates — deliberately thin, because the intelligence lives in the modules:</p>
+<pre><code class="language-python">import json, logging, datetime
+from config import *
+from api_client import build_session, get_with_retry
+from mapping import map_work, dedupe_key
+from notify import send_digest
+from health import report_health
+
+logging.basicConfig(level=logging.INFO,
+    format=&quot;%(asctime)s [%(levelname)s] %(name)s: %(message)s&quot;,
+    handlers=[logging.FileHandler(f&quot;logs/observatory-{datetime.date.today()}.log&quot;),
+              logging.StreamHandler()])
+log = logging.getLogger(&quot;observatory&quot;)
+
+API = &quot;https://api.openalex.org/works&quot;
+
+def harvest_topic(session, seen):
+    since = (datetime.date.today() - datetime.timedelta(days=TOPIC_LOOKBACK_DAYS)).isoformat()
+    params = {&quot;search&quot;: TOPIC_QUERY, &quot;filter&quot;: f&quot;from_publication_date:{since}&quot;, &quot;per-page&quot;: PER_PAGE}
+    return paged_collect(session, params, seen, &quot;topic&quot;)
+
+def harvest_citations(session, seen):
+    new_items = []
+    for doi in SEED_DOIS:
+        since = (datetime.date.today() - datetime.timedelta(days=CITATION_LOOKBACK_DAYS)).isoformat()
+        params = {&quot;filter&quot;: f&quot;cites:https://doi.org/{doi},from_publication_date:{since}&quot;,
+                  &quot;per-page&quot;: PER_PAGE}
+        new_items += paged_collect(session, params, seen, f&quot;citations:{doi}&quot;)
+    return new_items
+
+def paged_collect(session, params, seen, label):
+    collected, page = [], 1
+    while True:
+        r = get_with_retry(session, API, params={**params, &quot;page&quot;: page})
+        batch = r.json().get(&quot;results&quot;, [])
+        if not batch:
+            break
+        for work in batch:
+            key = dedupe_key(work)
+            if key and key not in seen:
+                seen.add(key)
+                collected.append(map_work(work))
+        log.info(&quot;%s: page %d -&gt; %d new (total %d)&quot;, label, page, len(collected), len(seen))
+        page += 1
+        time.sleep(POLITENESS_DELAY)
+    return collected
+
+def main():
+    seen = set(json.load(open(&quot;state/seen_ids.json&quot;))) if os.path.exists(&quot;state/seen_ids.json&quot;) else set()
+    session = build_session()
+    fresh = harvest_topic(session, seen) + harvest_citations(session, seen)
+    json.dump(sorted(seen), open(&quot;state/seen_ids.json&quot;, &quot;w&quot;))
+    with open(&quot;state/dataset.jsonl&quot;, &quot;a&quot;) as f:      # raw mapped records, append-only
+        for item in fresh:
+            f.write(json.dumps(item) + &quot;\n&quot;)
+    if fresh:
+        send_digest(fresh)
+        report_health(&quot;ok&quot;, f&quot;{len(fresh)} new works&quot;)
+        log.info(&quot;Run complete: %d new works; digest sent.&quot;, len(fresh))
+    else:
+        report_health(&quot;ok&quot;, &quot;no new works&quot;)
+        log.info(&quot;Run complete: nothing new.&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    import os, time
+    main()
+</code></pre>
+<p>(<code>mapping.py</code> reuses Chapter 10's <code>map_openalex_to_labdb</code> as <code>map_work</code>, plus a <code>dedupe_key</code> preferring DOI; <code>notify.py</code> and <code>health.py</code> follow Chapters 6 and 9. The checkpoint-per-page refinement from Chapter 8 slots into <code>paged_collect</code> as an exercise.)</p>
+<h3 id="deployment-checklist">Deployment checklist</h3>
+<p>Before scheduling, walk this list — it is the whole book compressed into one page:</p>
+<ul>
+<li>[ ] Secrets in <code>.env</code> (gitignored); <code>.env.example</code> documents names only.</li>
+<li>[ ] <code>requirements.txt</code> pinned; test a fresh install in a clean virtual environment.</li>
+<li>[ ] Manual run succeeds end-to-end; digest email received and correct.</li>
+<li>[ ] Failure drill: bad token → clean abort + alert; network drop mid-run → retries then loud failure; malformed record → quarantined, run continues.</li>
+<li>[ ] Schedule installed (cron line or Actions workflow) with absolute paths and log redirection.</li>
+<li>[ ] Health file written every run; watcher alerts on stale/error status.</li>
+<li>[ ] README complete: purpose, architecture sketch, setup steps, credential list (names only), runbook for common failures.</li>
+<li>[ ] Repository pushed (no secrets), so the workflow is versioned and shareable.</li>
+</ul>
+<h3 id="extending-the-capstone">Extending the capstone</h3>
+<p>The observatory is a platform, not a finished product. Natural extensions, each exercising a different chapter: add a <strong>webhook receiver</strong> (Chapter 5) so a "report interesting paper" form feeds the same dataset; add a <strong>no-code branch</strong> (Chapter 7) posting the digest to a team channel; add <strong>fuzzy dedupe</strong> with human review (Chapter 10) for records without DOIs; add a <strong>weekly rollup</strong> computing bibliometric summaries with pandas [2] — mean citations by venue, open-access share, topic drift over time — the kind of table that lands directly in a thesis. Each extension is small because the foundation is sound; that is the real lesson of the capstone.</p>
+<blockquote>
+<p><strong>For your research:</strong> Build the Field Observatory for your actual thesis topic, with your real seed papers. Run it manually for one week before scheduling it. At week's end, review the dataset: are the topic matches relevant (tune the query), are citations complete (check against a manual search), is anything duplicated? That week of supervised operation is how you calibrate an automation before trusting it — and the calibrated query, dedupe rules, and digest format become a documented, defensible part of your research method.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- A complete workflow integrates every chapter: trigger, API client with retries, mapping, state, notifications, health, logs, docs.
+- Organize as modules by concern (config, client, mapping, orchestration, notify, health) — debugging and handoff become tractable.
+- Centralize API calls in one client module; centralize judgment calls in one config module.
+- Drill failures deliberately (bad token, dropped network, malformed records) before scheduling.
+- Deploy with the checklist: secrets hygiene, fresh-install test, schedule, health watcher, README runbook, versioned repo.
+- Extend incrementally: webhooks, no-code branches, fuzzy dedupe, bibliometric rollups — the foundation makes each extension small.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>API (Application Programming Interface):</strong> A defined interface through which software components or programs communicate; for web APIs, a set of URLs and conventions for requesting data and actions.</li>
+<li><strong>API key:</strong> A long-lived secret string identifying a caller to an API, sent in a header or query parameter.</li>
+<li><strong>Authentication:</strong> Verifying who (or what) is making a request.</li>
+<li><strong>Authorization:</strong> Determining whether an authenticated caller may perform a requested action.</li>
+<li><strong>Backoff (exponential):</strong> A retry strategy where the wait between attempts doubles each time, usually with added random jitter.</li>
+<li><strong>Bearer token:</strong> A short-lived credential granting whoever holds it the associated permissions; sent as <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+<li><strong>Checkpointing:</strong> Saving progress during a long job so it can resume after interruption instead of restarting.</li>
+<li><strong>Circuit breaker:</strong> A pattern that stops calling a repeatedly failing service for a cooldown period instead of hammering it.</li>
+<li><strong>Client:</strong> The program making API requests (your script, as opposed to the server answering them).</li>
+<li><strong>Cursor pagination:</strong> Paging through results with an opaque position token rather than page numbers; robust against data changing mid-harvest.</li>
+<li><strong>Deduplication:</strong> Identifying and collapsing duplicate records, keyed on stable identifiers where possible.</li>
+<li><strong>Endpoint:</strong> A specific URL of an API that addresses one resource or operation.</li>
+<li><strong>Graceful degradation:</strong> Continuing to deliver partial value (e.g., storing raw records) when a non-critical step fails.</li>
+<li><strong>GraphQL:</strong> A query language for APIs letting clients request exactly the fields they need in one request.</li>
+<li><strong>HMAC:</strong> A keyed hash function used to sign webhook payloads so receivers can verify authenticity.</li>
+<li><strong>HTTP method:</strong> The verb of a request — GET, POST, PUT, PATCH, DELETE — declaring the intended action.</li>
+<li><strong>Idempotency:</strong> The property that performing an operation multiple times has the same effect as performing it once.</li>
+<li><strong>JSON (JavaScript Object Notation):</strong> The standard lightweight text format for API request and response bodies [5].</li>
+<li><strong>Jitter:</strong> Small random variation added to retry delays to prevent synchronized retry storms.</li>
+<li><strong>Least privilege:</strong> The principle of granting each credential and component only the minimum access its job requires.</li>
+<li><strong>OAuth 2.0:</strong> The industry-standard framework for delegated authorization, letting apps act on a user's behalf with scoped consent [4].</li>
+<li><strong>Pagination:</strong> Splitting large result sets into sequential pages the client retrieves one at a time.</li>
+<li><strong>Payload:</strong> The data carried in a request or response body.</li>
+<li><strong>Polling:</strong> Repeatedly asking a service whether anything changed, as opposed to being notified via webhook.</li>
+<li><strong>Query parameter:</strong> A <code>key=value</code> pair in a URL after <code>?</code> that refines a request (filtering, sorting, paging).</li>
+<li><strong>Rate limit:</strong> A cap on how many API calls a client may make in a time window, enforced with HTTP 429.</li>
+<li><strong>Request header:</strong> Metadata sent with a request (authorization, accepted formats, client identity).</li>
+<li><strong>Resource:</strong> In REST, any meaningful thing an API manages (a paper, author, dataset), addressed by a URL.</li>
+<li><strong>Response header:</strong> Metadata sent back with a response (content type, rate-limit quota, pagination links).</li>
+<li><strong>REST (Representational State Transfer):</strong> An architectural style for web APIs built on resources, HTTP methods, and stateless communication [1].</li>
+<li><strong>Retry-After:</strong> A response header telling a rate-limited client how many seconds to wait before retrying.</li>
+<li><strong>Scope (OAuth):</strong> A named permission boundary limiting what an OAuth token may do.</li>
+<li><strong>SDK (Software Development Kit):</strong> A library wrapping an API's HTTP calls in language-native functions.</li>
+<li><strong>Session (requests):</strong> A persistent <code>requests</code> object reusing connections and sharing headers/auth across calls.</li>
+<li><strong>SOAP:</strong> An older, XML-based API protocol with strict contracts, still found in institutional systems.</li>
+<li><strong>State file:</strong> A small persisted record (seen IDs, checkpoints) letting a workflow resume and avoid duplicate work.</li>
+<li><strong>Status code:</strong> The three-digit number in an HTTP response summarizing the outcome (2xx success, 4xx client error, 5xx server error) [6].</li>
+<li><strong>Timeout:</strong> A maximum wait for a response, after which the client aborts and treats the call as failed.</li>
+<li><strong>Token refresh:</strong> Exchanging a refresh token for a new access token when the old one expires, without user involvement.</li>
+<li><strong>Webhook:</strong> An HTTP callback: a service POSTs event data to your registered URL when something happens.</li>
+<li><strong>Workflow:</strong> An ordered, automated sequence of steps — trigger, transformations, branches, outputs — connecting services.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>First contact.</strong> Without writing code, open your browser and query the OpenAlex API for your thesis topic with a date filter. Identify the JSON keys for title, publication year, DOI, and citation count, and write down the exact query parameters you used.</li>
+<li><strong>Status-code safari.</strong> Using <code>curl</code> or Python <code>requests</code>, deliberately provoke a 200, a 404, a 400, and (with a bad token on any authenticated endpoint) a 401. For each, record the status code, the response body, and in one sentence what the server is telling you.</li>
+<li><strong>Defensive parsing.</strong> Write a function that takes a raw OpenAlex work dictionary and returns a flat summary dict, surviving missing titles, absent journals, <code>None</code> authorship lists, and empty DOIs. Test it on five real records including at least one visibly incomplete one.</li>
+<li><strong>Authenticated call.</strong> Register for a free personal token on Zenodo or GitHub with read-only scope, store it in a <code>.env</code> file loaded via <code>python-dotenv</code>, and make one authenticated request. Then revoke the token and confirm the request now fails with 401.</li>
+<li><strong>Pagination harvest.</strong> Harvest every work (up to 500) matching a narrow topic query from OpenAlex using page looping with a 1-second politeness delay. Save raw JSON and a cleaned CSV (via pandas), and report total records, elapsed time, and mean citations per year.</li>
+<li><strong>Retry wrapper.</strong> Implement <code>get_with_retry</code> with exponential backoff and jitter from Chapter 8, then test it against a real endpoint by temporarily disconnecting your network mid-run. Verify it retries, then eventually raises — and that it does <em>not</em> retry a 404.</li>
+<li><strong>Webhook receiver.</strong> Build the Flask receiver from Chapter 5 with HMAC signature verification. Simulate three deliveries with <code>curl</code> (one valid, one with a bad signature, one duplicate event ID) and confirm the receiver accepts, rejects (401), and dedupes correctly.</li>
+<li><strong>Workflow sketch.</strong> On paper, design a multi-step workflow for a real research chore of yours (e.g., survey intake, reference syncing, deadline tracking): trigger, steps, data handoffs, error branches, notifications. Then implement the first two steps in Python.</li>
+<li><strong>No-code vs. code verdict.</strong> Take the workflow from Exercise 8 and run the Chapter 7 six-question decision procedure. Write a one-paragraph verdict with reasoning, and if the answer is hybrid, state exactly which parts go where.</li>
+<li><strong>Capstone build.</strong> Implement the Field Observatory from Chapter 12 for your own topic: config, retrying API client, mapping/dedupe, state files, digest email, health reporting, and README. Run it manually for three consecutive days, then complete the deployment checklist and schedule it.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] R. T. Fielding, "Architectural styles and the design of network-based software architectures," Ph.D. dissertation, Univ. California, Irvine, CA, USA, 2000.</p>
+<p>[2] W. McKinney, <em>Python for Data Analysis: Data Wrangling with pandas, NumPy, and Jupyter</em>, 3rd ed. Sebastopol, CA, USA: O'Reilly Media, 2022.</p>
+<p>[3] G. van Rossum, B. Warsaw, and N. Coghlan, "Style guide for Python code," PEP 8, Python Software Foundation. [Online]. Available: https://peps.python.org/pep-0008/</p>
+<p>[4] D. Hardt, Ed., "The OAuth 2.0 authorization framework," RFC 6749, IETF, Oct. 2012. [Online]. Available: https://www.rfc-editor.org/rfc/rfc6749</p>
+<p>[5] T. Bray, Ed., "The JavaScript Object Notation (JSON) data interchange format," RFC 8259, IETF, Dec. 2017. [Online]. Available: https://www.rfc-editor.org/rfc/rfc8259</p>
+<p>[6] R. Fielding and J. Reschke, Eds., "Hypertext Transfer Protocol (HTTP/1.1): Semantics and content," RFC 7231, IETF, Jun. 2014. [Online]. Available: https://www.rfc-editor.org/rfc/rfc7231</p>
+<p>[7] A. Hunt and D. Thomas, <em>The Pragmatic Programmer: Your Journey to Mastery</em>, 20th Anniversary ed. Boston, MA, USA: Addison-Wesley, 2019.</p>
+<p>[8] M. Jones, J. Bradley, and N. Sakimura, "JSON Web Token (JWT)," RFC 7519, IETF, May 2015. [Online]. Available: https://www.rfc-editor.org/rfc/rfc7519</p>
+<p>[9] C. Richardson, <em>Microservices Patterns: With Examples in Java</em>. Shelter Island, NY, USA: Manning Publications, 2019.</p>
+<p><em>End of Book 43.</em></p>

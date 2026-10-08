@@ -1,0 +1,238 @@
+<h1 id="iot-data-pipelines-explained">IoT Data Pipelines Explained</h1>
+<p><strong>Book 34 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover" src="/learn/images/media-generation-book-34-pipelines-cover-0-a0da610d-707e-428d-ba28-7d5a41299eda.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>Sensors produce data; decisions need information. The pipeline between them — ingestion, transport, stream processing, storage, and serving — is where most IoT projects succeed or fail. This book builds the full pipeline mental model: MQTT/CoAP ingestion, stream processors, time-series databases, batch vs stream trade-offs, and exactly-once semantics. You will learn to design, measure, and publish pipeline studies with honest end-to-end numbers.</p>
+<p><strong>Learning objectives:</strong>
+- Map the five stages of an IoT data pipeline
+- Choose ingestion protocols and brokers for scale
+- Compare stream vs batch processing with measured trade-offs
+- Select time-series storage (InfluxDB, TimescaleDB) by workload
+- Reason about delivery semantics: at-most/at-least/exactly-once
+- Handle late, missing, and out-of-order sensor data
+- Design a publishable pipeline evaluation</p>
+<hr />
+<h2 id="chapter-1-the-pipeline-mental-model">Chapter 1: The Pipeline Mental Model</h2>
+<p>Every IoT data pipeline has five stages. <strong>Ingest:</strong> devices publish readings (MQTT/CoAP/HTTP) to a broker or gateway. <strong>Transport/buffer:</strong> a durable log (Kafka, MQTT broker with persistence) absorbs bursts and decouples producers from consumers. <strong>Process:</strong> stream processors (Flink, Spark Streaming, or simple consumers) clean, aggregate, detect events, and enrich. <strong>Store:</strong> hot data in time-series DBs for dashboards, cold data in object storage for training. <strong>Serve:</strong> APIs, dashboards, alerts, and ML training jobs consume the data.</p>
+<p>Failures concentrate at the joints: ingest without buffering loses data during outages; processing without idempotency double-counts on replay; storage without retention policy grows forever and bankrupts the project. Draw your pipeline as a diagram before writing any code — then label each arrow with data rate, format, and delivery guarantee. That diagram belongs in every IoT paper.</p>
+<p><strong>Example:</strong> A 500-sensor farm pipeline: sensors → MQTT (Mosquitto) → Telegraf → InfluxDB (hot, 30-day retention) → nightly export to Parquet on disk (cold) → Grafana dashboards + weekly training job. Each joint labeled: 500 msg/min, JSON, at-least-once.</p>
+<p><strong>For your research:</strong> The pipeline diagram with rates and guarantees is a required figure in systems papers. Reviewers check that every arrow is justified.</p>
+<p><strong>Key takeaway:</strong> Ingest → buffer → process → store → serve — label every joint with rate, format, and guarantee.</p>
+<hr />
+<h2 id="chapter-2-ingestion-at-scale-protocols-and-brokers">Chapter 2: Ingestion at Scale — Protocols and Brokers</h2>
+<p>Ingestion is the narrow waist: everything flows through it. For under ~10k msg/s, a single Mosquitto or EMQX node suffices; beyond that, you need clustered brokers (EMQX, HiveMQ) or a Kafka fronted by MQTT (via Kafka's MQTT proxy or a bridge). Protocol choice at ingest follows Book 31/33: MQTT for pub/sub fan-out, CoAP for UDP-constrained links, HTTP for simplicity.</p>
+<p>The key ingestion metrics: <strong>throughput</strong> (msg/s sustained), <strong>fan-in</strong> (concurrent publishers), <strong>p99 ingest latency</strong>, and <strong>behavior under backpressure</strong> (what happens when consumers lag — drop? buffer? block?). Test backpressure explicitly: kill the consumer for 60 seconds and observe. Systems that silently drop data fail open in dangerous ways.</p>
+<p><strong>Example:</strong> A campus deployment: 2,000 sensors × 1 msg/10 s = 200 msg/s — trivially handled by one Mosquitto instance at &lt;5% CPU. The same team later added 50 cameras' metadata at 30 msg/s each and hit Mosquitto's single-node ceiling — migrating to EMQX clustered took a weekend because topics were unchanged.</p>
+<p><strong>For your research:</strong> Ingestion benchmarks (broker X vs Y at N publishers) are clean, reproducible papers — provided you report hardware, message sizes, QoS, and the backpressure policy.</p>
+<p><strong>Key takeaway:</strong> Size ingestion for 10× your current load; test backpressure; keep topics stable across broker migrations.</p>
+<hr />
+<h2 id="chapter-3-stream-vs-batch-when-each-wins">Chapter 3: Stream vs Batch — When Each Wins</h2>
+<p><strong>Stream processing</strong> handles each event as it arrives (milliseconds to seconds of latency): alerting, live dashboards, online control. <strong>Batch processing</strong> handles bounded datasets on a schedule (minutes to hours): daily reports, model retraining, billing. <strong>Micro-batch</strong> (Spark Streaming's model) is a middle ground with seconds of latency.</p>
+<p>Choose by the decision's timescale: a gas-leak alert cannot wait for the nightly batch; a monthly yield report gains nothing from streaming. Many systems do both from the same log (the "Kappa" idea): the stream serves real-time needs, and replays of the log serve batch needs — one ingestion path, two consumers.</p>
+<p>The research-relevant trade-off: streaming systems are harder to make correct (out-of-order data, exactly-once) and their evaluation must include late-data handling. Batch is simpler and reproducible. A paper should justify the choice against the application's latency requirement, stated numerically.</p>
+<p><strong>Example:</strong> Cold-chain monitoring: stream path — temperature &gt; 8°C for 10 min → SMS alert within 60 s. Batch path — nightly: compute per-truck compliance scores, retrain the spoilage-risk model weekly. Same MQTT topics feed both.</p>
+<p><strong>For your research:</strong> If you propose a streaming algorithm, evaluate it against a batch baseline on the same data and report the latency/accuracy trade-off. "Streaming" alone is not a contribution.</p>
+<p><strong>Key takeaway:</strong> Match processing model to decision latency; justify streaming with a numeric latency requirement.</p>
+<hr />
+<h2 id="chapter-4-time-series-storage-influxdb-timescaledb-and-tiers">Chapter 4: Time-Series Storage — InfluxDB, TimescaleDB, and Tiers</h2>
+<p>Sensor data is time-series: timestamped, append-only, queried by time range and tag. General databases handle it poorly at scale. <strong>InfluxDB</strong> (tag-set model, built-in downsampling/retention) excels at high-ingest monitoring. <strong>TimescaleDB</strong> (PostgreSQL extension, hypertables) excels when you need SQL joins with relational data. <strong>Tiering</strong> is the cost control: hot tier (SSD, days–weeks) for dashboards, warm tier (compressed, months), cold tier (Parquet on object storage, years) for training and audit.</p>
+<p>Design decisions: schema (one measurement per metric vs wide rows — the former scales better), retention policies (drop raw after 30 days, keep 1-min rollups for a year), and downsampling tasks (continuous aggregates). Get retention wrong and storage costs grow unboundedly — the most common IoT project failure after security.</p>
+<p><strong>Example:</strong> 1,000 sensors × 1 reading/10 s × 50 bytes = 432 MB/day raw. Hot: 14 days raw (6 GB). Warm: 1-min averages for 1 year (105 MB). Cold: Parquet yearly archives. Total manageable; without downsampling, 5-year raw retention would be 788 GB.</p>
+<p><strong>For your research:</strong> Storage benchmarks (ingest rate, query latency for typical dashboard queries, compression ratio) across InfluxDB/TimescaleDB on identical workloads are useful, citable systems work.</p>
+<p><strong>Key takeaway:</strong> Use time-series DBs, design retention + downsampling on day one, tier by access pattern.</p>
+<hr />
+<h2 id="chapter-5-delivery-semantics-the-hardest-concept">Chapter 5: Delivery Semantics — The Hardest Concept</h2>
+<p><strong>At-most-once:</strong> messages may be lost, never duplicated (MQTT QoS 0). <strong>At-least-once:</strong> messages never lost, may be duplicated (QoS 1, Kafka default) — consumers must be <strong>idempotent</strong> (processing a duplicate changes nothing). <strong>Exactly-once:</strong> each message processed once (QoS 2 per-hop, Kafka transactions + idempotent producer) — expensive and often unnecessary.</p>
+<p>The pragmatic rule: use at-least-once everywhere and make consumers idempotent (keyed writes, deduplication on message IDs). Reserve exactly-once for money and safety. Most IoT analytics (averages, counts over windows) tolerate duplicates if you dedupe by (device_id, timestamp) — a 10-line change that removes the need for expensive exactly-once machinery.</p>
+<p><strong>Example:</strong> A rainfall counter double-counting due to QoS 1 redelivery overstated irrigation by 8%. Fix: consumer keyed on (sensor_id, reading_ts) with "insert if not exists" — duplicates became harmless, no protocol change needed.</p>
+<p><strong>For your research:</strong> Semantics papers should demonstrate the failure: show duplicate rates under redelivery, quantify the error without dedup, then show the fix. Measured failure + fix is a complete story.</p>
+<p><strong>Key takeaway:</strong> At-least-once + idempotent consumers beats exactly-once machinery for most IoT analytics.</p>
+<hr />
+<h2 id="chapter-6-late-missing-and-out-of-order-data">Chapter 6: Late, Missing, and Out-of-Order Data</h2>
+<p>Real sensor data is messy. <strong>Late data</strong> arrives after its window closed (network delay). <strong>Out-of-order data</strong> arrives with earlier timestamps after later ones. <strong>Missing data</strong> never arrives (dead sensor, lost packets). Your pipeline must define policies: watermarks (how long to wait for late data), allowed lateness, and gap-filling (forward-fill, interpolate, or mark missing — never silently fabricate).</p>
+<p>For ML, data quality is a first-class concern: a model trained on silently-interpolated gaps learns fiction. Log data-quality flags alongside readings (was_interpolated, gap_seconds) so training pipelines can exclude or weight suspect data.</p>
+<p><strong>Example:</strong> A vibration monitor's 2% packet loss created gaps that a naive pipeline forward-filled — the anomaly detector then "detected" the flat lines as anomalies. Fix: propagate a data-quality flag; the detector learned to ignore flagged windows. False alarms dropped 60%.</p>
+<p><strong>For your research:</strong> Data-quality handling is an under-published topic. A paper characterizing gap patterns in a real deployment and evaluating mitigation strategies fills a genuine gap.</p>
+<p><strong>Key takeaway:</strong> Define late/out-of-order/missing policies explicitly; propagate quality flags to ML.</p>
+<hr />
+<h2 id="chapter-7-schema-formats-and-evolution">Chapter 7: Schema, Formats, and Evolution</h2>
+<p>Choose a wire format deliberately. <strong>JSON</strong> is human-readable and debuggable but verbose (bad for LoRa). <strong>CBOR/MessagePack</strong> are binary JSON — 40–60% smaller, still schemaless. <strong>Protobuf/Avro</strong> need schemas but give the smallest payloads and safe evolution (additive field changes). Rule: JSON for gateways and debugging, binary for constrained links, schema-based when multiple teams consume the data.</p>
+<p><strong>Schema evolution</strong> is where projects rot: a firmware update adds a field and breaks the dashboard. Use a schema registry (or at minimum versioned topics like <code>v2/...</code>), enforce backward-compatible changes (only add optional fields), and test old consumers against new producers in CI.</p>
+<p><strong>Example:</strong> Adding <code>battery_mv</code> to a sensor payload: with Protobuf, old consumers ignore the new field — zero downtime. With ad-hoc CSV, the dashboard parsed the wrong column for a week. The paper's lesson section was titled "use schemas."</p>
+<p><strong>For your research:</strong> Format comparisons (bytes per message, parse time on MCU, energy) across JSON/CBOR/Protobuf on your hardware are compact, useful measurements.</p>
+<p><strong>Key takeaway:</strong> Binary + schemas for constrained links; version everything; test evolution in CI.</p>
+<hr />
+<h2 id="chapter-8-observability-monitoring-the-pipeline-itself">Chapter 8: Observability — Monitoring the Pipeline Itself</h2>
+<p>Monitor the pipeline, not just the sensors. Golden signals: <strong>throughput</strong> (msg/s per stage — a drop means blockage), <strong>lag</strong> (consumer offset behind the log — growing lag means under-provisioning), <strong>error rate</strong> (parse failures, auth failures), <strong>duplication rate</strong> (are idempotency keys working?), and <strong>end-to-end latency</strong> (sensor timestamp → dashboard render).</p>
+<p>Alert on pipeline health, not just sensor values: "ingest lag &gt; 5 min" pages the engineer before the dashboard goes stale. Keep a dead-letter queue for unparseable messages — every one is a bug report from the field.</p>
+<p><strong>Example:</strong> A farm dashboard froze every night at 2 AM. Pipeline metrics showed the batch export locking the hot DB — the fix (read replica for exports) was obvious once lag and query-latency were graphed. The postmortem became a conference talk.</p>
+<p><strong>For your research:</strong> Observability studies — what to monitor, alert thresholds derived from data — are practical contributions that industry tracks value.</p>
+<p><strong>Key takeaway:</strong> Monitor throughput, lag, errors, duplication, and end-to-end latency; alert on pipeline health.</p>
+<hr />
+<h2 id="chapter-9-edge-processing-in-the-pipeline">Chapter 9: Edge Processing in the Pipeline</h2>
+<p>Push processing to the edge where it pays: <strong>filtering</strong> (send only interesting events), <strong>aggregation</strong> (1-min averages instead of 1-s raw), <strong>compression</strong> (delta encoding), and <strong>event detection</strong> (thresholds, tiny models). The pipeline then handles orders of magnitude less data, and the cloud bill collapses.</p>
+<p>The design question is what the edge may discard: raw data needed for future model training must still be sampled (store 1% raw or event-centered windows). "Filter everything" destroys your future training set — a common regret.</p>
+<p><strong>Example:</strong> Acoustic pest trap: edge classifier scores every 10 s of audio; only scores &gt; 0.7 upload a 5-s clip; 1% random raw samples upload for retraining. Uplink: 2.4 GB/day → 31 MB/day. Retraining data preserved via sampling.</p>
+<p><strong>For your research:</strong> Edge-filtering papers must report the preservation metric: what fraction of true events survived filtering (recall at the filter stage), not just the data reduction.</p>
+<p><strong>Key takeaway:</strong> Filter and aggregate at the edge, but sample raw data for future training; report filter recall.</p>
+<hr />
+<h2 id="chapter-10-security-across-the-pipeline">Chapter 10: Security Across the Pipeline</h2>
+<p>Each stage is an attack surface. <strong>Ingest:</strong> TLS, per-device credentials, topic ACLs (Book 31). <strong>Transport:</strong> encrypt the log, authenticate consumers. <strong>Processing:</strong> validate and sanitize inputs (a malicious sensor can inject payloads that break parsers — fuzz your parsers). <strong>Storage:</strong> encrypt at rest, least-privilege DB roles, audit logs. <strong>Serve:</strong> authenticated APIs, rate limiting.</p>
+<p>The pipeline-specific risk is <strong>data integrity</strong>: an attacker who can inject plausible sensor readings can manipulate decisions (fake "all clear" from a safety sensor). Sign readings at the device (HMAC with a device key) and verify at ingestion — integrity, not just confidentiality.</p>
+<p><strong>Example:</strong> A building-management pipeline accepted unsigned JSON; a compromised thermostat injected "CO2 normal" during a real ventilation failure. Post-incident: HMAC-signed CBOR at the device, verification at the broker bridge, alerts on signature failures.</p>
+<p><strong>For your research:</strong> Pipeline security analyses — threat model per stage, measured cost of HMAC/TLS on the device — are strong applied-security contributions.</p>
+<p><strong>Key takeaway:</strong> Secure every stage; sign sensor data at the source for integrity, not just TLS for confidentiality.</p>
+<hr />
+<h2 id="chapter-11-cost-engineering-the-pipeline">Chapter 11: Cost Engineering the Pipeline</h2>
+<p>Pipeline costs hide in: ingest (per-message broker/cloud fees), storage (hot tier $/GB-month), processing (always-on stream workers), and egress (dashboards pulling data out of the cloud). Model each: monthly = ingest_msgs × fee + hot_GB × rate + worker_hours × rate + egress_GB × rate. Then attack the biggest term: downsample sooner, filter at edge, cache dashboards, move cold data to cheap object storage.</p>
+<p><strong>Example:</strong> A 5,000-sensor pipeline cost $1,900/month: 55% hot storage, 25% stream workers, 20% ingest. Cutting hot retention 30→7 days and adding edge aggregation saved $1,100/month with no dashboard change — the cost teardown was the paper's most-read section.</p>
+<p><strong>For your research:</strong> Cost teardowns of real pipelines are rare and valuable. Anonymize the deployment, show the model, show the optimization — industry citations follow.</p>
+<p><strong>Key takeaway:</strong> Model cost per stage, attack the biggest term, publish the teardown.</p>
+<hr />
+<h2 id="chapter-12-your-pipeline-study-design-to-publication">Chapter 12: Your Pipeline Study — Design to Publication</h2>
+<p>Template:</p>
+<ol>
+<li><strong>Problem:</strong> A pipeline pain (e.g., "dashboard staleness during cellular outages on a 2,000-sensor farm").</li>
+<li><strong>Hypothesis:</strong> Falsifiable, e.g., "edge buffering + store-and-forward cuts data loss from 8% to &lt;0.5% during 4-hour outages at 1.3× device energy."</li>
+<li><strong>Design:</strong> Five-stage diagram with rates, formats, guarantees; components named with versions.</li>
+<li><strong>Method:</strong> Fault injection (kill links, delay, duplicate), metrics (loss, duplication, lag, end-to-end latency, energy), runs with variance.</li>
+<li><strong>Baselines:</strong> The naive pipeline (direct MQTT→DB, no buffer) and/or a cloud-only alternative.</li>
+<li><strong>Results:</strong> Tables, lag graphs, cost model.</li>
+<li><strong>Limitations &amp; threats:</strong> Emulation fidelity, hardware specificity.</li>
+<li><strong>Artifact:</strong> Docker Compose of the whole pipeline, configs, workload generator, raw logs.</li>
+</ol>
+<p>Write in IEEE format; the architecture diagram is Figure 1; evaluation leads with the end-to-end numbers.</p>
+<p><strong>For your research:</strong> This is your A1→A4 pipeline again: problem + lit review, method, results, presentation — now for data infrastructure.</p>
+<p><strong>Key takeaway:</strong> Pain → hypothesis → five-stage design → fault-injected evaluation → artifact = a publishable pipeline paper.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Core idea</th>
+<th>Research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Pipeline model</td>
+<td>5 stages, labeled joints</td>
+<td>Architecture figure</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Ingestion</td>
+<td>Brokers, backpressure</td>
+<td>Broker benchmarks</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Stream vs batch</td>
+<td>Decision-latency rule</td>
+<td>Justify with numbers</td>
+</tr>
+<tr>
+<td>4</td>
+<td>TS storage</td>
+<td>InfluxDB/TimescaleDB, tiers</td>
+<td>Storage benchmarks</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Semantics</td>
+<td>At-least-once + idempotency</td>
+<td>Failure demos + fixes</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Messy data</td>
+<td>Late/missing/out-of-order</td>
+<td>Gap-pattern studies</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Formats</td>
+<td>JSON→CBOR→Protobuf</td>
+<td>Format measurements</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Observability</td>
+<td>Lag, duplication, e2e latency</td>
+<td>Monitoring studies</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Edge processing</td>
+<td>Filter + sample raw</td>
+<td>Filter-recall reporting</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Security</td>
+<td>Per-stage threats, signed data</td>
+<td>Threat models + costs</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Cost</td>
+<td>Per-stage model, teardown</td>
+<td>Published cost analyses</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Study template</td>
+<td>Pain→hypothesis→artifact</td>
+<td>A1–A4 mapping</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] L. Atzori, A. Iera, and G. Morabito, "The Internet of Things: A survey," Computer Networks, vol. 54, no. 15, pp. 2787–2805, 2010.
+[2] A. Banks and R. Gupta, "MQTT Version 3.1.1," OASIS Standard, Oct. 2014.
+[3] W. Shi, J. Cao, Q. Zhang, Y. Li, and L. Xu, "Edge Computing: Vision and Challenges," IEEE Internet of Things Journal, vol. 3, no. 5, pp. 637–646, 2016.
+[4] M. Satyanarayanan, "The Emergence of Edge Computing," Computer, vol. 50, no. 1, pp. 30–39, 2017.
+[5] J. Kreps, N. Narkhede, and J. Rao, "Kafka: A distributed messaging system for log processing," in Proc. NetDB Workshop, 2011.
+[6] T. Akidau et al., "The Dataflow Model: A practical approach to balancing correctness, latency, and cost in massive-scale, unbounded, out-of-order data processing," Proc. VLDB Endowment, vol. 8, no. 12, 2015.
+[7] S. Wolfert, L. Ge, C. Verdouw, and M. J. Bogaardt, "Big Data in Smart Farming — A review," Agricultural Systems, vol. 153, pp. 69–80, 2017.
+[8] R. Roman, P. Najera, and J. Lopez, "Securing the Internet of Things," Computer, vol. 44, no. 9, pp. 51–58, 2011.
+[9] ISO/IEC 20922:2016, "Information technology — MQTT v3.1.1," 2016.
+[10] H. Kopetz, Real-Time Systems: Design Principles for Distributed Embedded Applications, 2nd ed. Springer, 2011. (book)</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Ingestion</strong> — entry of device data into the pipeline</li>
+<li><strong>Backpressure</strong> — what happens when consumers lag producers</li>
+<li><strong>Stream processing</strong> — per-event computation with low latency</li>
+<li><strong>Batch processing</strong> — scheduled computation over bounded data</li>
+<li><strong>Time-series DB</strong> — database optimized for timestamped data</li>
+<li><strong>Retention policy</strong> — how long raw/aggregated data is kept</li>
+<li><strong>Downsampling</strong> — reducing resolution of old data (1 s → 1 min)</li>
+<li><strong>Idempotent</strong> — safe to apply more than once</li>
+<li><strong>Watermark</strong> — stream-processing bound on how late data may be</li>
+<li><strong>Dead-letter queue</strong> — holding area for unprocessable messages</li>
+<li><strong>Schema registry</strong> — versioned store of data formats</li>
+<li><strong>Egress</strong> — data leaving the cloud (often billed)</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Draw the five-stage pipeline for a 200-sensor deployment you imagine. Label each arrow with rate, format, guarantee.</li>
+<li>Your consumer lags during a 1-hour outage. Compare three backpressure policies and their consequences.</li>
+<li>When is streaming unjustified? Give a numeric latency argument.</li>
+<li>Size hot/warm/cold tiers for 5,000 sensors at 1 reading/30 s, 60 bytes. Show your math.</li>
+<li>Explain why at-least-once + idempotency beats exactly-once for dashboard aggregates.</li>
+<li>Design watermark and allowed-lateness policies for a sensor network with 5% late data.</li>
+<li>Compare JSON, CBOR, and Protobuf for a LoRa payload: bytes, parse cost, evolution safety.</li>
+<li>List five pipeline golden signals and what each failure mode looks like.</li>
+<li>Your edge filter drops 99% of data. What metric proves you didn't lose real events?</li>
+<li>Write a cost model for a pipeline you design; identify the biggest term and one optimization.</li>
+</ol>
+<hr />
+<p><em>End of Book 34. Next: Book 35 — Smart Agriculture with IoT.</em></p>

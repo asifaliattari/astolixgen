@@ -1,0 +1,20 @@
+ign a topic hierarchy for a 3-floor office building monitoring temperature, occupancy, and energy per room. Show three publish examples and two wildcard subscriptions, choose QoS per topic with justification, and specify what retained messages and LWT you would use.</li>
+<li><strong>Energy budget.</strong> An ESP32 node draws 10 µA in deep sleep, 90 mA for 0.8 s reading sensors, and 160 mA for 1.2 s for Wi-Fi + MQTT per cycle, with a 10-minute cycle on a 2,000 mAh battery. Compute the expected battery life in days, then apply a 40% derating. Which state dominates, and what single change would most extend life?</li>
+<li><strong>Pipeline failure table.</strong> For the nine pipeline stages in Chapter 8, build a table: stage → what can fail → symptom in the data → your mitigation. Base it on a deployment you plan or imagine.</li>
+<li><strong>Research-oriented: calibration study design.</strong> Design a 4-week calibration study comparing a PMS5003 PM2.5 sensor against your city's reference air-quality station (public data). Specify: collocation setup, sampling interval, confounders to record, correction model, validation split, error metrics, and the exact table/figure your paper would include. Identify two threats to validity and how you would address them.</li>
+<li><strong>Research-oriented: full system proposal.</strong> Using Chapter 12's capstone as a template, write a 3-page IoT system proposal for <em>your</em> thesis topic: requirements table (≥8 requirements), architecture decisions with one-sentence justifications, itemized parts list with costs, wiring/data-flow description, power budget, security baseline, validation plan, and a mapping to your thesis chapters. Bring it to your supervisor.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] Espressif Systems, "ESP32 Technical Reference Manual," Espressif Systems, Shanghai, China. [Online]. Available: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/</p>
+<p>[2] Arduino, "Arduino Documentation," Arduino SA. [Online]. Available: https://docs.arduino.cc/</p>
+<p>[3] Raspberry Pi Ltd, "Raspberry Pi Documentation," Raspberry Pi Ltd, Cambridge, UK. [Online]. Available: https://www.raspberrypi.com/documentation/</p>
+<p>[4] OASIS, "MQTT Version 5.0," OASIS Standard, Mar. 2019. [Online]. Available: https://mqtt.org/</p>
+<p>[5] Z. Shelby, K. Hartke, and C. Bormann, "The Constrained Application Protocol (CoAP)," RFC 7252, Internet Engineering Task Force, Jun. 2014. [Online]. Available: https://www.rfc-editor.org/rfc/rfc7252</p>
+<p>[6] LoRa Alliance, "LoRaWAN Specification," LoRa Alliance. [Online]. Available: https://lora-alliance.org/about-lorawan/</p>
+<p>[7] Grafana Labs, "Grafana Documentation," Grafana Labs. [Online]. Available: https://grafana.com/docs/grafana/latest/</p>
+<p>[8] InfluxData, "InfluxDB Documentation," InfluxData. [Online]. Available: https://docs.influxdata.com/influxdb/</p>
+<p>[9] IEEE, "IEEE Internet of Things Journal," IEEE. [Online]. Available: https://ieee-iotj.org/</p>
+<p>[10] W3C, "Web of Things (WoT) Architecture 1.1," W3C Recommendation, Dec. 2023. [Online]. Available: https://www.w3.org/TR/wot-architecture11/</p>
+<hr />
+<p><em>End of Book 29. Next: Book 30 — IoT Projects: Build and Deploy.</em></p>

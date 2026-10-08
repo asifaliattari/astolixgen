@@ -1,0 +1,872 @@
+t 8883), HTTPS for dashboards and APIs, never plaintext credentials on the wire.</li>
+<li><strong>Per-device identity.</strong> Each node gets its own credential/certificate — never one shared password for all nodes. When a node is compromised or retired, revoke just that one.</li>
+<li><strong>Least privilege (ACLs).</strong> A soil node may publish to <code>farm/plot-3/#</code> and subscribe to <code>farm/plot-3/pump/set</code> — and nothing else. A compromised node then cannot command other plots.</li>
+<li><strong>Keep software updated.</strong> Patch the gateway OS, the broker, and libraries. Plan an update mechanism <em>before</em> deployment; "we'll drive out and reflash" does not scale past ten nodes.</li>
+<li><strong>Secure the gateway.</strong> Change default OS passwords, disable unused services, firewall everything except what you need, use SSH keys instead of passwords.</li>
+<li><strong>Protect data at rest</strong> where sensitive: encrypted database volumes, encrypted backups.</li>
+</ol>
+<h3 id="94-privacy-and-ethics-for-human-related-sensing">9.4 Privacy and ethics for human-related sensing</h3>
+<p>If your IoT research involves people — occupancy sensors, wearables, cameras, microphones — additional obligations apply:</p>
+<ul>
+<li><strong>Informed consent:</strong> participants must understand what is collected, for how long, and for what purpose. Get ethics/IRB approval <em>before</em> deploying.</li>
+<li><strong>Data minimization:</strong> collect only what the research question needs. A presence study needs binary occupancy, not video.</li>
+<li><strong>Anonymization/pseudonymization:</strong> separate identities from measurements as early as possible; be aware that "anonymized" sensor traces can often be re-identified.</li>
+<li><strong>Retention limits:</strong> define and enforce a deletion schedule; "keep everything forever" is not an ethics-approved data plan.</li>
+</ul>
+<h3 id="95-security-in-your-thesis">9.5 Security in your thesis</h3>
+<p>Dedicate a short section to security: your threat model (a table like the one above, scoped to your deployment), the baseline measures you implemented, and known limitations ("nodes use TLS with per-device credentials; physical tamper resistance is limited to locked enclosures — acceptable because nodes are on private farmland"). Honest scoping impresses reviewers far more than claiming perfect security.</p>
+<h3 id="96-deep-dive-cryptography-on-constrained-devices">9.6 Deep dive: cryptography on constrained devices</h3>
+<p>You don't need to be a cryptographer, but you need to know what your devices can actually do:</p>
+<ul>
+<li><strong>TLS on ESP32:</strong> fully supported (mbedTLS in ESP-IDF / WiFiClientSecure in Arduino). The cost is real — handshake takes ~1–3 seconds and significant RAM — so use <strong>session resumption</strong> and keep connections persistent rather than reconnecting per message.</li>
+<li><strong>DTLS for UDP:</strong> CoAP-over-DTLS gives datagram security where TLS can't go. Heavier to implement; another reason MQTT-over-TLS is the pragmatic default.</li>
+<li><strong>X.509 certificates vs pre-shared keys:</strong> certificates scale better (per-device identity, easy revocation) but need provisioning infrastructure; pre-shared keys are simpler for small fleets. Either beats a shared password — pick one and document the provisioning process (how keys get onto devices securely at build time).</li>
+<li><strong>ESP32 flash encryption &amp; secure boot:</strong> the chip supports encrypting flash contents and verifying firmware signatures at boot — enable both for field deployments. A stolen node then yields no credentials and runs no modified firmware. These are configuration options, not research projects; the research is in <em>evaluating</em> the overhead.</li>
+<li><strong>OTA updates:</strong> over-the-air firmware updates are essential past ~10 nodes, and they are the most dangerous feature you will build — an unsigned OTA channel is a remote-code-execution gift to attackers. Sign every image, verify the signature on-device before booting, and keep a rollback partition.</li>
+</ul>
+<h3 id="97-network-segmentation-and-the-gateway-as-a-firewall">9.7 Network segmentation and the gateway as a firewall</h3>
+<p>Treat your IoT network as untrusted by default, even from your own LAN:</p>
+<ul>
+<li>Put sensor nodes and the gateway on a <strong>separate VLAN/SSID</strong> from laptops and office systems, with firewall rules allowing only the gateway's required outbound connections.</li>
+<li>The gateway exposes <strong>only</strong> what's needed: MQTT/TLS to nodes, HTTPS dashboard to users, SSH (key-only) to you. Everything else closed.</li>
+<li>Log authentication failures on the broker and gateway; a simple daily "failed login attempts" line in your maintenance log catches scanning early.</li>
+</ul>
+<p>This is standard IT hygiene applied to IoT — and its absence is the finding of half the IoT security audit papers ever published. Doing it in your deployment, and saying so, puts you ahead of most student work.</p>
+<h3 id="98-incident-response-for-tiny-fleets">9.8 Incident response for tiny fleets</h3>
+<p>Write a one-page incident plan before deployment: how you revoke a compromised device's credentials (broker ACL + certificate revocation list), how you push an emergency firmware fix (signed OTA), who gets notified, and how you preserve logs for analysis. You will probably never use it — but the discipline of writing it forces you to verify that revocation and OTA actually work, which is the real value.</p>
+<h3 id="99-case-study-securing-the-greenhouse-capstone">9.9 Case study: securing the greenhouse capstone</h3>
+<p>Apply the baseline (§9.3) to Chapter 12's greenhouse system, concretely:</p>
+<ol>
+<li><strong>Credentials:</strong> flash a unique MQTT username/password per ESP32 at build time (derived from the device ID + a secret you store offline); the Pi gateway uses an SSH key, password login disabled; Grafana behind HTTPS with individual accounts — no shared "admin/admin."</li>
+<li><strong>Transport:</strong> Mosquitto configured for TLS only (port 8883), with a self-signed CA you install on each node (document the CA rotation plan: 2-year expiry, rotation during a maintenance visit).</li>
+<li><strong>ACLs:</strong> <code>acl_node-01</code> can publish <code>greenhouse/bay-1/#</code> and subscribe <code>greenhouse/bay-1/cmd/#</code> — nothing else. The ingestion service has read-only access to all telemetry; the dashboard backend can read but not publish commands; only the rules engine publishes to <code>…/cmd/#</code>.</li>
+<li><strong>Network:</strong> greenhouse Wi-Fi is a dedicated SSID/VLAN; the Pi's firewall allows 8883 (nodes), 443 (dashboard users), and SSH from your laptop's key only.</li>
+<li><strong>Updates:</strong> signed OTA via the gateway; firmware images versioned in git; a node that fails to boot the new image rolls back automatically (keep the known-good partition).</li>
+<li><strong>Physical:</strong> enclosures locked; nodes mounted out of casual reach; SD card on the Pi encrypted (LUKS) so a stolen gateway yields no credentials.</li>
+</ol>
+<p>Write this as a half-page "security architecture" in your thesis — it answers the reviewer's security question completely, with specifics instead of slogans.</p>
+<h3 id="910-testing-your-own-security-ethically">9.10 Testing your own security (ethically)</h3>
+<p>You may test <em>your own</em> deployment's security — and should, before a reviewer or attacker does:</p>
+<ul>
+<li><strong>Port scan</strong> the gateway (nmap) — you should see only the ports you intend.</li>
+<li><strong>Credential audit</strong> — try every default credential you can think of against your own devices; script it so it's repeatable.</li>
+<li><strong>Traffic sniffing</strong> — capture node traffic (Wireshark) and verify you cannot read credentials or payloads in plaintext.</li>
+<li><strong>Broker ACL test</strong> — connect as node-01 and try publishing to node-02's command topic; the broker must reject it.</li>
+<li><strong>Fuzz the ingestion</strong> — send malformed, oversized, and out-of-range payloads; the pipeline must reject them without crashing.</li>
+</ul>
+<p>Document each test and its result in a table. "We attacked our own system and here is what held" is a strong, honest security section — and a fine standalone workshop paper.</p>
+<h3 id="911-supply-chain-and-firmware-provenance">9.11 Supply chain and firmware provenance</h3>
+<p>Your device's security starts before you unbox it:</p>
+<ul>
+<li><strong>Buy from reputable vendors.</strong> Counterfeit modules can carry modified firmware; for research deployments the risk is low but nonzero — and clone quality issues (§4.5) are the certain cost.</li>
+<li><strong>Verify firmware provenance:</strong> download toolchains and libraries from official sources, pin dependency versions, and keep a software bill of materials (SBOM) — a list of every library and version in your firmware. When a vulnerability is announced in a library you use, the SBOM tells you in seconds whether you're affected.</li>
+<li><strong>Build reproducibly:</strong> firmware built from a tagged git commit, with the commit hash logged at boot and transmitted in the metadata payload. When node-07 behaves oddly, the first question — "what firmware is it running?" — has an exact answer.</li>
+<li><strong>No secrets in source code:</strong> Wi-Fi passwords and API keys live in a separate, git-ignored config flashed at provisioning time — never in the repository, especially not a public one. Scan your repos before publishing; leaked credentials in GitHub student projects are depressingly common.</li>
+</ul>
+<h3 id="912-privacy-by-design-for-sensor-data">9.12 Privacy by design for sensor data</h3>
+<p>Even non-human deployments deserve privacy thinking, and human-adjacent ones require it:</p>
+<ul>
+<li><strong>Minimize at the source:</strong> if your research needs room occupancy, transmit a binary occupied/vacant flag — not audio, not video, not raw PIR waveforms that could be re-analyzed later for more than consented.</li>
+<li><strong>Aggregate early:</strong> a building study can publish floor-level aggregates while keeping room-level data restricted — decide the aggregation boundary in the ethics application, not after collection.</li>
+<li><strong>Separate identifiers from measurements</strong> as early in the pipeline as possible (pseudonymous device IDs mapped to identities only in a restricted lookup), and define who can access the mapping.</li>
+<li><strong>Plan deletion:</strong> "data will be deleted 2 years after publication" — and implement it. An unenforced retention policy is a fiction; schedule the deletion job.</li>
+</ul>
+<p>Privacy designed in from the start is a paragraph in your ethics approval; privacy bolted on afterward is a rewrite of your pipeline.</p>
+<p><strong>For your research:</strong> A highly publishable contribution type is a <em>security evaluation</em>: take a common IoT setup (e.g., a popular tutorial's smart-home build), systematically test it against the baseline above, and report the gaps with fixes. Security-audit papers of real deployments are consistently accepted because they are useful, reproducible, and honest about limitations.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>IoT's biggest breaches came from basics: default passwords and unencrypted traffic. Fix the basics first.</li>
+<li>Build a threat model table, then apply the baseline: unique credentials, TLS everywhere, per-device identity, topic ACLs, updates, gateway hardening.</li>
+<li>Human-subject sensing adds consent, minimization, and retention obligations — get ethics approval before deploying.</li>
+<li>Document your security scope honestly in the thesis, including what you did <em>not</em> defend against and why.</li>
+</ul>
+<hr />
+<p><em>End of chunk 3 of 4 — continues with Chapters 10–12, dashboard, glossary, exercises, references.</em></p>
+<hr />
+<h2 id="chapter-10-power-management-batteries-sleep-modes-solar">Chapter 10: Power Management — Batteries, Sleep Modes, Solar</h2>
+<h3 id="101-energy-is-the-fundamental-constraint">10.1 Energy is the fundamental constraint</h3>
+<p>Every IoT deployment design is, underneath, a power budget. A node that must run for a year on batteries can afford only a tiny daily energy allowance; every wake-up, every sensor reading, every transmitted byte spends from that allowance. Researchers who do this math <em>before</em> buying parts build deployments that survive; those who skip it build nodes that die in week three — along with the dataset.</p>
+<p>The core skill is the <strong>energy budget calculation</strong>. It needs only arithmetic:</p>
+<ol>
+<li>List every operating state: deep sleep, sensor warm-up, sensor read, radio transmit, etc.</li>
+<li>For each state: current draw (from datasheets, then <em>measured</em>) × time spent per cycle.</li>
+<li>Sum over one cycle (e.g., one hour) → average current.</li>
+<li>Battery life ≈ battery capacity (mAh) ÷ average current (mA) = hours.</li>
+</ol>
+<p><strong>Worked example — ESP32 soil node, reading every 15 minutes:</strong></p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Current</th>
+<th>Duration</th>
+<th>Charge per cycle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Deep sleep</td>
+<td>0.01 mA (10 µA)</td>
+<td>898 s</td>
+<td>0.0025 mAh</td>
+</tr>
+<tr>
+<td>Wake + read sensor</td>
+<td>80 mA</td>
+<td>1 s</td>
+<td>0.022 mAh</td>
+</tr>
+<tr>
+<td>Wi-Fi connect + MQTT publish</td>
+<td>150 mA</td>
+<td>1 s</td>
+<td>0.042 mAh</td>
+</tr>
+<tr>
+<td><strong>Total per 15-min cycle</strong></td>
+<td></td>
+<td></td>
+<td><strong>≈ 0.067 mAh</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Per day: 96 cycles × 0.067 ≈ 6.4 mAh/day. A modest 2,500 mAh battery ÷ 6.4 mAh/day ≈ <strong>390 days</strong> — over a year. But note what dominates: the two seconds of <em>active</em> time, not the 898 seconds of sleep. This is the universal lesson: <strong>optimize the active window first</strong> (faster Wi-Fi connect, shorter transmissions), because sleep is already nearly free. Also note the traps: battery capacity falls in cold weather and with age; self-discharge eats a few percent per month; Wi-Fi association time varies. Derate your calculated life by 30–50% for a honest estimate, and <em>measure</em> the real current with a USB power meter or multimeter — datasheet numbers are optimistic.</p>
+<h3 id="102-sleep-modes">10.2 Sleep modes</h3>
+<ul>
+<li><strong>Deep sleep (ESP32):</strong> CPU, Wi-Fi, and most RAM off; only the RTC timer (and optionally touch/ULP coprocessor) runs; ~10 µA. Wake by timer or GPIO interrupt. RAM contents are lost (except RTC memory) — the program restarts from setup, so save state to flash/RTC memory if needed.</li>
+<li><strong>Light sleep:</strong> CPU paused, peripherals and RAM retained; ~1 mA. Faster wake, for shorter intervals.</li>
+<li><strong>Modem sleep:</strong> CPU on, Wi-Fi radio off between beacons; ~20 mA. For mains-ish or frequently-communicating nodes.</li>
+<li><strong>Sensor sleep:</strong> many sensors (PMS5003, SCD30, GPS modules) have their own sleep commands — use them. A PMS5003's fan running continuously draws ~100 mA; duty-cycling it (run 30 s before each reading) cuts its energy by 95%+.</li>
+</ul>
+<p><strong>Design pattern — the duty cycle:</strong> wake → power sensors → wait for stabilization → read → transmit → power everything down → sleep. Put sensor warm-up <em>inside</em> the active window and keep that window as short as the sensor's physics allows.</p>
+<h3 id="103-batteries">10.3 Batteries</h3>
+<ul>
+<li><strong>Alkaline AA:</strong> cheap, ~2,500 mAh, but voltage sags under load and collapses in cold; fine for low-power indoor prototypes.</li>
+<li><strong>Lithium AA (Li-FeS₂):</strong> ~3,000 mAh, excellent cold performance, long shelf life — the best primary (non-rechargeable) choice for field nodes.</li>
+<li><strong>Li-ion 18650:</strong> rechargeable, ~2,500–3,500 mAh, 3.7 V nominal; needs a protection circuit and proper charger; the standard for solar-recharged nodes.</li>
+<li><strong>LiPo pouches:</strong> light and flat, but fragile — puncture risk; use with protection circuits and enclosures.</li>
+</ul>
+<p><strong>Rules:</strong> never mix old and new cells; size the battery for the <em>worst</em> season (cold halves usable capacity); add a low-battery alert (the metadata trick from Chapter 8 pays off here); and remember that a node's <em>regulator</em> wastes power too — a 3.3 V LDO regulator fed from 5 V burns the difference as heat, so match battery voltage to the board's needs or use an efficient buck converter.</p>
+<h3 id="104-solar-harvesting">10.4 Solar harvesting</h3>
+<p>For multi-year deployments, a small solar panel + rechargeable battery + charge controller makes the node energy-independent. Sizing logic:</p>
+<ol>
+<li>Compute daily consumption (from your budget, e.g., 6.4 mAh/day at ~4 V ≈ 26 mWh/day).</li>
+<li>Estimate worst-month solar insolation at your site (hours of usable sun × panel wattage × charge efficiency ~70%).</li>
+<li>Size the panel so the worst month still covers ~2–3× daily consumption (cloudy stretches).</li>
+<li>Size the battery for 5–7 sunless days of autonomy.</li>
+</ol>
+<p>A 5 W panel and an 18650 cell comfortably run a typical LoRaWAN sensor node indefinitely in most climates — which is why solar + LoRaWAN is the default architecture for agricultural and environmental research networks. Keep panels clean (dust cuts output significantly) and tilt them toward the equator at roughly your latitude angle.</p>
+<h3 id="105-energy-aware-protocol-choices">10.5 Energy-aware protocol choices</h3>
+<p>Power management interacts with everything earlier in this book: MQTT persistent connections beat HTTP's repeated handshakes on energy; LoRaWAN's tiny packets beat Wi-Fi's association overhead; edge aggregation (send hourly means, not raw samples) can cut transmissions 60×. When you write the power section of your thesis, show the budget table <em>and</em> the design decisions it drove — that is engineering research.</p>
+<h3 id="106-deep-dive-measuring-real-current">10.6 Deep dive: measuring real current</h3>
+<p>Datasheet numbers are optimistic; measure. The tools, cheapest first:</p>
+<ul>
+<li><strong>USB power meter</strong> (~$10): inline voltage/current display — good enough for Pi-class and USB-powered nodes; too slow to catch millisecond radio spikes.</li>
+<li><strong>Multimeter in series</strong> (current mode): fine for sleep current (µA ranges on good meters) but its burden voltage and slow sampling miss fast transients.</li>
+<li><strong>Current-sense + oscilloscope/logic analyzer</strong>: a small shunt resistor (e.g., 1 Ω) with voltage logged across it captures the true current waveform — the Wi-Fi association spike, the LoRa chirp — with microsecond resolution. This is how you discover that "1 second of transmit" is actually 2.3 seconds.</li>
+</ul>
+<p><strong>Method:</strong> power the node through the shunt, trigger a wake cycle, capture the waveform, integrate current over time for the true charge per cycle, and redo the budget with measured numbers. Report both datasheet and measured values in your thesis — the discrepancy is data.</p>
+<h3 id="107-regulators-the-hidden-tax">10.7 Regulators: the hidden tax</h3>
+<p>Your battery's voltage rarely matches your board's needs, and the regulator bridging them wastes power:</p>
+<ul>
+<li><strong>LDO (low-dropout linear) regulators:</strong> cheap and quiet, but burn excess voltage as heat. A 5 V battery feeding a 3.3 V LDO at 100 mA wastes (5 − 3.3) × 0.1 = 170 mW — often more than the MCU itself uses. Efficiency = Vout/Vin, so they're only sensible when voltages are close.</li>
+<li><strong>Buck (switching) converters:</strong> 85–95% efficient across wide voltage gaps, but noisier (can inject ripple into analog readings — keep them away from ADC inputs or add filtering) and costlier.</li>
+</ul>
+<p>For battery nodes, prefer boards with efficient buck regulation or match battery voltage to the MCU (a single Li-ion cell at 3.0–4.2 V into a 3.3 V buck, or two AA into a boost). And check <strong>quiescent current</strong> — a regulator drawing 1 mA doing nothing will drain a 2,500 mAh battery in 100 days by itself, dwarfing your 10 µA deep sleep. This single spec kills more "year-long battery" claims than any other.</p>
+<h3 id="108-beyond-solar-harvesting-and-supercapacitors">10.8 Beyond solar: harvesting and supercapacitors</h3>
+<ul>
+<li><strong>Supercapacitors</strong> bridge short gaps (hours to a day) and survive far more charge cycles than batteries — useful for solar nodes in flickering light, but their self-discharge rules out seasonal storage.</li>
+<li><strong>Other harvesters</strong> (vibration/piezoelectric, thermal gradients, RF) produce microwatts — enough for a sensor reading per hour in niche cases, a fun thesis topic, but rarely the pragmatic choice. Solar remains the only harvester that reliably powers real IoT workloads.</li>
+<li><strong>Hybrid design:</strong> solar + supercapacitor for daily cycling + small Li-ion for cloudy weeks is the professional pattern for decade-long deployments.</li>
+</ul>
+<h3 id="109-battery-realities-discharge-curves-and-cold">10.9 Battery realities: discharge curves and cold</h3>
+<p>A battery's "2,500 mAh" is measured under gentle, room-temperature discharge to a cutoff voltage. Reality differs:</p>
+<ul>
+<li><strong>Discharge curve shape:</strong> alkaline cells slope steadily downward (your 5 V rail becomes 3 V long before the energy is gone — regulators drop out, brown-outs begin); Li-ion holds ~3.7 V flat then falls off a cliff (great until it's suddenly empty — which is why fuel-gauge ICs or voltage-based low-battery alerts matter); lithium primary (Li-FeS₂) stays flat and works to −40 °C.</li>
+<li><strong>Cold:</strong> at 0 °C, alkaline capacity can halve; Li-ion loses 20–30% and can't be <em>charged</em> below freezing (plating damages the cell — solar charge controllers for cold climates need low-temperature charge cutoff). If your deployment sees winter, lithium primaries or heated enclosures aren't optional.</li>
+<li><strong>Self-discharge and aging:</strong> Li-ion loses a few percent per month plus calendar aging (~20% capacity loss over 2–3 years at room temperature, faster when hot). Size for end-of-life capacity, not fresh-cell capacity.</li>
+<li><strong>Pulse loads:</strong> radio transmission spikes (hundreds of mA) can momentarily collapse a weak battery's voltage even when plenty of energy remains — a large capacitor (hundreds of µF) across the supply rails absorbs the spike. If your node resets exactly when transmitting, suspect this before anything else.</li>
+</ul>
+<h3 id="1010-the-low-power-design-checklist">10.10 The low-power design checklist</h3>
+<p>Tape this inside your lab notebook:</p>
+<ul>
+<li>[ ] Budget computed from <em>measured</em> per-state currents, derated 30–50%</li>
+<li>[ ] Deep sleep between cycles; peripherals powered down (not just idle)</li>
+<li>[ ] Sensor warm-up minimized (duty-cycled fan/heater sensors)</li>
+<li>[ ] Transmissions minimized: aggregated payloads, efficient encoding (CBOR), MQTT over persistent TLS (not HTTP per reading)</li>
+<li>[ ] Regulator quiescent current checked (&lt; 100 µA for year-class nodes)</li>
+<li>[ ] Battery sized for worst-season temperature and end-of-life capacity</li>
+<li>[ ] Low-battery alert threshold set and tested (metadata in every payload)</li>
+<li>[ ] One node field-tested for ≥ 2 weeks with voltage logging before full deployment</li>
+</ul>
+<p>Every box you can't check is a risk in your risk register (Chapter 12).</p>
+<h3 id="1011-worked-example-sizing-a-solar-lorawan-node">10.11 Worked example: sizing a solar LoRaWAN node</h3>
+<p>Design the power system for a field node: ESP32 + SHT31 + capacitive soil probe, LoRaWAN uplink every 15 minutes, deployed in Punjab with hot summers and mild winters.</p>
+<p><strong>Step 1 — daily energy.</strong> Per cycle: wake + read (80 mA × 1 s) + LoRa TX at SF9 (90 mA × 0.4 s) + RX windows (15 mA × 2 s) ≈ 0.022 + 0.010 + 0.008 = 0.040 mAh; sleep (0.01 mA × 897 s) ≈ 0.0025 mAh. Per cycle ≈ 0.043 mAh × 96 cycles ≈ <strong>4.1 mAh/day</strong> at ~3.7 V ≈ <strong>15 mWh/day</strong>.</p>
+<p><strong>Step 2 — panel.</strong> Worst month (December): ~4 peak sun hours. A 3 W panel × 4 h × 70% charge efficiency ≈ 8.4 Wh/day — over 500× the need. Even a <strong>1 W panel</strong> gives ~2.8 Wh/day, ~180× margin. The panel is never the constraint at these loads; dust and shading are. Choose a 2–3 W panel for margin and mechanical robustness, not energy math.</p>
+<p><strong>Step 3 — battery.</strong> 7 sunless days × 4.1 mAh ≈ 29 mAh usable needed. A single 18650 (2,600 mAh) gives ~90× that — the battery is sized by <em>self-discharge and aging</em>, not by the load. One 18650 + 2 W panel + a TP4056-type charge module with protection = a node that runs indefinitely with annual inspection. Total power-system cost: under $10.</p>
+<p>The lesson generalizes: for low-duty-cycle LoRaWAN sensing, power is a solved problem for single-digit dollars — which is exactly why this architecture dominates agricultural research networks. Your thesis should show this three-step sizing; it takes a page and preempts every "but what about power?" question.</p>
+<p><strong>For your research:</strong> Build the budget spreadsheet for your planned deployment <em>before</em> ordering parts, then validate it: deploy one node on your desk for two weeks, log battery voltage, and compare against prediction. The gap between predicted and measured life — and your explanation of it — is exactly the kind of honest, useful result that gets cited.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Battery life = capacity ÷ average current; compute it from per-state current × time, then derate 30–50% and measure.</li>
+<li>The active window dominates energy — shorten wake time, sensor warm-up, and transmissions before worrying about sleep current.</li>
+<li>Deep sleep (~10 µA on ESP32) plus duty-cycled sensors is how nodes last a year on batteries.</li>
+<li>Solar + rechargeable cell + LoRaWAN is the default architecture for long-term field research; size panel and battery for the worst month.</li>
+</ul>
+<hr />
+<h2 id="chapter-11-iot-in-research-designing-sensor-based-experiments">Chapter 11: IoT in Research — Designing Sensor-Based Experiments</h2>
+<h3 id="111-from-demo-to-experiment">11.1 From demo to experiment</h3>
+<p>A demo shows that something <em>can</em> work once. An experiment produces <em>evidence</em> that answers a question. The difference is entirely in design discipline, and reviewers can tell within two pages which one they are reading. This chapter converts everything in this book into a repeatable experimental method.</p>
+<h3 id="112-the-research-question-comes-first">11.2 The research question comes first</h3>
+<p>Never start with "I have an ESP32, what can I measure?" Start with the question, then derive the sensing requirements:</p>
+<ul>
+<li><strong>Question:</strong> "Does low-cost PM2.5 sensing agree with reference monitors well enough for neighborhood-level alerts?"</li>
+<li><strong>Derived requirements:</strong> collocation with a reference station, ≥ 4 weeks of data across weather conditions, humidity correction analysis, quantified error metrics (MAE, RMSE, R²).</li>
+</ul>
+<p>Notice the requirements name the <em>deployment</em>, the <em>duration</em>, the <em>analysis</em>, and the <em>metrics</em> — before any part is ordered. Write these as a one-page experiment plan and get supervisor sign-off. This page later becomes your methodology's opening.</p>
+<h3 id="113-experimental-design-for-sensor-studies">11.3 Experimental design for sensor studies</h3>
+<ul>
+<li><strong>Controls and references:</strong> every measurement claim needs a reference. Temperature → calibrated thermometer or met-station data; air quality → regulatory monitor; soil moisture → gravimetric samples or a professional probe. No reference, no publishable accuracy claim.</li>
+<li><strong>Replication:</strong> deploy multiple identical nodes (minimum 3) to separate <em>sensor variability</em> from <em>environmental variability</em>. If all three agree, it's the environment; if one diverges, it's the sensor.</li>
+<li><strong>Duration and sampling:</strong> capture the phenomenon's full cycle — diurnal and weekly patterns at minimum; seasonal if your question needs it. Sampling interval follows the Nyquist intuition: sample at least several times faster than the fastest change you care about (temperature: every 5–15 min; vibration events: kHz — which means edge processing, not cloud streaming).</li>
+<li><strong>Metadata discipline:</strong> log firmware version, sensor batch/serial, calibration dates, placement photos, and any maintenance event. Six months later, you will not remember which node had the replaced sensor — the log will.</li>
+<li><strong>Pre-registration (for confirmatory studies):</strong> write down your hypotheses, metrics, and analysis plan <em>before</em> collecting data. It prevents HARKing (hypothesizing after results are known) and strengthens the paper.</li>
+</ul>
+<h3 id="114-calibration-the-researchers-core-craft">11.4 Calibration: the researcher's core craft</h3>
+<p>Low-cost sensors + careful calibration is one of the most productive research formulas in IoT. The standard workflow:</p>
+<ol>
+<li><strong>Collocate</strong> your sensor with a reference instrument in the target environment for days to weeks.</li>
+<li><strong>Collect</strong> paired readings across the full range of conditions (temperature, humidity — confounders matter).</li>
+<li><strong>Fit</strong> a correction model: start with linear regression; add confounder terms (humidity correction for PM sensors is the classic); compare against the uncorrected baseline.</li>
+<li><strong>Validate</strong> on held-out data (a different week, ideally) — report MAE/RMSE before and after correction.</li>
+<li><strong>Report</strong> the calibration equation, its valid range, and its expiry ("recalibration recommended every 6 months") — because calibration drifts.</li>
+</ol>
+<p>This five-step pattern, executed honestly, is a complete publishable unit. Many published IoT papers are exactly this, done carefully.</p>
+<h3 id="115-data-quality-pipeline-for-research">11.5 Data quality pipeline for research</h3>
+<p>Before analysis, run every dataset through quality checks and <em>report the attrition</em>:</p>
+<ul>
+<li><strong>Range checks:</strong> discard physically impossible values (humidity &gt; 100%, negative PM).</li>
+<li><strong>Stuck-sensor detection:</strong> a sensor reporting the identical value for hours has failed — flag it.</li>
+<li><strong>Gap analysis:</strong> report uptime percentage and characterize gaps (random vs systematic — a node that dies every night at 2 AM has a power problem, not a random one).</li>
+<li><strong>Outlier handling:</strong> define rules in advance (e.g., median filters), never hand-delete inconvenient points.</li>
+</ul>
+<p>A "data quality" subsection with a table (readings collected → valid → flagged, with reasons) is standard in good IoT papers and takes an afternoon to produce.</p>
+<h3 id="116-common-research-contribution-types-in-iot-pick-your-lane">11.6 Common research contribution types in IoT (pick your lane)</h3>
+<ol>
+<li><strong>Calibration/validation study:</strong> low-cost sensor vs reference, with correction model.</li>
+<li><strong>Energy optimization:</strong> measured battery-life improvement via scheduling, duty cycling, or protocol choice.</li>
+<li><strong>Comparative evaluation:</strong> two technologies/protocols/platforms measured head-to-head on real hardware.</li>
+<li><strong>Deployment case study:</strong> real environment, real duration, lessons learned, released dataset.</li>
+<li><strong>Edge intelligence:</strong> TinyML or edge analytics evaluated on-device (accuracy, latency, energy).</li>
+<li><strong>Security/privacy evaluation:</strong> audit of a real deployment against best practice.</li>
+</ol>
+<p>Each lane has known venues (IEEE Internet of Things Journal, IEEE Sensors Journal, ACM Transactions on Sensor Networks, MDPI Sensors) and known reviewer expectations — read 5 recent papers in your lane before writing.</p>
+<h3 id="117-deep-dive-statistics-for-sensor-comparisons">11.7 Deep dive: statistics for sensor comparisons</h3>
+<p>IoT validation papers live or die on their statistics. Go beyond "the sensor agreed well":</p>
+<ul>
+<li><strong>Bland–Altman plots</strong> (difference vs mean of the two instruments) are the gold standard for method comparison — they reveal bias and proportional error that correlation coefficients hide. A correlation of 0.99 can coexist with a systematic +2 °C bias; Bland–Altman shows it instantly.</li>
+<li><strong>Error metrics:</strong> report MAE (interpretable), RMSE (penalizes large errors), and bias (mean signed error — tells you the direction of systematic error). Report them on held-out data, with the sample size and conditions.</li>
+<li><strong>Uncertainty:</strong> state confidence intervals where you can; at minimum, report error distributions, not just means ("95% of errors within ±0.4 °C" beats "mean error 0.1 °C").</li>
+<li><strong>Confounder analysis:</strong> stratify errors by temperature, humidity, time of day. "The PM sensor is accurate except above 80% RH" is a finding, not a failure — it defines the valid operating envelope.</li>
+</ul>
+<p>One well-made Bland–Altman figure plus an error table is the methodological core of a calibration paper. Learn to make it early.</p>
+<h3 id="118-publishing-and-dataset-strategy">11.8 Publishing and dataset strategy</h3>
+<ul>
+<li><strong>Venue selection:</strong> match the lane — instrumentation/calibration → IEEE Sensors Journal, IEEE Transactions on Instrumentation and Measurement; systems/deployments → IEEE IoT Journal, ACM TOSN; applied (agriculture, environment) → domain journals plus MDPI Sensors. Check indexing (Scopus/Web of Science) per your university's requirements before submitting.</li>
+<li><strong>Dataset papers:</strong> journals like <em>Scientific Data</em> (Nature) and <em>Data in Brief</em> publish the dataset itself — a well-documented 6-month deployment dataset can become its own publication, cited by everyone who reuses it.</li>
+<li><strong>Reproducibility package:</strong> firmware source, gateway configs, calibration scripts, and the data dictionary, archived with a DOI (Zenodo is free). Reviewers increasingly expect this; it also protects you when someone questions a result two years later.</li>
+</ul>
+<h3 id="119-ethics-and-fieldwork-practicalities">11.9 Ethics and fieldwork practicalities</h3>
+<ul>
+<li><strong>Permissions:</strong> farms, buildings, and public spaces need written permission; note it in the methodology.</li>
+<li><strong>Safety:</strong> enclosures rated for the environment (IP65+ outdoors), no mains voltage in reach of the public, batteries in fire-safe placement.</li>
+<li><strong>Community:</strong> if your sensors are visible (air-quality nodes on homes), explain the project to the hosts — a curious neighbor unplugging your node is a data gap you could have prevented with a conversation.</li>
+<li><strong>IRB/ethics:</strong> any human data → ethics approval <em>before</em> deployment, documented consent, and a data-management plan with retention limits.</li>
+</ul>
+<h3 id="1110-literature-review-strategy-for-iot-topics">11.10 Literature review strategy for IoT topics</h3>
+<p>IoT literature is vast and uneven (conferences, journals, whitepapers, tutorials). Review efficiently:</p>
+<ol>
+<li><strong>Start with surveys:</strong> search "survey" + your topic ("survey low-cost air quality calibration") — a good survey from the last 3 years gives you the taxonomy, the key papers, and the open gaps in one read.</li>
+<li><strong>Snowball:</strong> from each key paper, follow citations backward (references) and forward (Google Scholar "cited by") — two hops in each direction usually captures the core.</li>
+<li><strong>Build the comparison table early:</strong> columns for Author (Year) | Objective | Hardware | Method | Key finding | Limitation. Fill it as you read; the Limitation column across 15 papers <em>is</em> your gap analysis.</li>
+<li><strong>Separate evidence grades:</strong> peer-reviewed journal &gt; peer-reviewed conference &gt; preprint &gt; vendor whitepaper &gt; blog tutorial. Cite accordingly, and never let a tutorial be your only source for a technical claim.</li>
+<li><strong>Track the moving targets:</strong> managed cloud IoT services get discontinued, module prices change, new ESP32 variants appear. Note access dates on web citations and prefer versioned documentation.</li>
+</ol>
+<p>Aim for 30–50 sources for a thesis literature review, with at least two-thirds peer-reviewed. Quality of synthesis beats quantity of listing — group papers by approach and compare them, don't just summarize one after another.</p>
+<h3 id="1111-writing-the-methodology-chapter-iot-specific">11.11 Writing the methodology chapter (IoT-specific)</h3>
+<p>Reviewers read methodology looking for reproducibility. Give them this structure:</p>
+<ol>
+<li><strong>System overview</strong> — architecture diagram on the layered model (Chapter 1), one paragraph per layer naming the technology chosen and why.</li>
+<li><strong>Hardware</strong> — parts table with models and key specs; the board/connectivity/protocol decision justifications (one sentence each, citing the trade-off analysis).</li>
+<li><strong>Measurement</strong> — per sensor: principle, stated vs validated accuracy, calibration procedure and reference instrument, placement details with photos.</li>
+<li><strong>Data pipeline</strong> — the nine stages (Chapter 8) with technology at each; timestamping method and accuracy; buffering and failure handling.</li>
+<li><strong>Experimental design</strong> — question, controls/references, replication, duration, sampling rationale, pre-registered analysis plan.</li>
+<li><strong>Power and security</strong> — budget summary; threat model table and implemented baseline.</li>
+<li><strong>Limitations</strong> — stated plainly: what the system cannot claim, valid operating envelopes, known failure modes.</li>
+</ol>
+<p>Write it so a competent peer could rebuild your system from the chapter alone. That is the bar, and theses that clear it get cited.</p>
+<h3 id="1112-the-pilot-study-your-most-valuable-month">11.12 The pilot study: your most valuable month</h3>
+<p>Before the full deployment, run a <strong>pilot</strong>: 2–3 nodes, at the real site, for 2–4 weeks, with a reference instrument alongside. The pilot's job is to fail cheaply — and it will find failures:</p>
+<ul>
+<li>The Wi-Fi doesn't reach the far corner (add a repeater or move the gateway).</li>
+<li>The enclosure condenses water inside at night (add ventilation/drainage, reposition).</li>
+<li>The soil probes read differently in this soil type (recalibrate for local soil).</li>
+<li>The farmer unplugs the gateway to charge a phone (have the conversation; add a lock).</li>
+<li>Your timestamp logic has a bug visible only across a DST-free UTC boundary (fix now, not in month 4).</li>
+</ul>
+<p><strong>Treat the pilot as a formal phase:</strong> write a one-page pilot plan (what you're testing, success criteria), run it, write a one-page pilot report (what failed, what changed). The pilot report becomes the most credible paragraph in your methodology — "a 3-week pilot identified X, Y, Z; the full deployment incorporated…" — because it proves your design survived contact with reality. Supervisors love pilots; they de-risk the timeline. Never skip the pilot to "save time" — it is the highest-ROI month of the project.</p>
+<p><strong>For your research:</strong> Take your thesis topic and fill this template: <em>Question → Required measurements → Reference instrument → Nodes &amp; replication → Duration → Metrics → Analysis plan → Likely contribution lane (1–6 above).</em> If any slot is blank or vague, that is your next week's work. A supervisor who sees this template filled takes the project seriously.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Question first, parts second: derive sensing requirements from the research question.</li>
+<li>Every accuracy claim needs a reference instrument; every deployment needs replicated nodes and logged metadata.</li>
+<li>The collocate → correct → validate calibration workflow is a complete publishable unit.</li>
+<li>Report data attrition honestly (collected → valid → flagged); pick your contribution lane early.</li>
+</ul>
+<hr />
+<h2 id="chapter-12-capstone-plan-a-complete-iot-system">Chapter 12: Capstone — Plan a Complete IoT System</h2>
+<h3 id="121-the-scenario">12.1 The scenario</h3>
+<p>You are tasked with designing a <strong>greenhouse monitoring and control system</strong> for a university agricultural research station. Requirements: monitor air temperature, humidity, soil moisture, and light in 4 greenhouse bays; automatically control ventilation fans and irrigation valves per bay; run for a full 6-month growing season on minimal maintenance; data must be research-grade (validated, timestamped, gap-free); total hardware budget USD 500.</p>
+<p>Work through the plan below as the worked example — then Exercise 10 asks you to do the same for <em>your</em> thesis topic.</p>
+<h3 id="122-requirements-analysis">12.2 Requirements analysis</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>Measure air T/RH per bay, ±0.5 °C / ±3% RH or better</td>
+<td>Sensing</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>Measure soil moisture per bay (2 probes per bay for replication)</td>
+<td>Sensing</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>Measure light level per bay</td>
+<td>Sensing</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>Auto-ventilate: fan ON at 32 °C, OFF at 28 °C (hysteresis)</td>
+<td>Control</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>Auto-irrigate: valve ON below 30% moisture, OFF above 45%</td>
+<td>Control</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>5-minute sampling; 6-month unattended operation</td>
+<td>Reliability</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>Research-grade: validated against references, UTC timestamps</td>
+<td>Data quality</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>Budget ≤ USD 500; mains power available in greenhouse</td>
+<td>Constraints</td>
+</tr>
+</tbody>
+</table>
+<h3 id="123-architecture-decisions-with-justification">12.3 Architecture decisions (with justification)</h3>
+<ul>
+<li><strong>Compute placement:</strong> per-bay ESP32 nodes do sensing + threshold control locally (edge — fans must respond even if the network fails); a Raspberry Pi gateway in the greenhouse office aggregates, stores, and serves the dashboard; nightly cloud backup for the dataset.</li>
+<li><strong>Connectivity:</strong> Wi-Fi — mains power is available, distances are &lt; 50 m, an access point exists. (If this were an open field, the answer would be LoRaWAN — see Chapter 5's walkthrough.)</li>
+<li><strong>Protocol:</strong> MQTT (QoS 1 for readings, QoS 2 for valve/fan commands), TLS, per-device credentials; HTTP from gateway to cloud backup.</li>
+<li><strong>Power:</strong> mains-powered nodes (no battery math needed), but each node gets a small UPS-style USB power bank for ride-through of short outages; gateway on a proper UPS.</li>
+</ul>
+<h3 id="124-parts-list">12.4 Parts list</h3>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Qty</th>
+<th>Unit cost (approx.)</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32 dev boards</td>
+<td>4</td>
+<td>$6</td>
+<td>Per-bay node</td>
+</tr>
+<tr>
+<td>SHT31 temp/RH sensors (I²C)</td>
+<td>4</td>
+<td>$8</td>
+<td>R1 — better accuracy than DHT22</td>
+</tr>
+<tr>
+<td>Capacitive soil-moisture probes</td>
+<td>8</td>
+<td>$4</td>
+<td>R2 — 2 per bay, corrosion-resistant</td>
+</tr>
+<tr>
+<td>BH1750 light sensors</td>
+<td>4</td>
+<td>$4</td>
+<td>R3 — true lux readings</td>
+</tr>
+<tr>
+<td>4-channel relay modules (optoisolated)</td>
+<td>4</td>
+<td>$6</td>
+<td>Fan/valve switching</td>
+</tr>
+<tr>
+<td>12 V DC fans + 12 V solenoid valves</td>
+<td>4+4</td>
+<td>$12/$15</td>
+<td>Actuation (R4, R5)</td>
+</tr>
+<tr>
+<td>12 V power supplies</td>
+<td>4</td>
+<td>$10</td>
+<td>Separate actuator power</td>
+</tr>
+<tr>
+<td>Raspberry Pi 4 (4 GB) + SD + case</td>
+<td>1</td>
+<td>$70</td>
+<td>Gateway, InfluxDB, Grafana, Mosquitto</td>
+</tr>
+<tr>
+<td>Reference thermometer/hygrometer (borrowed or $25 handheld)</td>
+<td>1</td>
+<td>$25</td>
+<td>Calibration reference</td>
+</tr>
+<tr>
+<td>Enclosures, cables, mounting</td>
+<td>—</td>
+<td>$50</td>
+<td>Field hardening</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>≈ $480</strong></td>
+<td>Within budget</td>
+</tr>
+</tbody>
+</table>
+<h3 id="125-wiring-and-data-flow-plan-per-bay">12.5 Wiring and data-flow plan (per bay)</h3>
+<ol>
+<li>ESP32 powered from mains USB; sensors on 3.3 V rail: SHT31 + BH1750 share the I²C bus (different addresses), soil probes to two ADC pins.</li>
+<li>Relay module driven by GPIO (signal only); relay contacts switch the 12 V actuator supply — separate supplies, optoisolation, per Chapter 3.</li>
+<li>Firmware loop: every 5 min — wake sensors, read all, apply median filter, evaluate control rules with hysteresis, drive relays, publish JSON payload (with battery/USB status + RSSI + firmware version) via MQTT QoS 1, then light-sleep.</li>
+<li>Failsafes: max fan/valve run-time 30 min; watchdog timer reboots hung nodes; Last Will marks offline nodes on the dashboard.</li>
+<li>Gateway: Mosquitto broker → ingestion script (validation, dedup) → InfluxDB → Grafana dashboard + alert rules; nightly encrypted backup to cloud storage.</li>
+</ol>
+<h3 id="126-validation-and-data-quality-plan">12.6 Validation and data-quality plan</h3>
+<ul>
+<li>Week 0: collocate all SHT31s with the reference thermometer for 72 h in the greenhouse; record offsets; apply per-sensor correction.</li>
+<li>Soil probes: calibrate against gravimetric samples at 3 moisture levels; fit per-probe curves.</li>
+<li>Ongoing: daily automated data-quality report (uptime %, range violations, stuck sensors, gaps); monthly physical inspection.</li>
+<li>Dataset: 4 bays × 6 months × 288 readings/day ≈ 2.7 M readings — exported monthly as versioned CSV with a data dictionary.</li>
+</ul>
+<h3 id="127-what-the-thesis-gets-from-this">12.7 What the thesis gets from this</h3>
+<p>Introduction (problem: greenhouse climate variability) → Related work (low-cost greenhouse IoT, calibration studies) → Methodology (this entire plan: requirements, architecture justification, parts, calibration, pipeline, security baseline, power) → Results (climate traces, control performance, energy/use stats, validation errors) → Discussion (limitations: Wi-Fi dependence, 6-month drift) → Conclusion. Every chapter of this book maps to a thesis section — that is the point.</p>
+<h3 id="128-commissioning-checklist-and-risk-register">12.8 Commissioning checklist and risk register</h3>
+<p>No deployment survives first contact with the field without a commissioning ritual. Run this per node, on site:</p>
+<ul>
+<li>[ ] Powers up reliably from its deployment supply (not your lab bench supply)</li>
+<li>[ ] Connects to the network from its actual mounting position (check RSSI)</li>
+<li>[ ] Publishes readings visible on the dashboard with correct timestamps</li>
+<li>[ ] Responds to commands (trigger each actuator manually once)</li>
+<li>[ ] Failsafes tested (disconnect the sensor — does the actuator default safe?)</li>
+<li>[ ] Enclosure sealed, cables strain-relieved, mounting secure</li>
+<li>[ ] Placement photographed with a reference object; GPS coordinates logged</li>
+<li>[ ] Spare node flashed with identical firmware, labeled, stored on site</li>
+</ul>
+<p>And keep a <strong>risk register</strong> — a table every professional deployment maintains:</p>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wi-Fi AP fails</td>
+<td>Medium</td>
+<td>Total data gap</td>
+<td>Gateway buffers 7 days; SMS alert on gateway heartbeat loss</td>
+</tr>
+<tr>
+<td>Sensor drift over 6 months</td>
+<td>High</td>
+<td>Biased readings</td>
+<td>Monthly spot-checks vs reference; recalibration protocol</td>
+</tr>
+<tr>
+<td>Relay welds shut (pump stuck ON)</td>
+<td>Low</td>
+<td>Flooded bay</td>
+<td>Max run-time watchdog + independent float switch cutoff</td>
+</tr>
+<tr>
+<td>SD card corruption on gateway</td>
+<td>Medium</td>
+<td>Local history lost</td>
+<td>Nightly cloud backup; read-only FS</td>
+</tr>
+<tr>
+<td>Vandalism/weather damage</td>
+<td>Low</td>
+<td>Node loss</td>
+<td>Locked enclosures; spares on site</td>
+</tr>
+</tbody>
+</table>
+<p>A risk register in your thesis proposal tells the committee you've thought like an engineer, not a hobbyist. Update it after deployment — the risks that materialized are your "lessons learned" section.</p>
+<h3 id="129-from-plan-to-proposal-the-one-page-pitch">12.9 From plan to proposal: the one-page pitch</h3>
+<p>Distill the full plan into a single page for your supervisor: problem (2 sentences), approach (the architecture in one diagram), what's novel (your contribution lane from Chapter 11), resources needed (parts list total + test site access), timeline (build → calibrate → deploy → analyze → write), and risks (top 3 from the register). If the one-pager survives the meeting, expand it into the full proposal. If it doesn't, you've lost an hour, not a semester.</p>
+<p><strong>For your research:</strong> This capstone is a template, not just an example. Copy its structure (requirements table → decisions with justification → parts list → wiring/data-flow → validation plan → thesis mapping) and fill it for your own topic. Supervisors consistently approve projects presented this way because every risk is named and every choice is justified. Bring it to your next meeting.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>A complete IoT plan = requirements table → justified architecture → parts list → wiring/data-flow → failsafes → validation plan → thesis mapping.</li>
+<li>Justify every choice (board, connectivity, protocol, power) in one sentence each — that justification <em>is</em> your methodology.</li>
+<li>Budget 10–15% contingency in parts and money; buy spares of everything field-deployed.</li>
+<li>Name the risks and failsafes explicitly; reviewers reward honesty about limitations.</li>
+</ul>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="sensor-selection-matrix">Sensor selection matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Measures</th>
+<th>Interface</th>
+<th>Typical accuracy</th>
+<th>Strengths</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DHT11</td>
+<td>T + RH</td>
+<td>Digital (1-wire)</td>
+<td>±2 °C / ±5% RH</td>
+<td>Cheapest</td>
+<td>Slow, inaccurate — avoid for research</td>
+</tr>
+<tr>
+<td>DHT22/AM2302</td>
+<td>T + RH</td>
+<td>Digital (1-wire)</td>
+<td>±0.5 °C / ±2–5% RH</td>
+<td>Cheap, easy</td>
+<td>2 s min interval, slow RH response</td>
+</tr>
+<tr>
+<td>SHT31/SHT35</td>
+<td>T + RH</td>
+<td>I²C</td>
+<td>±0.3 °C / ±2% RH</td>
+<td>Accurate, fast</td>
+<td>Higher price; keep dry</td>
+</tr>
+<tr>
+<td>DS18B20</td>
+<td>Temperature</td>
+<td>1-wire (multi-drop)</td>
+<td>±0.5 °C</td>
+<td>Waterproof probes, many per bus</td>
+<td>Slower conversion (~750 ms)</td>
+</tr>
+<tr>
+<td>Capacitive soil probe</td>
+<td>Soil moisture</td>
+<td>Analog</td>
+<td>Relative</td>
+<td>No corrosion</td>
+<td>Needs per-probe calibration</td>
+</tr>
+<tr>
+<td>HC-SR04</td>
+<td>Distance/level</td>
+<td>Digital pulse</td>
+<td>±3 mm (ideal)</td>
+<td>Cheap ranging</td>
+<td>Fails on soft/angled surfaces</td>
+</tr>
+<tr>
+<td>PIR</td>
+<td>Motion</td>
+<td>Digital</td>
+<td>— (event)</td>
+<td>µA standby</td>
+<td>Movement only, not presence</td>
+</tr>
+<tr>
+<td>MQ-135</td>
+<td>Gases (general)</td>
+<td>Analog</td>
+<td>Relative</td>
+<td>Very cheap</td>
+<td>Non-selective, needs burn-in</td>
+</tr>
+<tr>
+<td>MH-Z19 / SCD30</td>
+<td>CO₂</td>
+<td>UART/I²C</td>
+<td>±(30–50) ppm</td>
+<td>Selective NDIR</td>
+<td>Warm-up time; price</td>
+</tr>
+<tr>
+<td>PMS5003 / SDS011</td>
+<td>PM2.5/PM10</td>
+<td>UART</td>
+<td>±10 µg/m³ (after cal.)</td>
+<td>Standard for low-cost AQ</td>
+<td>Needs humidity correction</td>
+</tr>
+<tr>
+<td>BH1750</td>
+<td>Light (lux)</td>
+<td>I²C</td>
+<td>±20%</td>
+<td>True lux, linear</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="connectivity-comparison-table">Connectivity comparison table</h3>
+<table>
+<thead>
+<tr>
+<th>Technology</th>
+<th>Range</th>
+<th>Data rate</th>
+<th>Power</th>
+<th>Topology</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wi-Fi</td>
+<td>~50–100 m</td>
+<td>10s–100s Mb/s</td>
+<td>High</td>
+<td>Star via AP</td>
+<td>Mains power, big data, AP nearby</td>
+</tr>
+<tr>
+<td>BLE</td>
+<td>~10–50 m</td>
+<td>~1 Mb/s</td>
+<td>Coin-cell years</td>
+<td>Star/mesh + gateway</td>
+<td>Phone/gateway nearby</td>
+</tr>
+<tr>
+<td>LoRaWAN</td>
+<td>2–15 km</td>
+<td>0.3–50 kb/s</td>
+<td>Years on battery</td>
+<td>Star-of-stars</td>
+<td>Km-range, tiny payloads, no infrastructure</td>
+</tr>
+<tr>
+<td>Zigbee</td>
+<td>10–100 m/hop</td>
+<td>250 kb/s</td>
+<td>Low (routers mains)</td>
+<td>Mesh</td>
+<td>Dense indoor, many mains devices</td>
+</tr>
+<tr>
+<td>NB-IoT / LTE-M</td>
+<td>Carrier coverage</td>
+<td>~100s kb/s</td>
+<td>Low–medium</td>
+<td>Star via carrier</td>
+<td>Remote + coverage, no own gateway</td>
+</tr>
+</tbody>
+</table>
+<h3 id="protocol-chooser">Protocol chooser</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Protocol</th>
+<th>Key setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Battery node → platform, frequent small messages</td>
+<td>MQTT</td>
+<td>QoS 1, TLS, retained for state</td>
+</tr>
+<tr>
+<td>Command must not duplicate (lock, valve, dose)</td>
+<td>MQTT</td>
+<td>QoS 2</td>
+</tr>
+<tr>
+<td>Dashboard needs latest value instantly on connect</td>
+<td>MQTT</td>
+<td>Retained messages</td>
+</tr>
+<tr>
+<td>Device offline detection</td>
+<td>MQTT</td>
+<td>Last Will and Testament</td>
+</tr>
+<tr>
+<td>Gateway → cloud bulk upload / public API</td>
+<td>HTTP/REST</td>
+<td>Batch + HTTPS</td>
+</tr>
+<tr>
+<td>Ultra-constrained UDP link</td>
+<td>CoAP</td>
+<td>Observe mode</td>
+</tr>
+</tbody>
+</table>
+<h3 id="chapter-map">Chapter map</h3>
+<table>
+<thead>
+<tr>
+<th>Ch</th>
+<th>Topic</th>
+<th>Thesis section it feeds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>What is IoT</td>
+<td>Introduction, related work framing</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sensors</td>
+<td>Methodology — measurement subsection</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Actuators</td>
+<td>Methodology — control design</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Microcontrollers &amp; SBCs</td>
+<td>Methodology — hardware justification</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Connectivity</td>
+<td>Methodology — network design</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Protocols</td>
+<td>Methodology — messaging design</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Edge vs cloud</td>
+<td>System architecture diagram</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Data pipelines</td>
+<td>Methodology — data management</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Security</td>
+<td>Methodology — threat model &amp; measures</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Power management</td>
+<td>Methodology — energy budget</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Research design</td>
+<td>Methodology — experimental design</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Capstone plan</td>
+<td>Thesis proposal / appendix template</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Actuator</strong> — a component that converts electrical signals into physical action (motor, relay, valve).</li>
+<li><strong>ADC (analog-to-digital converter)</strong> — converts a continuous voltage into a digital number.</li>
+<li><strong>BLE (Bluetooth Low Energy)</strong> — low-power short-range wireless standard for small data exchanges.</li>
+<li><strong>Broker (MQTT)</strong> — the central server that receives published messages and routes them to subscribers.</li>
+<li><strong>Calibration</strong> — determining the correction that maps a sensor's raw output to true values, using a reference.</li>
+<li><strong>CoAP</strong> — Constrained Application Protocol; lightweight REST-like protocol over UDP for tiny devices.</li>
+<li><strong>Deep sleep</strong> — microcontroller power state (~µA) where everything except a wake timer is off.</li>
+<li><strong>Duty cycle</strong> — fraction of time a device is active vs sleeping; also the ON-fraction in PWM.</li>
+<li><strong>Edge computing</strong> — processing data on or near the devices instead of in the cloud.</li>
+<li><strong>Gateway</strong> — a device that bridges sensor networks to the internet (protocol translation, aggregation, buffering).</li>
+<li><strong>GPIO</strong> — general-purpose input/output pins for digital signals on microcontrollers.</li>
+<li><strong>Hysteresis</strong> — using separate ON and OFF thresholds to prevent rapid switching near a boundary.</li>
+<li><strong>I²C / SPI / UART</strong> — standard digital interfaces connecting sensors to microcontrollers.</li>
+<li><strong>InfluxDB / TimescaleDB</strong> — time-series databases optimized for timestamped sensor data.</li>
+<li><strong>LoRa / LoRaWAN</strong> — long-range, low-power radio modulation (LoRa) and its network protocol (LoRaWAN).</li>
+<li><strong>M2M</strong> — machine-to-machine communication, the industrial predecessor of IoT.</li>
+<li><strong>MCU (microcontroller)</strong> — single-chip computer running one program on milliwatts of power.</li>
+<li><strong>MQTT</strong> — lightweight publish/subscribe messaging protocol, the IoT standard (OASIS/ISO).</li>
+<li><strong>NTP</strong> — Network Time Protocol; synchronizes device clocks over the internet.</li>
+<li><strong>Payload</strong> — the actual data content carried inside a message or packet.</li>
+<li><strong>PIR</strong> — passive infrared motion sensor detecting moving warm bodies.</li>
+<li><strong>Publish/subscribe</strong> — messaging pattern where senders publish to topics and receivers subscribe, via a broker.</li>
+<li><strong>PWM</strong> — pulse-width modulation; rapid ON/OFF switching whose duty cycle sets average power.</li>
+<li><strong>QoS (MQTT)</strong> — quality of service: 0 (at most once), 1 (at least once), 2 (exactly once).</li>
+<li><strong>Retained message</strong> — an MQTT message the broker stores and replays to new subscribers.</li>
+<li><strong>RTC</strong> — real-time clock; battery-backed chip keeping wall-clock time through power loss.</li>
+<li><strong>SBC (single-board computer)</strong> — complete Linux computer on one board (e.g., Raspberry Pi).</li>
+<li><strong>SSR (solid-state relay)</strong> — semiconductor-based switch; silent and fast, no mechanical wear.</li>
+<li><strong>TinyML</strong> — running small machine-learning models directly on microcontrollers.</li>
+<li><strong>Topic (MQTT)</strong> — hierarchical address string (e.g., <code>farm/plot-3/moisture</code>) messages are published to.</li>
+<li><strong>TSDB (time-series database)</strong> — database optimized for timestamped measurements.</li>
+<li><strong>WSN (wireless sensor network)</strong> — network of spatially distributed sensor nodes; the networking layer of IoT.</li>
+<li><strong>Zigbee</strong> — low-power mesh networking standard (IEEE 802.15.4) for dense device deployments.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Define and distinguish.</strong> In your own words, define IoT, M2M, WSN, and embedded system — then give one example device for each and explain why it fits that category and not the others.</li>
+<li><strong>Sensor chain debugging.</strong> A DHT22 node reports 99.9% humidity constantly. Walk the physical → electrical → digital → calibrated chain and list at least two possible causes at each stage, plus how you would test each.</li>
+<li><strong>ADC math.</strong> A 12-bit ADC with a 3.3 V reference reads value 2,847 from a capacitive soil probe. What voltage does that represent? If the probe's calibration is moisture% = (V − 1.1) / (2.9 − 1.1) × 100, what is the moisture? What is the measurement resolution in % per ADC step?</li>
+<li><strong>Board selection.</strong> You need 6 analog sensors, Wi-Fi, and 3-month battery life. Compare ESP32 vs Arduino Uno vs Raspberry Pi in a table and justify your pick in three sentences.</li>
+<li><strong>Connectivity decision.</strong> A riverside flood-monitoring project needs water-level readings every 10 minutes from 12 sites spread over 8 km, no mains power, no Wi-Fi, good cellular coverage. Choose a connectivity technology with a five-step justification (data size → range → power → coverage → cost), following Chapter 5's walkthrough.</li>
+<li><strong>MQTT design.</strong> Des

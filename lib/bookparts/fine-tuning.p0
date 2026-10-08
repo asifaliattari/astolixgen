@@ -1,0 +1,350 @@
+<h1 id="fine-tuning-llms-on-your-own-data">Fine-Tuning LLMs on Your Own Data</h1>
+<p><strong>Book 17 of 50 — AstolixGen Learning Series</strong></p>
+<p><img alt="Book cover: a neural network globe being adjusted by gears" src="media-generation-book-17-cover-detailed-0-8956738e-8e93-46c7-8f1b-d56fcb51ef77.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>You have used large language models. You have written prompts, maybe built a small retrieval system, and now you are wondering: <em>can I actually change what the model knows and how it behaves — using my own data?</em> This book answers that question from the ground up.</p>
+<p>Fine-tuning is the process of continuing a model's training on your own examples so it learns your task, your style, your domain, or your language. A few years ago this was the exclusive territory of labs with warehouse-sized GPU clusters. Today, with parameter-efficient methods like LoRA and QLoRA, a single student with a free Google Colab notebook can meaningfully adapt a multi-billion-parameter model on a laptop budget. That shift is the whole reason this book exists.</p>
+<p>This book is written for researchers and publication students: MS and PhD candidates, and early AI researchers who need fine-tuning not as a party trick but as a research method — something you can run, measure, ablate, and report in a paper. Every chapter ends with a "For your research" box that translates the chapter's ideas into publishable practice: what to vary, what to measure, what to report, and what reviewers will ask about.</p>
+<p>We assume you know Python, can use a terminal, and have trained at least a small neural network before (or have read Books 1–10 of this series, which build that foundation). We do not assume you have ever touched a GPU cluster, paid for cloud compute, or published a paper about large models. We explain every term when it first appears.</p>
+<p>By the end of this book you will be able to:</p>
+<h3 id="learning-objectives">Learning Objectives</h3>
+<ol>
+<li><strong>Decide</strong> whether your problem calls for prompting, retrieval-augmented generation (RAG), or fine-tuning — and defend that decision in writing.</li>
+<li><strong>Explain</strong> what changes inside a model during fine-tuning, in terms a non-specialist can follow.</li>
+<li><strong>Prepare</strong> a high-quality instruction dataset from your own data, and know why quality beats quantity.</li>
+<li><strong>Compare</strong> full fine-tuning with parameter-efficient methods (LoRA, QLoRA) and choose between them for a given hardware budget.</li>
+<li><strong>Set up</strong> the standard open-source tooling stack (Hugging Face Transformers, TRL, Axolotl) and run a first training job.</li>
+<li><strong>Complete</strong> a full fine-tuning walkthrough on a single GPU or free Colab, from data loading to a usable adapter.</li>
+<li><strong>Tune</strong> the hyperparameters that actually matter (learning rate, LoRA rank, epochs, batch size) with a principled, cheap procedure.</li>
+<li><strong>Evaluate</strong> a fine-tuned model with honest before/after comparisons and avoid fooling yourself.</li>
+<li><strong>Detect</strong> overfitting and catastrophic forgetting, and know the standard fixes for each.</li>
+<li><strong>Budget</strong> compute costs realistically as a student, and plan experiments that fit your resources.</li>
+<li><strong>Design</strong> a fine-tuning study around your own research problem, case-study style.</li>
+<li><strong>Report</strong> fine-tuning experiments in a paper the way reviewers expect, with all the details that make work reproducible.</li>
+</ol>
+<h3 id="how-to-use-this-book">How to Use This Book</h3>
+<p>Chapters build on each other, but each chapter also stands alone well enough to be read as a reference. The chapters with heavy code (5, 6, 7) are best read next to a computer. The chapters on evaluation, forgetting, and reporting (8, 9, 12) are best read next to your research notes. The Learning Dashboard at the end is a quick-reference appendix: method comparison table, hyperparameter cheat sheet, cost estimation table, and troubleshooting matrix. Print it, or keep it open in a second tab while you train.</p>
+<p>A note on honesty that will come up repeatedly: fine-tuning is easy to start and easy to do badly. The difference between a fine-tuned model that genuinely improved and one that only <em>looks</em> improved on your favorite examples is evaluation discipline. This book treats that discipline as the main skill, not a side note.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li>Chapter 1: When to Fine-Tune vs Prompt vs RAG (A Decision Framework)</li>
+<li>Chapter 2: How Fine-Tuning Works, Conceptually (What Changes in the Weights)</li>
+<li>Chapter 3: Preparing Your Dataset: Instruction Format, Quality Beats Quantity</li>
+<li>Chapter 4: Full Fine-Tuning vs PEFT: LoRA and QLoRA Explained</li>
+<li>Chapter 5: Tooling: Hugging Face Transformers, TRL, Axolotl (Overview + Setup)</li>
+<li>Chapter 6: Training on One GPU / Free Colab: A Complete Walkthrough</li>
+<li>Chapter 7: Hyperparameters That Actually Matter (LR, Rank, Epochs, Batch Size)</li>
+<li>Chapter 8: Evaluating Fine-Tuned Models (Before/After Comparisons)</li>
+<li>Chapter 9: Overfitting, Catastrophic Forgetting, and How to Detect Them</li>
+<li>Chapter 10: Compute Costs and Budgeting for Students</li>
+<li>Chapter 11: Fine-Tuning for Your Research Problem (Case-Study Guidance)</li>
+<li>Chapter 12: Reporting Fine-Tuning Experiments in Papers (What Reviewers Expect)</li>
+<li>Learning Dashboard (quick-reference appendix)</li>
+<li>References</li>
+<li>Glossary</li>
+<li>Practice Exercises</li>
+</ul>
+<hr />
+<h1 id="chapter-1-when-to-fine-tune-vs-prompt-vs-rag-a-decision-framework">Chapter 1: When to Fine-Tune vs Prompt vs RAG (A Decision Framework)</h1>
+<p>You have a problem and a large language model. Before you spend a single rupee on GPUs or a single hour building a dataset, you need to answer one question: <em>what is the cheapest technique that will actually solve this problem?</em> There are three main candidates — prompting, retrieval-augmented generation (RAG), and fine-tuning — and choosing wrong costs you weeks. Choosing right can save you from training anything at all.</p>
+<h2 id="the-three-options-in-plain-language">The Three Options in Plain Language</h2>
+<p><strong>Prompting</strong> means you change the <em>input</em> to get better output. You write careful instructions, give a few examples inside the prompt (few-shot prompting), or ask the model to reason step by step (chain-of-thought). The model's weights — the billions of numbers that encode what it learned in training — do not change at all. You are steering an already-built car.</p>
+<p><strong>Retrieval-augmented generation (RAG)</strong> means you connect the model to an external knowledge source. When a user asks a question, your system searches your documents, retrieves the relevant chunks, and pastes them into the prompt so the model can answer from them. Again, the model's weights do not change. You have given the driver a map.</p>
+<p><strong>Fine-tuning</strong> means you continue training the model on your own examples, and its weights <em>do</em> change — permanently. You are rebuilding parts of the car itself.</p>
+<p>This distinction — whether the weights change — is the dividing line for everything that follows. Prompting and RAG leave the model untouched; fine-tuning alters it. Altering the model is more powerful and more dangerous, more expensive, and harder to undo.</p>
+<h2 id="what-each-approach-is-good-at">What Each Approach Is Good At</h2>
+<p>Think of it this way:</p>
+<ul>
+<li><strong>Prompting</strong> is best when the model already knows everything it needs, and your problem is just <em>eliciting</em> the right behavior. Formatting outputs, following instructions, translating, summarizing, writing in a certain tone — a good prompt usually solves these. Cost: almost zero. Time to try: minutes.</li>
+<li><strong>RAG</strong> is best when the model needs <em>facts it was never trained on</em> or facts that change. Company documentation, recent events, private databases, legal codes, product catalogs. If your question is "the model doesn't know this information," RAG is almost always the answer. Cost: moderate engineering effort, cheap inference.</li>
+<li><strong>Fine-tuning</strong> is best when you need to change <em>how the model behaves</em> — its style, its habits, its skills — across many inputs, without stuffing instructions into every prompt. It is also the right tool when the task requires internalized knowledge that would be awkward or impossible to retrieve at query time: a new language the model barely speaks, a specialized coding style, consistent domain reasoning patterns, or a classification task you need to run millions of times cheaply.</li>
+</ul>
+<p>Here is the classic set of situations where fine-tuning genuinely wins:</p>
+<ol>
+<li><strong>Behavioral consistency at scale.</strong> You need the model to <em>always</em> respond in a certain way — a particular tone, format, refusal policy, or domain persona — and prompt instructions keep getting ignored or diluted on long conversations.</li>
+<li><strong>A skill, not a fact.</strong> The model needs to get better at something procedural: writing SQL in your company's dialect, diagnosing in your hospital's format, grading essays to your rubric. Skills are patterns in the weights; facts are retrievable.</li>
+<li><strong>Latency and cost at inference.</strong> A fine-tuned small model can outperform a prompted giant on a narrow task, and run far cheaper. If you will serve millions of requests, fine-tuning a 7–8B model can be dramatically cheaper than prompting a frontier model through an API.</li>
+<li><strong>Structured output reliability.</strong> Getting JSON with exactly the right schema, every time, from messy inputs. Prompting can do this; fine-tuning makes it nearly deterministic.</li>
+<li><strong>Weak base capability you must strengthen.</strong> The base model is poor at your language, your domain's jargon, or your task format, and examples in the prompt only partially fix it.</li>
+</ol>
+<p>And here is where fine-tuning is the <em>wrong</em> choice:</p>
+<ol>
+<li><strong>The model needs current or private facts.</strong> Retraining every time your documents update is absurd; use RAG.</li>
+<li><strong>You have 50 examples.</strong> Fine-tuning on tiny data mostly teaches the model to memorize those examples. Prompting with those 50 examples as few-shot demonstrations is usually better.</li>
+<li><strong>The task is already solved by prompting.</strong> Always test the cheap option first. Many published "fine-tuning" results would have been matched by a better prompt.</li>
+<li><strong>You need the model's behavior to vary per user or per query.</strong> A fine-tuned model is one fixed behavior; prompts and retrieval can adapt per request.</li>
+</ol>
+<h2 id="the-decision-framework">The Decision Framework</h2>
+<p>Work through these questions in order. Stop at the first one that gives you a definitive answer.</p>
+<p><strong>Step 1: Can the model already do this with a good prompt?</strong>
+Spend a day on prompt engineering first. Write clear instructions, add 3–10 diverse examples, try chain-of-thought for reasoning tasks. Test on at least 50–100 held-out examples — not the 5 you like. If the error rate is acceptable, stop. You are done, and you have saved yourself weeks.</p>
+<p><strong>Step 2: Is the missing piece knowledge or behavior?</strong>
+Ask: if I gave the model the right facts in the prompt, would it answer correctly? If yes, your problem is knowledge — use RAG. If the model has the facts but still answers in the wrong style, format, or reasoning pattern, your problem is behavior — consider fine-tuning.</p>
+<p>A practical test: take 20 failure cases. For each, write the "ideal" retrieved context by hand and put it in the prompt. If failures mostly disappear, you have a retrieval problem. If the model still fails despite having the facts in front of it, you have a behavior problem.</p>
+<p><strong>Step 3: Do you have enough data?</strong>
+Fine-tuning needs examples — realistically hundreds at minimum, thousands ideally — of the <em>exact</em> input-output behavior you want. Not scraped web text; curated demonstrations. If you cannot produce or afford this data, prompting or RAG is your answer regardless of everything else.</p>
+<p><strong>Step 4: Will you run this at scale?</strong>
+If you will make millions of inference calls, the math often favors fine-tuning a small model once over prompting a large model forever. Estimate: (cost per prompt-based call − cost per fine-tuned call) × expected calls, versus the one-time cost of data + training. Chapter 10 gives you the budgeting tools.</p>
+<p><strong>Step 5: Can you combine approaches?</strong>
+This is the answer more often than textbooks admit. Fine-tune for behavior and style; use RAG for facts. A fine-tuned model that <em>also</em> retrieves documents is the standard architecture of serious production systems. The techniques are not rivals — they solve different halves of the problem.</p>
+<p><img alt="Decision flowchart: three routes from one question" src="media-generation-book-17-fig3-0-7c872b09-8a2c-40df-b202-b11488c29485.webp" /></p>
+<p><em>Figure: The core decision — if the gap is facts, retrieve; if the gap is behavior, fine-tune; if neither, prompt better.</em></p>
+<h2 id="a-worked-example">A Worked Example</h2>
+<p>Suppose you are building a system that answers questions about your university's thesis regulations for MS students, in Urdu, with citations to specific regulation clauses.</p>
+<ul>
+<li>Prompting a frontier model: it speaks Urdu decently, but it does not know your university's regulations. It will hallucinate clause numbers. Fails.</li>
+<li>RAG: you index the regulation documents, retrieve relevant clauses, and the model answers in Urdu citing them. This solves the knowledge problem. Probably sufficient.</li>
+<li>Fine-tuning: would you fine-tune? Only if there is a behavioral gap — for example, the model consistently cites clauses in the wrong format, or its Urdu is too formal for students, and instructions don't fix it. You would fine-tune on a few hundred examples of <em>well-formed answers</em> (behavior), while RAG still supplies the facts. Combined approach wins.</li>
+</ul>
+<p>Now flip it: suppose you need a model that converts natural-language questions into SQL for your university's specific database schema, thousands of times a day. The schema never changes, the SQL dialect is fixed, and latency matters. Prompting works but is slow and occasionally produces wrong column names. RAG is pointless — there are no documents to retrieve; the schema fits in the prompt anyway. This is a fine-tuning problem: the behavior (schema-faithful SQL generation) needs to be <em>internalized</em>, and you will amortize training cost over millions of cheap inference calls.</p>
+<h2 id="the-honest-cost-of-fine-tuning">The Honest Cost of Fine-Tuning</h2>
+<p>Students routinely underestimate what fine-tuning demands:</p>
+<ul>
+<li><strong>Data:</strong> hundreds to thousands of high-quality examples, each reviewed. This is the real cost — human time.</li>
+<li><strong>Compute:</strong> from free (Colab, QLoRA) to hundreds of dollars for larger runs.</li>
+<li><strong>Evaluation:</strong> building a proper test set and baseline comparisons. Without this, you cannot claim anything.</li>
+<li><strong>Maintenance:</strong> when the base model updates or your task drifts, you retrain. A prompt is edited in seconds; a fine-tune is rerun in hours.</li>
+</ul>
+<p>None of this means "don't fine-tune." It means: fine-tune when the problem genuinely requires changed behavior, and prove the cheaper options failed first. That proof — "we tried prompting and RAG, here are the numbers, and here is why they were insufficient" — is also exactly what makes a fine-tuning paper credible. Reviewers ask "why didn't you just prompt?" more often than any other question. Chapter 1 just gave you the framework to answer it.</p>
+<h2 id="hybrid-architectures-using-two-or-three-methods-together">Hybrid Architectures: Using Two or Three Methods Together</h2>
+<p>In practice, the most capable systems rarely use one method alone. Once you understand each technique's strength, you can compose them like building blocks. Here are the hybrid patterns that appear most often in real deployments and papers:</p>
+<p><strong>Pattern 1: Fine-tuned model + RAG (the standard).</strong> The fine-tuned model handles behavior — tone, format, reasoning style, when to say "I don't know" — while the retriever supplies facts. Example: a fine-tuned customer-support model that always responds with empathy, a structured summary, and cited ticket IDs, where the ticket contents come from retrieval. Neither method alone produces this: RAG alone gives correct facts in inconsistent format; fine-tuning alone gives consistent format with hallucinated facts.</p>
+<p><strong>Pattern 2: Fine-tuned query rewriter + RAG.</strong> Retrieval quality depends heavily on the query. A small fine-tuned model rewrites the user's question into a better search query (or several), the retriever fetches documents, and a second model (or the same one) answers. The rewriter is cheap to train — a few thousand (question → better query) pairs — and often improves end-to-end accuracy more than upgrading the answering model.</p>
+<p><strong>Pattern 3: Distilling RAG into fine-tuning.</strong> During data collection, you generate responses <em>with</em> retrieval (so they're factually grounded), verify them, then fine-tune on the resulting pairs <em>without</em> retrieval at serving time. The model internalizes the grounded answering style. This works when the knowledge is stable (it won't change after training) and you want to drop the retrieval infrastructure for latency or cost reasons. The risk: the model memorizes facts that later go stale — document the knowledge cutoff the same way base models do.</p>
+<p><strong>Pattern 4: Router — fine-tuned classifier directing traffic.</strong> A tiny fine-tuned classifier decides per query whether to answer directly, retrieve, or escalate to a larger model. This is how production systems keep costs down: 80% of queries are easy and handled cheaply; the expensive paths trigger only when needed. The router itself is a fine-tuning task (classification, Chapter 3's smallest-data regime).</p>
+<p><strong>How to decide the composition:</strong> start from the decision framework's Step 2 (knowledge vs. behavior gap) and assign each gap its tool. A project with both gaps gets both tools. Evaluate the hybrid against each single-method baseline — the hybrid should win, and the ablation (hybrid minus one component) tells you what each part contributed. In papers, this composition analysis is often more interesting than any single component: "RAG alone: 72%, fine-tuning alone: 75%, combined: 84%, and removing the fine-tuned rewriter costs 6 points" is a complete story.</p>
+<p>One caution: hybrids multiply failure modes. A fine-tuned model fed bad retrieved documents will confidently format misinformation beautifully — worse than either failure alone. Evaluate the <em>combined</em> system end to end, not just each part in isolation, and include adversarial tests where retrieval returns irrelevant or contradictory documents.</p>
+<h2 id="the-do-nothing-yet-option-premature-fine-tuning">The "Do Nothing Yet" Option: Premature Fine-Tuning</h2>
+<p>There's a failure mode this chapter hasn't named: fine-tuning too early, before you understand the problem. Symptoms: you can't describe the behavioral gap in one sentence; your "dataset" is 200 examples scraped hastily; you haven't tried few-shot prompting seriously; you chose fine-tuning because it sounds more impressive than prompting.</p>
+<p>Premature fine-tuning wastes the scarcest resource — your judgment. A model trained on a poorly understood task learns a poorly understood behavior, and the resulting outputs teach you nothing except that the data was inadequate — something a week of prompt experimentation would have revealed for free.</p>
+<p>The disciplined alternative is the <strong>two-week rule</strong>: spend up to two weeks on prompting and error analysis before collecting fine-tuning data. During those two weeks, you will: discover what the model already does well (shrinking your data needs), build the evaluation set and script (needed regardless), develop the error taxonomy (which becomes your data-collection guide — you now know exactly which failure modes need training examples), and write the method-selection memo. None of this work is wasted if you do fine-tune — it's the foundation. And sometimes the two weeks reveal that prompting suffices, saving you two months.</p>
+<p>This is also a strategic point for researchers: the prompting experiments aren't just due diligence, they're <em>content</em>. "We first established a strong few-shot baseline of 71.8% through systematic prompt engineering (Appendix A); fine-tuning improved this to 78.5%" is a stronger paper than one that never mentions prompting. The two-week rule makes your eventual fine-tuning both better-informed and better-defended.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before any training run, write a one-page "method selection memo": the task, the three approaches considered, the quick experiments you ran for prompting and RAG with their scores, and why fine-tuning is justified. This memo becomes the related-work and motivation section of your paper almost verbatim. Reviewers reward this explicitness enormously — it shows you chose fine-tuning deliberately, not by default.</p>
+</blockquote>
+<h3 id="key-takeaways">Key Takeaways</h3>
+<ul>
+<li>Prompting changes the input, RAG adds external knowledge, fine-tuning changes the model's weights. Only fine-tuning alters behavior permanently.</li>
+<li>Always test prompting first (days, not weeks), then ask whether your gap is knowledge (→ RAG) or behavior (→ fine-tuning).</li>
+<li>Fine-tuning wins for: consistent behavior at scale, internalized skills, cheap inference on narrow tasks, reliable structured output.</li>
+<li>Fine-tuning loses for: changing facts, tiny datasets, problems prompting already solves.</li>
+<li>The strongest systems combine approaches: fine-tune for behavior, retrieve for facts.</li>
+<li>Document your method choice with numbers — "we tried X, scored Y, insufficient because Z" — it becomes your paper's motivation section.</li>
+</ul>
+<hr />
+<h1 id="chapter-2-how-fine-tuning-works-conceptually-what-changes-in-the-weights">Chapter 2: How Fine-Tuning Works, Conceptually (What Changes in the Weights)</h1>
+<p>To use fine-tuning well — and to write about it credibly — you need a mental model of what is actually happening when you "train" an already-trained model. This chapter builds that model with no calculus beyond what you already know: a model is a function with adjustable numbers, training adjusts those numbers to reduce mistakes, and fine-tuning is simply training that starts from a very good starting point instead of from scratch.</p>
+<h2 id="the-model-as-a-machine-with-dials">The Model as a Machine with Dials</h2>
+<p>A large language model is, at bottom, a gigantic function. It takes a sequence of tokens (pieces of text) as input and produces a probability distribution over what token comes next. The behavior of that function is controlled by its <strong>parameters</strong> — often called <strong>weights</strong> — which are just numbers. A 8-billion-parameter model has 8 billion such numbers. Every capability the model has — grammar, facts, reasoning patterns, style — is encoded in the particular values of those numbers. There is no separate "knowledge database" inside; the knowledge <em>is</em> the arrangement of the numbers.</p>
+<p>When the model was originally trained (pre-training), it started with random numbers and read trillions of words, adjusting the numbers little by little so that its next-token predictions got better and better. This took months on thousands of GPUs. The result is a base model: a fluent, knowledgeable, general-purpose text predictor with no particular instruction-following manners. Ask a raw base model a question and it may continue it as if writing an essay, because it was trained to <em>continue text</em>, not to <em>answer questions</em>.</p>
+<p>Fine-tuning takes that finished machine and keeps adjusting the dials — but now on <em>your</em> data, with <em>your</em> objective. If pre-training taught the model the English language and the world's facts, fine-tuning teaches it your specific job: answer in this format, follow these instructions, reason about this domain, refuse these requests, write in this style.</p>
+<h2 id="what-actually-changes-gradients-and-updates">What Actually Changes: Gradients and Updates</h2>
+<p>Here is the mechanism in plain terms. You show the model one of your training examples — say, an instruction and its correct response. The model reads the instruction and predicts the response one token at a time, producing its own guess for each position. You compare its guess to the correct token and compute a <strong>loss</strong>: a single number measuring how wrong the prediction was. Then <strong>backpropagation</strong> figures out, for every one of the billions of weights, which direction to nudge it so the loss would have been slightly smaller. The <strong>optimizer</strong> applies those nudges, scaled by the <strong>learning rate</strong>. Repeat millions of times, and the weights settle into values that make your examples likely.</p>
+<p>Three things about this process matter enormously for fine-tuning specifically:</p>
+<p><strong>1. You start from a good place, so you nudge gently.</strong> In pre-training, weights move across vast distances from random initialization. In fine-tuning, you are already near a good solution — the model already speaks the language — so you use a much smaller learning rate (typically 10–100× smaller than pre-training). Crank the learning rate too high and you blast the model out of its good configuration; the fluent generalist becomes a stuttering specialist. This is the single most common beginner error, and Chapter 7 will quantify it.</p>
+<p><strong>2. Every update is a trade.</strong> Each nudge that makes your examples more likely can make <em>other</em> things slightly less likely. The model's weights are shared across all its capabilities; there is no separate compartment for "your task." Push too hard on your narrow data and the model forgets general abilities — this is <strong>catastrophic forgetting</strong>, covered in Chapter 9. Fine-tuning is always a negotiation between the new behavior and everything the model already knew.</p>
+<p><strong>3. The model learns patterns, not examples.</strong> Given enough varied examples, the weights encode the <em>pattern</em> behind them — the format, the reasoning style, the domain conventions. Given too few examples, or examples that are too similar, the weights just memorize the specific instances. Memorization versus generalization is the central tension of dataset design (Chapter 3) and the reason evaluation on held-out data (Chapter 8) is non-negotiable.</p>
+<h2 id="instruction-tuning-the-most-common-kind">Instruction Tuning: The Most Common Kind</h2>
+<p>The fine-tuning you will do 90% of the time is <strong>instruction tuning</strong> (sometimes called supervised fine-tuning, SFT). The format is simple: each training example is an instruction (what to do) plus a response (the correct way to do it). Sometimes there is also an input field for the data the instruction operates on.</p>
+<pre><code>Instruction: Classify the sentiment of this movie review as positive or negative.
+Input: &quot;The film dragged on for two hours and I checked my watch constantly.&quot;
+Response: negative
+</code></pre>
+<p>During training, the model reads the instruction and input, and the loss is computed only on the <em>response</em> tokens — we do not penalize the model for failing to predict the instruction itself, since at deployment time the instruction comes from the user. (In Hugging Face's TRL library, this masking is handled for you; in raw Transformers code you implement it with label masking, as Chapter 6 shows.)</p>
+<p>Why does this work so well? Because the base model already "knows" sentiment analysis from pre-training — it has seen millions of reviews. Instruction tuning does not teach it the <em>concept</em> of sentiment; it teaches it the <em>behavior</em>: when you see this instruction format, output exactly one word, no explanation. This is why a few thousand good examples can transform a model: you are not teaching knowledge, you are teaching manners and format. The landmark papers on this — Wei et al.'s "Finetuned language models are zero-shot learners" and Chung et al.'s "Scaling instruction-finetuned language models" — showed that instruction tuning on diverse tasks makes models dramatically better at following <em>unseen</em> instructions.</p>
+<h2 id="what-the-weights-learn-at-different-depths">What the Weights Learn at Different Depths</h2>
+<p>A transformer model is a stack of layers — typically 32 for an 8B model. It helps to know, roughly, what different parts do, because it explains why some fine-tuning methods work:</p>
+<ul>
+<li><strong>Early layers</strong> (near the input) tend to handle low-level patterns: token combinations, basic grammar, local syntax. Fine-tuning rarely needs to change these much.</li>
+<li><strong>Middle layers</strong> build up richer representations: entities, relations, the "meaning" of the passage so far.</li>
+<li><strong>Late layers</strong> (near the output) are most responsible for task-specific behavior: deciding the actual next token, formatting, style.</li>
+</ul>
+<p>This is not a clean division — capabilities are smeared across layers — but the general principle holds: the closer to the output, the more task-specific the representations. It is one reason LoRA (Chapter 4) can get away with modifying only certain weight matrices: small, targeted changes near the right places steer behavior effectively.</p>
+<p>The <strong>attention</strong> mechanism deserves one plain-language note since you will see its matrices named in LoRA configurations. Attention is how each token "looks at" other tokens to gather context. It is controlled by weight matrices conventionally named query, key, value, and output projection (<code>q_proj</code>, <code>k_proj</code>, <code>v_proj</code>, <code>o_proj</code>). When a LoRA config says <code>target_modules=["q_proj", "v_proj"]</code>, it means: apply the low-rank update to the query and value matrices of every attention layer. Those were the matrices the original LoRA paper found most effective to adapt.</p>
+<h2 id="the-loss-landscape-intuition">The Loss Landscape Intuition</h2>
+<p>Imagine the model's performance as a landscape of hills and valleys, where height is the loss (lower is better) and position is the setting of all billions of weights. Pre-training dropped the model into a broad, good valley. Fine-tuning moves it to a nearby spot in that valley that is better for <em>your</em> task.</p>
+<p>Two intuitions from this picture run the whole book:</p>
+<ol>
+<li><strong>Small steps stay in the valley.</strong> A small learning rate and few epochs keep the model near its strong starting point — you get your task behavior plus retained general ability. Large steps can climb out of the valley entirely, and the model may never find its way back. This is the geometric reason for gentle fine-tuning.</li>
+<li><strong>Your data defines a new downhill direction.</strong> The gradients computed on your examples point toward lower loss <em>on your examples</em>. If your examples are high quality and representative, that direction genuinely improves your task. If they are noisy, biased, or too narrow, the model follows them faithfully — downhill into a ditch. The model cannot tell good data from bad; it only descends. Dataset quality (Chapter 3) is therefore not hygiene — it is the steering wheel.</li>
+</ol>
+<h2 id="fine-tuning-vs-pre-training-a-summary-table-in-words">Fine-Tuning vs. Pre-Training: A Summary Table in Words</h2>
+<p>Pre-training: random start, trillions of tokens, huge learning rate, months of compute, objective is "predict the next token on the internet," result is general capability. Fine-tuning: expert start, thousands to millions of tokens, tiny learning rate, hours of compute, objective is "produce exactly these responses to these instructions," result is specialized behavior. Everything about fine-tuning — the small learning rates, the few epochs, the fear of forgetting — follows from the fact that you are making small adjustments to something that already works.</p>
+<h2 id="why-a-few-thousand-examples-can-move-billions-of-weights">Why a Few Thousand Examples Can Move Billions of Weights</h2>
+<p>Students often find this puzzling: how can 2,000 examples meaningfully change a model with 8 billion parameters? Shouldn't the model just ignore such a tiny signal, or alternatively memorize it instantly? The answer involves a genuine research finding worth knowing.</p>
+<p>A paper by Aghajanyan et al. ("Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning," ACL 2021) measured something surprising: although a language model has billions of parameters, the fine-tuning solution for a given task can be found by adjusting only a few <em>thousand</em> degrees of freedom. In their experiments, fine-tuning in a random subspace of just a few thousand dimensions recovered most of full fine-tuning's performance. The model's parameter space is enormously redundant for any single task — there are countless equivalent ways to implement "answer in this format," and the optimizer only needs to find one of them.</p>
+<p>This has three practical consequences. First, it explains why LoRA works at all: if the useful update lives in a low-dimensional subspace, a low-rank approximation captures it. LoRA's rank-16 update isn't a hack that happens to work — it's matched to the actual structure of the problem. Second, it explains why small datasets suffice for behavioral tasks: you're not filling 8 billion parameters with information; you're nudging the model along a few thousand meaningful directions, and a few thousand good examples provide enough signal for that. Third, it predicts LoRA's limitation: tasks whose solutions genuinely need many independent directions (very broad domain shifts) need higher rank or full fine-tuning — which matches the empirical guidance in Chapter 4.</p>
+<p>There's a second, complementary intuition: <strong>the base model already contains the capability; fine-tuning mostly selects and formats it.</strong> Pre-training exposed the model to sentiment analysis, summarization, translation, and countless formats. Your 2,000 examples don't teach these from scratch — they teach the model <em>which</em> of its existing capabilities to deploy, <em>when</em>, and <em>in what wrapper</em>. Selection among existing capabilities needs far less data than building capabilities. This is also why fine-tuning fails most dramatically exactly where pre-training was thinnest (Chapter 11's low-resource language case): there's nothing to select, so the model must build — and building needs far more data than selecting.</p>
+<p>Keep both intuitions handy. When someone asks "why should I believe 3,000 examples is enough?", the answer is: because we're selecting and formatting pre-existing capabilities along a low-dimensional subspace, not training from scratch — and our data-size ablation (Chapter 8) empirically confirms where the curve saturates for this task.</p>
+<h2 id="a-tiny-numerical-example-making-the-update-concrete">A Tiny Numerical Example (Making the Update Concrete)</h2>
+<p>Abstract "nudges" become clearer with toy numbers. Imagine a miniature model with a single weight w = 2.0, and one training example where the correct output implies w should be larger. The model predicts with w=2.0, the loss is 1.0. Backpropagation computes the gradient: d(loss)/dw = −0.4 (negative means increasing w decreases loss). With learning rate 0.1, the update is:</p>
+<p>w_new = w − LR × gradient = 2.0 − 0.1 × (−0.4) = 2.04</p>
+<p>One step moved the weight 0.04 toward the better value. Now scale this intuition up: instead of one weight there are 8 billion, instead of one gradient direction there are 8 billion partial derivatives computed simultaneously by backpropagation, and instead of one example the gradient is averaged over a batch. The learning rate plays exactly the same role — with LR=0.1 the step was gentle; with LR=10 the same gradient would have flung w to 6.0, overshooting wildly. That's the entire mechanism; everything else is bookkeeping at scale.</p>
+<p>Two subtleties worth carrying from this toy: first, the gradient is <em>local</em> — it only knows the downhill direction at the current position, not the global landscape. Training is a blindfolded descent feeling the slope one step at a time, which is why small steps and many of them work better than leaps. Second, in LoRA, this same update math applies <em>only</em> to the adapter matrices A and B — the base weight w stays frozen at 2.0 forever, and the effective weight becomes 2.0 + (B×A). The toy makes visible what "freezing" means: w never appears on the left side of an update equation.</p>
+<blockquote>
+<p><strong>For your research:</strong> Reviewers and thesis committees love a clear conceptual account of <em>why</em> your fine-tuning should work for your problem. Borrow the "manners vs. knowledge" framing: state explicitly whether your fine-tuning is teaching the model new domain knowledge, new behavior/format, or both — and design your evaluation to test each claim separately. A paper that says "we fine-tuned to teach radiology report structure (behavior) while relying on pre-trained medical knowledge, and our ablations separate the two" is far stronger than "we fine-tuned and the score went up."</p>
+</blockquote>
+<h3 id="key-takeaways_1">Key Takeaways</h3>
+<ul>
+<li>A model is a function controlled by billions of weight numbers; fine-tuning nudges those numbers to make your examples more likely.</li>
+<li>Training = predict, measure error (loss), compute nudges (backpropagation), apply nudges (optimizer). Fine-tuning is this loop starting from an expert model with a small learning rate.</li>
+<li>Instruction tuning (SFT) is the standard recipe: instruction → response pairs, loss computed on the response only. It teaches behavior and format more than raw knowledge.</li>
+<li>Every update trades new-task fit against old capabilities — the root cause of catastrophic forgetting.</li>
+<li>Small steps stay in the "good valley" of the loss landscape; large steps can destroy the pre-trained model. Gentle updates are a principle, not a preference.</li>
+<li>The model descends whatever direction your data points — good data steers well, bad data steers into a ditch. The model cannot judge data quality for you.</li>
+</ul>
+<hr />
+<h1 id="chapter-3-preparing-your-dataset-instruction-format-quality-beats-quantity">Chapter 3: Preparing Your Dataset: Instruction Format, Quality Beats Quantity</h1>
+<p>Every experienced practitioner will tell you some version of the same sentence: <em>the dataset matters more than the model, the method, or the hyperparameters.</em> A mediocre training setup on excellent data beats an excellent setup on mediocre data, nearly every time. This chapter is about building that excellent dataset — what format to use, where examples come from, how to judge quality, and how much data you actually need.</p>
+<h2 id="the-standard-format-instruction-input-response">The Standard Format: Instruction, Input, Response</h2>
+<p>Supervised fine-tuning consumes examples in a consistent structure. The most widely used is the <strong>Alpaca format</strong>, named after the Stanford project that popularized it:</p>
+<pre><code class="language-json">{
+  &quot;instruction&quot;: &quot;Summarize the following research abstract in one sentence.&quot;,
+  &quot;input&quot;: &quot;We present a method for low-rank adaptation of large language models...&quot;,
+  &quot;output&quot;: &quot;The authors propose LoRA, a method that adapts LLMs by training small low-rank matrices instead of all weights.&quot;
+}
+</code></pre>
+<p>The <code>instruction</code> tells the model what to do. The <code>input</code> (sometimes empty) provides the material to work on. The <code>output</code> is the correct response — the demonstration the model will learn to imitate. During training these are concatenated into a single text with a <strong>prompt template</strong>, for example:</p>
+<pre><code>### Instruction:
+Summarize the following research abstract in one sentence.
+
+### Input:
+We present a method...
+
+### Response:
+The authors propose LoRA...
+</code></pre>
+<p>The template matters less than its consistency: use one template for the entire dataset, and use the <em>same</em> template at inference time. A model trained with <code>### Response:</code> markers that is prompted at deployment with a different format will underperform — it learned to associate its behavior with the exact textual cues it saw in training.</p>
+<p>Other formats you will encounter: <strong>ShareGPT format</strong> (a list of conversational turns with <code>human</code>/<code>gpt</code> roles — natural for dialogue data), and <strong>chat templates</strong> applied by the tokenizer (modern instruction models like Llama 3 expect messages wrapped in special tokens such as <code>&lt;|start_header_id|&gt;</code>; Hugging Face's <code>tokenizer.apply_chat_template</code> handles this, and Chapter 6 shows exactly how). The principle is identical in all cases: consistent structure, response tokens are what the model learns.</p>
+<h2 id="quality-beats-quantity-what-the-evidence-shows">Quality Beats Quantity: What the Evidence Shows</h2>
+<p>The most liberating finding for students with limited resources is that a <em>small, excellent</em> dataset routinely outperforms a <em>large, mediocre</em> one. The LIMA paper ("Less Is More for Alignment," Zhou et al., 2023) demonstrated that 1,000 carefully curated examples could produce a strong instruction-following model — a result that reshaped how the field thinks about data. The mechanism is the one from Chapter 2: fine-tuning mostly teaches behavior and format, and behavior can be demonstrated in a few hundred diverse, perfect examples. Knowledge, which needs volume, mostly comes from pre-training.</p>
+<p>What makes an example "high quality"? Judge every candidate against these criteria:</p>
+<ol>
+<li><strong>Correctness.</strong> The output must be right. A single wrong example teaches the model to be confidently wrong — and confident wrongness is the hardest error to detect later. For factual tasks, verify outputs against sources. For subjective tasks (style, tone), make sure the output genuinely exemplifies what you want.</li>
+<li><strong>Diversity.</strong> Your examples should cover the full range of inputs the model will see: different topics, lengths, difficulties, edge cases. One hundred near-identical examples teach one narrow pattern; one hundred varied examples teach a general skill. Check diversity explicitly — cluster your instructions by topic and look for thin clusters.</li>
+<li><strong>Appropriate difficulty.</strong> Include easy, medium, and hard examples. If everything is trivial, the model learns nothing about handling hard cases; if everything is brutal, training is unstable and the model may memorize rather than generalize.</li>
+<li><strong>Clean formatting.</strong> Consistent output format across examples. If half your examples end with a summary sentence and half don't, the model learns to be inconsistent — faithfully reproducing your inconsistency.</li>
+<li><strong>No leakage.</strong> Your training examples must not overlap with your test set (Chapter 8). Even paraphrased overlap inflates your scores dishonestly. Keep a strict split from day one.</li>
+</ol>
+<p>A useful quality-control ritual: sample 100 random examples and grade each one yourself against the five criteria above. If more than 5–10% fail, fix the data pipeline before training anything. An hour of grading saves days of confused debugging.</p>
+<h2 id="where-examples-come-from">Where Examples Come From</h2>
+<p>You have four main sources, in rough order of quality:</p>
+<p><strong>1. Human-written examples (best, most expensive).</strong> Domain experts write instruction-response pairs. For a thesis project, this might be you and your advisor writing 500–2,000 examples over a few weeks. Slow, but the quality ceiling is highest, and for specialized domains (medicine, law, low-resource languages) there is no substitute.</p>
+<p><strong>2. Distillation from a stronger model.</strong> You write the instructions (or collect real user queries) and have a frontier model generate the responses, then <em>verify and filter</em> them. This is how most open instruction datasets were built. The critical step is verification: generate 3,000 responses, have humans or strong automated checks reject the bad 30%, keep 2,000. Unfiltered distillation bakes the teacher's errors into your student permanently.</p>
+<p><strong>3. Repurposed existing datasets.</strong> Academic NLP datasets (question answering, summarization, classification) can be reformatted into instruction format with templates. "Convert this SQuAD example into an instruction pair" is a legitimate and common pipeline. Watch for: template artifacts (the model learns your template's quirks), and license compatibility (see the ethics note below).</p>
+<p><strong>4. Synthetic generation with verification.</strong> Generate instructions programmatically or with a model, generate responses, then verify with rules, a second model, or humans. Scales well; quality depends entirely on the verification step. Never skip verification — unverified synthetic data is how models learn confident nonsense.</p>
+<p><strong>What to avoid:</strong> scraping raw web text and calling it a fine-tuning dataset (that is pre-training data, not instruction data); using copyrighted text you have no right to use; and — critically for researchers — training on your test set or on data contaminated with it.</p>
+<h2 id="how-much-data-do-you-need">How Much Data Do You Need?</h2>
+<p>Honest answer: it depends on what you are teaching, but here are practical brackets:</p>
+<ul>
+<li><strong>Format/style adaptation</strong> (the model knows the task, needs your format): 500–2,000 examples can suffice. This is the LIMA regime.</li>
+<li><strong>Domain adaptation</strong> (new jargon, new conventions, e.g., legal drafting in your jurisdiction): 2,000–20,000 examples.</li>
+<li><strong>New skill or weak base capability</strong> (a language the model barely speaks, complex multi-step reasoning): 10,000–100,000+ examples, and temper expectations — fine-tuning cannot fully compensate for missing pre-training.</li>
+<li><strong>Classification or structured extraction</strong> (narrow, well-defined): sometimes as few as a few hundred per class, because the output space is small.</li>
+</ul>
+<p>Start small and scale deliberately: train on 1,000 examples, evaluate (Chapter 8), then try 3,000 and 10,000. Plot performance against data size. This <strong>data ablation</strong> is cheap, informative, and exactly the kind of figure reviewers love — it answers "how much data does this task need?" which is itself a research contribution.</p>
+<h2 id="the-trainvalidationtest-split">The Train/Validation/Test Split</h2>
+<p>Split your data into three parts before you do anything else:</p>
+<ul>
+<li><strong>Training set</strong> (~80–90%): what the model learns from.</li>
+<li><strong>Validation set</strong> (~5–10%): used during training to monitor progress, pick checkpoints, and tune hyperparameters. The model never trains on it, but you <em>do</em> look at it repeatedly — so it slightly influences decisions.</li>
+<li><strong>Test set</strong> (~5–10%): locked away. Evaluated once, at the very end, on the final model. This is the number you report.</li>
+</ul>
+<p>For small datasets (under ~2,000 examples), consider <strong>cross-validation</strong> or at least multiple random splits, because a single small test set is noisy — a 5% swing might be luck. Report the variance, not just the mean.</p>
+<h2 id="a-concrete-preparation-script">A Concrete Preparation Script</h2>
+<p>Here is a realistic data pipeline in Python — loading raw examples, applying a template, splitting, and saving in a training-ready format:</p>
+<pre><code class="language-python">from datasets import Dataset
+import json, random
+
+# 1. Load your raw examples (however you collected them)
+with open(&quot;raw_examples.json&quot;) as f:
+    raw = json.load(f)  # list of {&quot;instruction&quot;,&quot;input&quot;,&quot;output&quot;}
+
+# 2. Quality filter: drop empties, duplicates, overlong examples
+seen = set()
+clean = []
+for ex in raw:
+    text = (ex[&quot;instruction&quot;] + ex[&quot;input&quot;] + ex[&quot;output&quot;]).strip()
+    if not text or len(ex[&quot;output&quot;]) &lt; 10:
+        continue                      # empty or trivial
+    key = ex[&quot;instruction&quot;][:80]
+    if key in seen:
+        continue                      # near-duplicate instruction
+    seen.add(key)
+    if len(text) &gt; 6000:
+        continue                      # overlong; handle long docs separately
+    clean.append(ex)
+
+print(f&quot;kept {len(clean)}/{len(raw)} after filtering&quot;)
+
+# 3. Apply a consistent template
+TEMPLATE = (&quot;### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n{output}&quot;)
+def format_example(ex):
+    return {&quot;text&quot;: TEMPLATE.format(**ex)}
+
+formatted = [format_example(ex) for ex in clean]
+
+# 4. Shuffle with a fixed seed, then split (reproducibility matters)
+random.Random(42).shuffle(formatted)
+n = len(formatted)
+train = formatted[:int(0.9*n)]
+val   = formatted[int(0.9*n):int(0.95*n)]
+test  = formatted[int(0.95*n):]
+
+# 5. Save; the test set goes somewhere you will not touch during training
+Dataset.from_list(train).to_json(&quot;data/train.json&quot;)
+Dataset.from_list(val).to_json(&quot;data/val.json&quot;)
+Dataset.from_list(test).to_json(&quot;data/test.json&quot;)
+print(f&quot;train={len(train)} val={len(val)} test={len(test)}&quot;)
+</code></pre>
+<p>Note the fixed random seed: reproducibility starts with data preparation, not with training. A reviewer who cannot reproduce your split cannot reproduce your results.</p>
+<h2 id="ethics-and-licensing-notes">Ethics and Licensing Notes</h2>
+<p>Two obligations researchers sometimes overlook. First, <strong>licenses</strong>: many datasets prohibit commercial use or redistribution of derivatives; fine-tuned model weights trained on such data inherit the restriction in practice. Check the license of every dataset you repurpose, and state data licenses in your paper (Chapter 12). Second, <strong>privacy</strong>: if your examples contain real people's data — patient notes, student essays, customer messages — anonymize before training. A fine-tuned model can memorize and regurgitate training examples; training on private data without consent is both unethical and, in many jurisdictions, unlawful.</p>
+<h2 id="writing-annotation-guidelines-what-you-hand-your-annotators">Writing Annotation Guidelines: What You Hand Your Annotators</h2>
+<p>If humans write or verify your examples — even if "humans" means you and one colleague — write annotation guidelines first. Without them, two annotators produce two different datasets stitched together, and the model faithfully learns the inconsistency. Good guidelines have four parts:</p>
+<p><strong>1. The task definition with the "why."</strong> Not just "write a response" but "write a response a rural clinic worker could read aloud to a patient; the goal is clarity, not completeness." Annotators who understand the purpose make better judgment calls on edge cases than any rule list covers.</p>
+<p><strong>2. Do-and-don't examples (at least 5 pairs).</strong> Show a good response and a bad response for the same instruction, with one sentence explaining the difference. This is worth more than pages of prose. Include edge cases: what to do when the instruction is ambiguous, when the correct answer is "I don't know," when the input contains errors.</p>
+<p><strong>3. Format specification, exact.</strong> If outputs must be JSON with keys <code>answer</code> and <code>justification</code>, say so, show it, and provide a validator script annotators run before submitting. Every format decision you leave implicit becomes noise in the training data.</p>
+<p><strong>4. The escalation rule.</strong> "If you're unsure, flag it instead of guessing." Guessed examples are worse than missing examples — they teach confident wrongness. Create a <code>needs_review</code> bucket and have your most careful annotator (possibly you) resolve it.</p>
+<p><strong>Measuring agreement:</strong> have two annotators independently do the same 50 examples, then compare. For classification-style outputs, compute simple agreement rate (aim for 90%+; below 80% means your guidelines are ambiguous). For free-text responses, agreement is harder to quantify — instead, have a third person blind-rank pairs of responses from the two annotators against the guidelines. Low agreement doesn't mean bad annotators; it means ambiguous guidelines. Rewrite the guidelines, not the people.</p>
+<p><strong>Pilot first:</strong> run 50 examples through the full pipeline (guidelines → annotation → your quality grading from earlier in this chapter) before scaling to thousands. The pilot reveals every ambiguity in your guidelines at 1/40th the cost. Every experienced dataset builder pilots; every burned one wishes they had.</p>
+<p>A final note on you-as-annotator: if you're writing all examples yourself (common in thesis projects), you don't need inter-annotator agreement — but you do need <em>self</em>-consistency. Write your guidelines anyway, and re-grade your first 100 examples after finishing all 2,000. You'll find your standards drifted; normalize the early examples to your later, better-calibrated judgment.</p>
+<h2 id="versioning-your-dataset">Versioning Your Dataset</h2>
+<p>Datasets change: you fix labels, add examples, remove contamination, rephrase instructions. Without versioning, "the dataset" becomes ambiguous — which version produced which result? Adopt this lightweight scheme from day one:</p>
+<p><strong>Name versions explicitly:</strong> <code>data-v1</code> (initial 1,000), <code>data-v2</code> (added 500 medical examples, removed 37 duplicates), etc. Keep a <code>CHANGELOG.md</code> in your data directory: one line per version saying what changed and why. Every training run records its data version in the run log (next to the seed and config).</p>
+<p><strong>Never edit in place.</strong> When you fix 50 labels, create <code>data-v3</code> — don't silently overwrite <code>data-v2</code>. Old results must remain interpretable: "run-04 used data-v2" should still be true and checkable a year later. Disk is cheap; ambiguity is expensive.</p>
+<p><strong>Hash the splits.</strong> After creating train/val/test, record a hash (e.g., SHA-256 of the concatenated file) in the changelog. If anyone — including you — questions whether the test set leaked, the hash proves which bytes were evaluated.</p>
+<p><strong>Why this matters for papers:</strong> reviewers increasingly ask "which data version?" when results don't reproduce, and dataset versioning is standard practice in industry labs. A changelog with five entries and hashes signals a mature experimental process — and when your advisor asks "did the improvement come from the new data or the new hyperparameters?", the version log plus run log answers definitively instead of approximately.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your dataset <em>is</em> a research artifact. Document it like one: collection method, size, filtering steps, inter-annotator agreement if humans wrote examples, license, and a datasheet-style description. Releasing your dataset (when legally possible) alongside your paper multiplies its impact — datasets get cited independently. Even a 2,000-example high-quality dataset for an under-served language or domain is publishable in dataset tracks of major venues.</p>
+</blockquote>
+<h3 id="key-takeaways_2">Key Takeaways</h3>
+<ul>
+<li>Use one consistent format (instruction/input/output) and one prompt template everywhere — training and inference.</li>
+<li>Quality beats quantity: 1,000 excellent, diverse, correct examples beat 50,000 noisy ones for behavior teaching.</li>
+<li>Judge examples on correctness, diversity, difficulty mix, formatting consistency, and no test leakage.</li>
+<li>Sources in quality order: human-written, verified distillation, repurposed datasets, verified synthetic generation. Always verify.</li>
+<li>Size brackets: ~500–2k for format adaptation, 2k–20k for domain adaptation, 10k+ for genuinely new skills.</li>
+<li>Split train/val/test with a fixed seed before training; lock the test set away until the end.</li>
+<li>Check licenses and anonymize private data — the dataset is a research artifact with legal weight.</li>
+</ul>
+<hr />
+<h1 id="chapter-4-full-fine-tuning-vs-peft-lora-and-qlora-explained">Chapter 4: Full Fine-Tuning vs PEFT: LoRA and QLoRA Explained</h1>
+<p>Chapter 2 described fine-tuning as nudging all billions of weights. That is <strong>full fine-tuning</strong>, and it works — but it needs enormous memory: the weights, the gradients, and the optimizer's bookkeeping all live on the GPU at once. For a 7-billion-parameter model in standard 16-bit precision, full fine-tuning needs roughly 60+ GB of GPU memory, far beyond any single student-grade GPU. <strong>Parameter-efficient fine-tuning (PEFT)</strong> is the family of methods that dodges this wall by training only a tiny fraction of the parameters. LoRA is its most important member, and QLoRA made it run on free hardware. This chapter explains both deeply enough that you can configure them with understanding rather than superstition.</p>
+<h2 id="why-full-fine-tuning-is-so-memory-hungry">Why Full Fine-Tuning Is So Memory-Hungry</h2>
+<p>To see what PEFT saves, count what full fine-tuning stores per parameter. Take a 7B model in 16-bit (2 bytes per number):</p>
+<ul>
+<li><strong>Weights:</strong> 7B × 2 bytes ≈ 14 GB</li>
+<li><strong>Gradients:</strong> another 7B × 2 bytes ≈ 14 GB (one gradient per weight)</li>
+<li><strong>Optimizer state:</strong> the Adam optimizer stores two extra numbers per parameter (a running average of gradients and of squared gradients) in 32-bit: 7B × 4 × 2 ≈ 56 GB</li>
+</ul>
+<p>Total: roughly 84 GB before activations (the intermediate values stored for backpropagation). Even with memory tricks, you need a data-center GPU. And after training, you have a full 14 GB copy of weights <em>per task</em> — ten tasks means ten full models to store and serve.</p>
+<p>PEFT attacks both problems: train far fewer numbers, and store far fewer numbers per task.</p>
+<h2 id="the-core-idea-of-lora">The Core Idea of LoRA</h2>
+<p>LoRA — <strong>Low-Rank Adaptation</strong>, introduced by Hu et al. — starts from an observation about fine-tuning: the <em>change</em> made to the weights during fine-tuning has low "intrinsic rank." In plain terms: even though a weight matrix has millions of entries, the useful update to it can be captured by multiplying two much smaller matrices.</p>
+<p>Concretely, take one weight matrix <strong>W</strong> of size d×d (say 4096×4096 ≈ 16.8 million numbers). During fine-tuning, it would change to <strong>W + ΔW</strong>. LoRA says: freeze <strong>W</strong> completely (never update it, never store gradients or optimizer state for it), and learn the update as a product of two small matrices:</p>
+<p><strong>ΔW = B × A</strong>, where <strong>B</strong> is d×r and <strong>A</strong> is r×d, with <strong>r</strong> (the rank) tiny — typically 8, 16, 32, or 64.</p>
+<p>With r=16 and d=4096: B has 4096×16 = 65,536 numbers, A has 16×4096 = 65,536 numbers — about 131,000 trainable numbers instead of 16.8 million. That is roughly a <strong>128× reduction</strong> for that matrix. Across the whole model, a LoRA adapter is typically 0.1–1% of the base model's parameters — tens of megabytes instead of gigabytes.</p>
+<p>At inference time, the effective weight is W + BA. You can even <strong>merge</strong> the adapter into the base weights (W' = W + BA) so the deployed model runs exactly as fast as the original — zero inference overhead. Or keep adapters separate and swap them: one ba

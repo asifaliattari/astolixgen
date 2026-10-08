@@ -1,0 +1,499 @@
+bumentations: the serious toolkit.</strong> torchvision transforms are fine for classification; <strong>Albumentations</strong> is faster and — critically — applies identical geometric transforms to images, masks, and bounding boxes together. For detection and segmentation, where the mask must track the image exactly, this is essential:</p>
+<pre><code class="language-python">import albumentations as A
+tf = A.Compose([
+    A.RandomResizedCrop(256, 256, scale=(0.5, 1.0)),
+    A.HorizontalFlip(p=0.5),
+    A.Rotate(limit=15, p=0.5),
+    A.RandomBrightnessContrast(p=0.3),
+], seed=42)
+out = tf(image=img_np, mask=mask_np)  # mask transformed identically
+</code></pre>
+<p>Note <code>seed=42</code>: reproducible augmentation pipelines matter when you need to regenerate exact training samples for debugging. Also note the crop scale floor of 0.5 — the small-object rule from this chapter's table, encoded as a parameter.</p>
+<p><strong>Segmentation augmentation rules.</strong> Masks require <em>nearest-neighbor</em> interpolation — never bilinear, which creates fractional class labels at boundaries. Photometric transforms apply to the image only, never the mask. Geometric transforms apply to both. Libraries handle this correctly when you pass the mask separately (as above); hand-rolled pipelines get it wrong constantly. For small objects, also consider <strong>copy-paste augmentation</strong>: cut rare-class instances and paste them onto new backgrounds. It's highly effective for small datasets and imbalanced segmentation, and it's a legitimate, citable method choice.</p>
+<p><strong>RandAugment in two lines.</strong> When hand-tuning a policy feels arbitrary, let the machine choose: <code>RandAugment(num_ops=2, magnitude=9)</code> applies two random operations per image from a curated set. TrivialAugment goes further — one operation, random magnitude, zero hyperparameters — and matches tuned policies on most benchmarks (Cubuk et al., 2020). These are the right defaults behind "we used standard augmentation" in a paper: cite them, state the parameters, move on.</p>
+<p><strong>Test-time augmentation, concrete.</strong></p>
+<pre><code class="language-python">model.eval()
+flip = transforms.RandomHorizontalFlip(p=1.0)
+views = [val_tf(img)]
+views.append(transforms.Compose([flip, *val_tf.transforms])(img))
+with torch.no_grad():
+    logits = torch.stack([model(v.unsqueeze(0)) for v in views]).mean(0)
+</code></pre>
+<p>Two to five views (flips, multi-crops) typically add 0.3–1.0% accuracy. Report the TTA policy alongside the number — "87.3% (5-crop TTA)" — because TTA multiplies inference cost, and a deployment-minded reviewer will ask whether the headline number is achievable in production.</p>
+<p><strong>Augmentation ablation mini-table.</strong> Run this once per new dataset; a single extra training run buys certainty about where tuning stops paying:</p>
+<table>
+<thead>
+<tr>
+<th>Augmentation</th>
+<th>Val accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>None</td>
+<td>78.1 ± 0.8</td>
+</tr>
+<tr>
+<td>Flip only</td>
+<td>80.4 ± 0.6</td>
+</tr>
+<tr>
+<td>Flip + crop</td>
+<td>83.9 ± 0.5</td>
+</tr>
+<tr>
+<td>Flip + crop + color jitter</td>
+<td>84.6 ± 0.4</td>
+</tr>
+<tr>
+<td>Full + RandAugment</td>
+<td>85.2 ± 0.5</td>
+</tr>
+</tbody>
+</table>
+<p>Diminishing returns are normal and expected — the table tells you where to stop tuning augmentation and start training the final model.</p>
+<h3 id="domain-augmentation-recipes-and-two-cautionary-tales">Domain augmentation recipes, and two cautionary tales</h3>
+<p><strong>Ready-made recipes by domain.</strong> Start from these, then ablate (Chapter 8's mini-table):</p>
+<p><em>Medical (X-ray, grayscale):</em> RandomResizedCrop scale (0.7, 1.0), small rotation ±10°, intensity jitter (brightness/contrast 0.15), Gaussian noise σ=0.01, <strong>no flips</strong> for asymmetric anatomy. Rationale: anatomy has a canonical orientation and left-right meaning; intensity varies by scanner.
+<em>Histopathology (stained slides):</em> flips + 90° rotations (no orientation at cellular scale), stain-color jitter or stain normalization, crops (0.5, 1.0). Rationale: rotation-invariant, but stain chemistry is the signal — jitter it only mildly.
+<em>Agriculture (field photos):</em> flips, crops (0.5, 1.0), strong brightness/contrast/saturation jitter, ±30° rotation, CutMix. Rationale: sunlight and cameras vary wildly; backgrounds are cluttered.
+<em>Satellite (multispectral tiles):</em> full 360° rotation, flips, scale jitter (0.5, 1.5), per-band brightness jitter, <strong>no color jitter across bands</strong> (band ratios like NDVI are the signal — jittering bands independently destroys them). Rationale: no canonical orientation; spectral relationships are sacred.</p>
+<p><strong>Cautionary tale 1: the flipped X-ray.</strong> A published-style mistake that recurs in student work: horizontal flips applied to chest X-rays. The heart's leftward position is diagnostic — flipping creates anatomically impossible images labeled as real. The network happily learns "heart on right = normal variant," and test accuracy looks fine because the test set has the same corruption. The fix is domain knowledge, not more data. Lesson: every augmentation is a claim about your domain's invariances; claims need a domain expert's sign-off.</p>
+<p><strong>Cautionary tale 2: hue jitter on ripeness.</strong> A fruit-ripeness classifier augmented with hue jitter (±0.1) — the exact transform Chapter 8's defaults suggest. But ripeness <em>is</em> hue: green→yellow→red is the label signal. Training accuracy was excellent (the network memorized other cues); field performance collapsed. The fix: geometric-only augmentation plus brightness jitter (lighting varies; hue doesn't, for a fixed ripeness stage). Lesson: the "standard" recipe is a starting point, and for color-critical tasks it's the wrong starting point. Look at your augmented samples (Chapter 8's five-minute rule) — a human agronomist would have caught this instantly.</p>
+<h3 id="the-augmentation-review-a-pre-training-ritual">The augmentation review: a pre-training ritual</h3>
+<p>Before every training run, spend ten minutes on this review — it catches the lying augmentations from this chapter's cautionary tales:</p>
+<ol>
+<li><strong>Sample grid.</strong> Save 64 augmented images with labels overlaid. Can a domain expert (or you, after coffee) identify every label? Any "impossible" images (flipped anatomy, hue-destroyed ripeness, cropped-out objects)?</li>
+<li><strong>Parameter bounds.</strong> For each transform, write the range and the justification: "rotation ±15° — our camera tilts, but never inverts." Unjustified parameters are guesses; guesses get ablated or removed.</li>
+<li><strong>Mask sync</strong> (segmentation/detection): verify masks transformed identically — overlay 3 augmented image/mask pairs and inspect boundaries.</li>
+<li><strong>Determinism check:</strong> run the validation pipeline twice on one image; outputs must be bit-identical.</li>
+<li><strong>Class-conditional sanity:</strong> for rare classes, verify augmentation doesn't erase the signal — inspect 20 augmented minority-class samples specifically.</li>
+<li><strong>Leakage scan:</strong> confirm augmentation is fit on train statistics only (normalization means, etc.) and that no test image appears in train (hash check on large datasets).</li>
+</ol>
+<p>Print this, tape it next to the NaN checklist (Chapter 9). The two lists together prevent the large majority of silent training failures — the kind where the run completes, the number looks plausible, and the model is quietly wrong.</p>
+<h3 id="quick-reference-freeze-schedules">Quick reference: freeze schedules</h3>
+<p>Common schedules, from conservative to aggressive: (1) <strong>Head only</strong> — backbone frozen throughout; safest, tiny data. (2) <strong>Head then last stage</strong> — unfreeze layer4 after head converges; the default recommendation. (3) <strong>Gradual unfreezing</strong> — unfreeze layer4, then layer3, then layer2, a few epochs apart (top-down); maximally gentle, costs patience. (4) <strong>Full fine-tune from the start</strong> — only with 50K+ images and a low LR; otherwise it destroys features before the head is sane. Match the schedule to data size: &lt;1K → (1); 1–10K → (2); 10–50K → (3); 50K+ → (4) is safe. When in doubt, go one step more conservative — under-adapting costs a point, over-adapting costs the run.</p>
+<h3 id="sanity-metric-the-linear-probe-floor">Sanity metric: the linear-probe floor</h3>
+<p>Before any fine-tuning run, record the <strong>linear-probe accuracy</strong> (frozen backbone + trained head) as your floor. Any fine-tuning protocol that scores <em>below</em> this floor is broken — usually a too-high backbone LR destroying features (Chapter 7's catastrophic forgetting) or a BatchNorm mishandling (frozen-stats vs recomputed). The probe costs one short run and gives you a tripwire: if staged fine-tuning underperforms the probe, stop and diagnose instead of tuning blindly. Report the probe number in your ablations too — "frozen backbone: 85.6%" as a row makes the fine-tuning gain (+1.7 in Chapter 7's example) interpretable rather than mysterious.</p>
+<p><strong>Key takeaways</strong>
+- Augmentation synthesizes the variations your dataset lacks; on small data it often beats a bigger model.
+- Defaults: random resized crop + horizontal flip + mild color jitter. Inspect samples before training.
+- Every augmentation asserts label preservation — flips, rotations, and color jitter each have domains where they lie.
+- Test transforms must be deterministic. Always.
+- TTA (averaging augmented predictions) is free accuracy at inference; report it when used.</p>
+<hr />
+<h3 id="augmentation-as-experimental-control">Augmentation as experimental control</h3>
+<p>Think of your augmentation policy as an experimental control: it defines the invariances your model is <em>allowed</em> to assume. When two papers report different numbers on the same dataset, the augmentation difference is the first suspect — before architecture, before hyperparameters. This is why the policy belongs in the methods section with parameters, not in a footnote. And when you review others' work, ask the question this chapter trained you to ask: which invariances did they assume, and did the domain actually grant them?</p>
+<h2 id="chapter-9-training-cnns-learning-rates-schedules-regularization-pitfalls">Chapter 9 — Training CNNs: Learning Rates, Schedules, Regularization, Pitfalls</h2>
+<h3 id="the-optimizer-question-settled-pragmatically">The optimizer question, settled pragmatically</h3>
+<p>Two serious options:</p>
+<ul>
+<li><strong>SGD with momentum (0.9)</strong>: the classic. Often reaches slightly better final generalization for CNNs; needs more learning-rate tuning. The ImageNet-era default and still the choice for squeezing the last 0.5%.</li>
+<li><strong>Adam / AdamW</strong>: adaptive per-parameter learning rates; converges faster and is far less sensitive to the initial LR. The default for most research code today. <strong>AdamW</strong> (decoupled weight decay) is strictly preferable to Adam — regular Adam's weight decay interacts badly with the adaptive scaling.</li>
+</ul>
+<p>Recommendation: start with AdamW (lr=1e-3 or 3e-4, weight_decay=0.01–0.05). If you're chasing leaderboard numbers on a well-understood benchmark, try SGD with momentum afterward. Don't agonize — the learning-rate <em>schedule</em> matters more than the optimizer choice.</p>
+<h3 id="learning-rate-schedules-the-actual-secret">Learning-rate schedules: the actual secret</h3>
+<p>A constant learning rate is almost never optimal. The standard pattern: <strong>start low (warmup), go high, decay down</strong>.</p>
+<ul>
+<li><strong>Warmup</strong> (first 5–10% of training): linearly ramp LR from 0 to the target. Prevents early instability, especially with large batches or fresh heads on pretrained backbones.</li>
+<li><strong>Decay</strong>: <strong>cosine annealing</strong> (smooth decay following a cosine curve to near-zero) is the modern default and usually beats step decay. Step decay (÷10 at epochs 30/60/90) is the ResNet-paper classic and still fine.</li>
+<li><strong>OneCycle</strong>: ramp up then down in a single cycle; pairs well with AdamW and often trains faster.</li>
+</ul>
+<pre><code class="language-python">optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.05)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+
+for epoch in range(100):
+    train_one_epoch(model, loader, optimizer)
+    scheduler.step()  # call after each epoch (or each batch for OneCycle)
+</code></pre>
+<p>Why decay helps: early training needs large steps to explore; late training needs small steps to settle into the minimum without bouncing out. A schedule is worth 1–3% accuracy on most tasks — more than many architecture tweaks.</p>
+<h3 id="regularization-the-full-menu">Regularization: the full menu</h3>
+<ol>
+<li><strong>Weight decay</strong> (L2): penalizes large weights. With AdamW, 0.01–0.05; with SGD, 1e-4. It's the baseline regularizer — always on.</li>
+<li><strong>Dropout</strong> (0.2–0.5, in FC/head layers): randomly zeroes activations. Less used inside modern conv stacks (BatchNorm already regularizes), still standard in classifier heads.</li>
+<li><strong>Data augmentation</strong> (Chapter 8): the strongest regularizer you have. Treat it as regularization first, data multiplication second.</li>
+<li><strong>Label smoothing</strong> (ε=0.1): softens one-hot targets to (1−ε) for the true class, ε/(K−1) elsewhere. Prevents overconfident predictions; typically +0.3–0.5%.</li>
+<li><strong>Early stopping</strong>: monitor validation loss; stop when it hasn't improved for N epochs (patience 10–20). Save the best checkpoint, not the last.</li>
+<li><strong>Stochastic depth / DropPath</strong>: randomly drops entire residual blocks during training. The ResNet-era answer to "how do I regularize a 100-layer network." Available in <code>timm</code>.</li>
+</ol>
+<h3 id="reading-training-curves-a-diagnostic-manual">Reading training curves: a diagnostic manual</h3>
+<p>Plot training loss, validation loss, and validation accuracy every run. The shapes diagnose everything:</p>
+<ul>
+<li><strong>Both losses decrease together, gap small</strong>: healthy. Keep going or train longer.</li>
+<li><strong>Training loss ↓, validation loss ↑ (gap widening)</strong>: <strong>overfitting</strong>. Add augmentation, weight decay, dropout; get more data; use a smaller model; early-stop.</li>
+<li><strong>Both losses plateau high</strong>: <strong>underfitting</strong>. Model too small, LR too low, or a bug. Increase capacity, raise LR, check preprocessing (wrong normalization is the classic silent killer — see below).</li>
+<li><strong>Training loss oscillates wildly / NaN</strong>: LR too high, or unstable numerics. Lower LR, add warmup, check for exploding gradients (gradient clipping at norm 1.0 is cheap insurance).</li>
+<li><strong>Validation accuracy noisy epoch-to-epoch</strong>: normal with small validation sets. Don't early-stop on noise — smooth the curve or use a larger patience.</li>
+<li><strong>Loss drops then flatlines early</strong>: LR decayed too aggressively, or the optimizer fell into a sharp minimum. Try cosine instead of step decay.</li>
+</ul>
+<h3 id="common-pitfalls-the-ones-that-eat-weeks">Common pitfalls (the ones that eat weeks)</h3>
+<ol>
+<li><strong>Wrong normalization.</strong> Using ImageNet mean/std on non-ImageNet-like data, or forgetting normalization entirely, silently degrades everything by several points. Verify: after your transform pipeline, a batch's mean should be ≈ 0.</li>
+<li><strong>Forgetting <code>model.train()</code> / <code>model.eval()</code>.</strong> Dropout and BatchNorm behave differently per mode. Eval without <code>model.eval()</code> gives garbage; training without <code>model.train()</code> after eval disables dropout/BN updates.</li>
+<li><strong>Data leakage</strong>: augmentation or normalization statistics computed on the full dataset (including test); duplicate images across splits; patient-level leakage in medical data (same patient's scans in train and test). Split by patient/study, not by image.</li>
+<li><strong>Untuned baselines</strong>: comparing your tuned method against a baseline trained with default hyperparameters. Tune the baseline's LR at minimum, or the comparison is meaningless.</li>
+<li><strong>Batch size too small with BatchNorm</strong>: &lt; 16 per GPU makes BN statistics noisy. Accumulate gradients to simulate larger batches, or switch to GroupNorm.</li>
+<li><strong>Class imbalance ignored</strong>: with 95/5 class splits, accuracy is a lie (predicting "negative" always gives 95%). Use weighted loss, oversampling, or focal loss — and report F1/AUC, not just accuracy (Chapter 12).</li>
+</ol>
+<pre><code class="language-python"># Class-weighted loss for imbalance:
+counts = torch.tensor([9500., 500.])          # class frequencies
+weights = counts.sum() / (len(counts) * counts)
+criterion = nn.CrossEntropyLoss(weight=weights)
+</code></pre>
+<blockquote>
+<p><strong>For your research.</strong> Log everything: hyperparameters, git commit hash, random seeds, dataset version, hardware. Tools like Weights &amp; Biases or MLflow make this painless, and "we ran each experiment with 3 seeds and report mean ± std" is the difference between a result and an anecdote. Reviewers increasingly demand seed-averaged results — a single lucky seed is not a finding. When a run fails, the training curve plus this chapter's diagnostics usually identify the cause in minutes; build the habit of plotting before tweaking.</p>
+</blockquote>
+<h3 id="speed-and-stability-mixed-precision-accumulation-the-lr-finder">Speed and stability: mixed precision, accumulation, the LR finder</h3>
+<p><strong>Mixed precision — a free speedup.</strong> Modern GPUs compute in FP16/BF16 far faster than FP32. PyTorch's automatic mixed precision gives roughly 1.5–2× speedup with a few lines and usually zero accuracy change:</p>
+<pre><code class="language-python">from torch.amp import GradScaler, autocast
+scaler = GradScaler()
+for x, y in loader:
+    optimizer.zero_grad()
+    with autocast(device_type='cuda'):
+        loss = criterion(model(x), y)
+    scaler.scale(loss).backward()
+    scaler.step(optimizer)
+    scaler.update()
+    scheduler.step()
+</code></pre>
+<p>The scaler prevents underflow of small gradients in FP16. Use AMP by default on any CUDA GPU from the last five years — there is no reason not to, and "trained with AMP" needs no justification in a paper.</p>
+<p><strong>Gradient accumulation — faking bigger batches.</strong> Your GPU fits batch 16 but you want the stability of 64: accumulate gradients over 4 steps before updating.</p>
+<pre><code class="language-python">accum_steps = 4
+for i, (x, y) in enumerate(loader):
+    loss = criterion(model(x), y) / accum_steps
+    loss.backward()
+    if (i + 1) % accum_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+</code></pre>
+<p>Caveat: BatchNorm still sees batches of 16 — statistics don't accumulate. Combine with GroupNorm or accept the noise. This is how small-GPU researchers train big-batch recipes, and it's worth stating in your methods ("effective batch size 64 via 4× accumulation").</p>
+<p><strong>The learning-rate range test.</strong> Instead of guessing the learning rate, sweep it exponentially in one short run and plot loss versus LR (Smith, 2017): loss falls, then explodes. Pick the LR about one order of magnitude below the explosion point — the steepest-descent region. Implementations exist (<code>torch_lr_finder</code>); it replaces an afternoon of guessing with a ten-minute run. Do this before any serious training, especially from scratch.</p>
+<p><strong>NaN and stall debugging checklist.</strong>
+1. Loss NaN in the first epochs → learning rate too high. Halve it and add warmup.
+2. Loss NaN suddenly mid-training → mixed-precision overflow (use BF16 or raise the loss scale) or a corrupt batch (broken JPEGs decode to garbage — check inputs for NaN).
+3. Accuracy stuck at 1/N_classes → the network predicts a single class. Check label encoding (0-indexed? correctly shuffled?), then suspect LR far too high.
+4. Loss decreases but accuracy doesn't move → label mismatch or metric bug. First, overfit a single batch: a healthy setup reaches ~100% training accuracy on 32 images within a few epochs. If it can't, the bug is in data or loss — not capacity.
+5. Everything worked yesterday → you changed the seed, the data path, or the normalization. <code>git diff</code> and the paper ledger (Chapter 12) exist for exactly this moment.</p>
+<p><strong>Seed averaging, the honest way.</strong> Report mean ± std over at least 3 seeds, and keep a versioned <code>run.sh</code> per experiment so the exact command is reproducible:</p>
+<pre><code class="language-bash">python train.py --backbone resnet50 --lr 3e-4 --seed 0 --augment full
+python train.py --backbone resnet50 --lr 3e-4 --seed 1 --augment full
+python train.py --backbone resnet50 --lr 3e-4 --seed 2 --augment full
+</code></pre>
+<p>A result without seeds is a rumor; a result with three seeds and a script is evidence. Reviewers increasingly treat it that way.</p>
+<h3 id="optimizers-compared-and-the-regularization-cookbook">Optimizers compared, and the regularization cookbook</h3>
+<p><strong>SGD vs AdamW, honestly.</strong> The 2020s consensus, stripped of tribalism: AdamW converges faster, is robust to LR choice, and wins on most research timelines — it's the right default. SGD with momentum (0.9), tuned carefully with step decay, still edges out AdamW by 0.2–0.5% on some well-studied CNN benchmarks (ImageNet, CIFAR) — the price is a full LR-schedule search per task. So: use AdamW for exploration, ablations, and deadlines; consider SGD for the final benchmark push <em>if</em> you can afford the tuning. One more consideration: AdamW's adaptivity interacts with weight decay, which is why decoupled AdamW (not Adam + L2) is the correct form — with vanilla Adam, the L2 term gets scaled by the adaptive denominator and under-regularizes exactly the parameters that need it most.</p>
+<p><strong>The regularization cookbook — doses and interactions.</strong> Regularizers interact: heavy augmentation + high weight decay + dropout can <em>underfit</em>. Treat total regularization as one budget:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Prescription</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Small data (&lt;5K), from scratch</td>
+<td>Strong aug + wd 0.05 + label smoothing 0.1 + dropout 0.5 in head; expect to need all of it</td>
+</tr>
+<tr>
+<td>Small data, fine-tuning</td>
+<td>Moderate aug + wd 0.01 + label smoothing; dropout 0.2; freezing is itself regularization</td>
+</tr>
+<tr>
+<td>Large data (100K+), from scratch</td>
+<td>Mild aug + wd 1e-4 (SGD) / 0.05 (AdamW); dropout optional; data is the regularizer</td>
+</tr>
+<tr>
+<td>Very deep net (100+ layers)</td>
+<td>Add stochastic depth / DropPath 0.1–0.2</td>
+</tr>
+</tbody>
+</table>
+<p>If training accuracy won't rise: you're over-regularized — remove, don't add. If the train/val gap widens: add in this order — augmentation, weight decay, label smoothing, dropout, smaller model. One at a time; that's an ablation, and it goes in the paper.</p>
+<p><strong>Distributed training in one paragraph.</strong> When one GPU is too slow, <code>DistributedDataParallel</code> splits batches across GPUs/machines with near-linear speedup — but the <em>effective batch size</em> grows, and large batches need LR scaling (linear rule: double batch → double LR, plus longer warmup). BatchNorm statistics are computed per-GPU unless you use SyncBatchNorm. You probably don't need this for thesis-scale work; but if your lab has a cluster, DDP + the linear scaling rule + SyncBatchNorm is the entire recipe, and mixed precision (this chapter) stacks multiplicatively with it.</p>
+<h3 id="troubleshooting-flowchart-text-edition">Troubleshooting flowchart (text edition)</h3>
+<pre><code>Loss NaN / inf?
+├── Yes → in first epochs? → halve LR, add warmup
+│         └── mid-training? → check inputs for NaN (corrupt files),
+│                             try BF16 / raise loss scale
+├── No ↓
+Accuracy stuck at chance (1/#classes)?
+├── Yes → labels correct &amp; 0-indexed? → fix encoding
+│         └── labels fine? → LR too high; drop 10× and retry
+├── No ↓
+Train loss falls, val loss rises?
+├── Yes → OVERFITTING → add augmentation → raise wd →
+│         label smoothing → dropout → smaller model → early stop
+│         (one at a time; it's an ablation)
+├── No ↓
+Both losses plateau high?
+├── Yes → UNDERFITTING → capacity up? LR up? → check normalization
+│         → overfit-one-batch test → if that fails, bug in data/loss
+├── No ↓
+Loss oscillates wildly?
+├── Yes → LR too high → lower it; add warmup; gradient clip (norm 1.0)
+├── No ↓
+Val accuracy noisy?
+└── Yes → small val set → smooth curves, larger patience;
+         don't early-stop on noise
+</code></pre>
+<p>Work the chart top to bottom; don't skip to your favorite hypothesis. Most "mysterious" training failures are row 1 or row 2 — learning rate and labels — not architecture. The chart's real purpose is discipline: it forces you to rule out the common causes before redesigning the network.</p>
+<h3 id="augmentation-strength-as-a-curriculum">Augmentation strength as a curriculum</h3>
+<p><strong>Ramp it up.</strong> One refinement worth knowing: start training with mild augmentation and strengthen it over epochs — a curriculum. Early epochs see near-original images (stable gradients, fast initial learning); later epochs see heavily distorted ones (robustness, regularization when overfitting risk is highest). Implementation: interpolate RandAugment magnitude 4→10, or crop scale (0.8,1.0)→(0.08,1.0), linearly over the first half of training. Gains are modest (+0.2–0.5%) but consistent, and it stabilizes the notoriously twitchy first epochs of from-scratch training. For fine-tuning, the subtler version suffices: keep augmentation mild while the head warms up (stage 1), then strengthen for full fine-tuning (stage 2) — matching regularization to the phase where it's needed.</p>
+<p><strong>Augmentation and the validation gap — a diagnostic note.</strong> Heavy augmentation <em>inflates</em> the train–validation gap even in a healthy model, because training images are harder versions of validation images. Don't misread this as overfitting. The check: evaluate the <em>training</em> set with validation transforms (no augmentation) — if that accuracy matches validation accuracy, the gap is augmentation difficulty, not memorization. True overfitting shows a gap even without augmentation. Log both numbers; their difference quantifies your augmentation's difficulty contribution.</p>
+<h3 id="when-augmentation-isnt-enough-synthetic-data">When augmentation isn't enough: synthetic data</h3>
+<p>When real variation is unobtainable — rare diseases, dangerous field conditions, classified satellite regions — consider <strong>synthetic data</strong>: GAN/diffusion-generated images, physics-based simulators, or 3D renders. Rules: (1) never let synthetic images into the <em>test</em> set — evaluation must be on real data; (2) validate the sim-to-real gap explicitly (train synthetic-only, test on real — the gap quantifies what the simulator lacks); (3) mix synthetic with real rather than replacing it. Synthetic data is augmentation taken to its logical extreme, and it inherits augmentation's prime directive: every synthetic image asserts label preservation. A simulator that renders anatomically impossible pathology is worse than no data — have a domain expert review samples, just like the augmentation grid.</p>
+<p><strong>Key takeaways</strong>
+- AdamW (lr 3e-4, wd 0.05) is the sane default; the LR schedule (warmup + cosine decay) matters more than the optimizer.
+- Regularize in layers: weight decay + augmentation + label smoothing + early stopping + dropout in the head.
+- Training curves are diagnostic instruments: learn the five shapes (healthy, overfitting, underfitting, unstable, noisy-val).
+- Silent killers: wrong normalization, forgotten train/eval modes, data leakage, untuned baselines, tiny batches with BatchNorm.
+- Log hyperparameters, seeds, and code versions; report mean ± std over multiple seeds.</p>
+<hr />
+<h2 id="chapter-10-visualizing-what-cnns-learn">Chapter 10 — Visualizing What CNNs Learn</h2>
+<p>A CNN with 25M parameters is a black box — unless you open it. Visualization serves two purposes: <strong>debugging</strong> (is the model looking at the right thing?) and <strong>communication</strong> (figures that make a paper convincing). This chapter covers the three techniques you'll actually use.</p>
+<h3 id="1-first-layer-filters-the-direct-look">1. First-layer filters: the direct look</h3>
+<p>The first convolutional layer's kernels operate directly on pixels, so you can just... look at them. Reshape each 3×3×3 (or 7×7×3) kernel into an image:</p>
+<pre><code class="language-python">import matplotlib.pyplot as plt
+
+conv1 = model.conv1.weight.data.cpu()  # (64, 3, 7, 7) for ResNet
+fig, axes = plt.subplots(8, 8, figsize=(10, 10))
+for i, ax in enumerate(axes.flat):
+    f = conv1[i].permute(1, 2, 0)            # -&gt; (H, W, C)
+    f = (f - f.min()) / (f.max() - f.min())  # normalize for display
+    ax.imshow(f); ax.axis('off')
+plt.savefig('conv1_filters.png', dpi=150)
+</code></pre>
+<p>What you'll see in a trained network: oriented edge detectors (Gabor-like stripes), color blobs, and opponent-color patterns. In an <em>untrained</em> network: noise. If your trained first layer still looks like noise, something is wrong — the network isn't learning low-level structure (check LR, normalization, or whether the task is solvable at all). This is a 30-second sanity check worth running on every trained model.</p>
+<h3 id="2-activationfeature-maps-what-fires-where">2. Activation/feature maps: what fires where</h3>
+<p>Pick a layer, feed an image, and visualize its output channels. Early layers show edge/texture maps; deep layers show part/object detectors — some channels will fire precisely on eyes, wheels, or (in your domain) lesions.</p>
+<pre><code class="language-python">activations = {}
+def hook_fn(name):
+    def hook(module, inp, out):
+        activations[name] = out.detach()
+    return hook
+
+model.layer3[0].conv2.register_forward_hook(hook_fn('layer3'))
+model(torch.randn(1, 3, 224, 224))
+feat = activations['layer3'][0]  # (C, H, W)
+# plot a grid of the first 64 channels...
+</code></pre>
+<p>Forward hooks are the mechanism — learn them; they're also how you extract features for transfer learning analysis and how Grad-CAM (below) gets its data.</p>
+<h3 id="3-grad-cam-where-the-network-looked">3. Grad-CAM: where the network looked</h3>
+<p><strong>Grad-CAM</strong> (Selvaraju et al., 2017) answers: "which image regions most influenced the prediction for class c?" The recipe:</p>
+<ol>
+<li>Forward pass; get the score y^c for the target class (before softmax).</li>
+<li>Backpropagate to the last convolutional layer's feature maps A^k.</li>
+<li><strong>Global-average-pool the gradients</strong> per channel: α_k = mean(∂y^c/∂A^k). Each α_k is the "importance" of channel k for class c.</li>
+<li>Weight the feature maps by importance and ReLU: heatmap = ReLU(Σ_k α_k A^k).</li>
+<li>Upsample to image size, overlay on the input.</li>
+</ol>
+<pre><code class="language-python"># Sketch (full implementations exist in the pytorch-grad-cam library):
+features, grads = {}, {}
+model.layer4.register_forward_hook(lambda m, i, o: features.update(f=o.detach()))
+model.layer4.register_full_backward_hook(lambda m, gi, go: grads.update(g=go[0].detach()))
+
+model.zero_grad()
+score = model(img)[0, target_class]
+score.backward()
+
+weights = grads['g'].mean(dim=(2, 3), keepdim=True)   # global average pool of gradients
+cam = (weights * features['f']).sum(dim=1, keepdim=True)
+cam = torch.relu(cam)
+cam = (cam - cam.min()) / (cam.max() - cam.min())    # normalize to [0,1]
+# upsample cam to 224x224 and overlay on the original image
+</code></pre>
+<p>Use <code>pip install grad-cam</code> for the battle-tested implementation rather than hand-rolling it in production code — but implement it once yourself, because the exercise teaches you exactly what the heatmap means and doesn't mean.</p>
+<p><strong>What Grad-CAM doesn't prove</strong> (say this in your paper if you use it): a heatmap over the tumor doesn't prove the model "understands" tumors — it shows spatial correlation between region activation and the class score. Heatmaps can also be misleadingly reassuring: a model can attend to the right region for the wrong reason (e.g., a chest drain tube correlated with disease rather than the disease itself — a famous failure mode). Pair visualizations with quantitative analysis (ablations, subgroup metrics), never as a substitute.</p>
+<p><img alt="Grad-CAM style heatmap concept" src="media-generation-book-12-fig3-0-be7c9f20-1826-4009-aa4f-4fe971853914.webp" /></p>
+<h3 id="saliency-maps-and-occlusion-quick-tour">Saliency maps and occlusion (quick tour)</h3>
+<ul>
+<li><strong>Vanilla saliency</strong>: |∂y^c/∂(input pixels)| — which pixels would change the score fastest. Noisy but simple; guided backprop variants are cleaner.</li>
+<li><strong>Occlusion sensitivity</strong> (Zeiler &amp; Fergus): slide a gray patch over the image, record the score drop. Model-agnostic and brutally honest — if covering the background drops the score, your model uses background. Slow (hundreds of forward passes) but assumption-free.</li>
+</ul>
+<h3 id="debugging-with-visualization-a-field-guide">Debugging with visualization: a field guide</h3>
+<ul>
+<li><strong>Heatmap on background, not object</strong> → the model learned a spurious correlation (hospital token on X-rays, ruler marks on skin lesions — both real published failure modes). Fix with data cleaning, augmentation, or masking.</li>
+<li><strong>All heatmaps identical across classes</strong> → the head isn't discriminating; check the classifier layer and label quality.</li>
+<li><strong>First-layer filters noisy + low accuracy</strong> → optimization failure, not architecture failure. Revisit Chapter 9 before redesigning the network.</li>
+<li><strong>Strong heatmap + strong metrics on a too-easy dataset</strong> → check for leakage (Chapter 9, pitfall 3). Visualization plus skepticism catches what metrics miss.</li>
+</ul>
+<blockquote>
+<p><strong>For your research.</strong> One good Grad-CAM figure is worth a page of prose in a paper — put your best two or three examples (correct prediction attending the right region; an informative failure case) in the results. Caption them honestly: "Grad-CAM visualizations suggest the model attends to X; they are illustrative, not proof of causal reasoning." Reviewers respect calibrated claims. And keep the raw code that generated every figure in your repo — "how was this heatmap normalized?" is a question you want to answer from code, not memory.</p>
+</blockquote>
+<h3 id="feature-visualization-saliency-sanity-checks-and-occlusion">Feature visualization, saliency sanity checks, and occlusion</h3>
+<p><strong>Feature visualization (activation maximization).</strong> Instead of asking "what fired," ask "what would maximally fire this neuron": start from noise and gradient-ascent the input to maximize a channel's activation — with regularization (jitter, blur, frequency penalization), or the result is adversarial static. Olah et al.'s Distill work (2017) turned this into an art form: deep channels visualize as dog faces, buildings, textures. The <code>lucent</code> library implements it for PyTorch. Use it to discover what a channel "wants" — excellent for paper figures, and for finding surprising detectors. (A crisp "text detector" channel in your medical model is a red flag worth investigating before a reviewer does.)</p>
+<pre><code class="language-python"># Conceptual sketch (use lucent for real work):
+img = torch.randn(1, 3, 224, 224, requires_grad=True)
+opt = torch.optim.Adam([img], lr=0.05)
+for _ in range(256):
+    opt.zero_grad()
+    act = captured['layer4']          # via forward hook on the target layer
+    loss = -act[:, 17].mean()         # maximize channel 17
+    loss.backward(); opt.step()
+    # apply jitter / blur regularization to img here each step
+</code></pre>
+<p><strong>Saliency sanity checks.</strong> Adebayo et al. (2018) showed that some popular saliency methods produce plausible-looking heatmaps <em>even for randomly initialized networks</em> — they're edge detectors, not explanations. Before trusting any visualization in your paper, run two checks: (a) <strong>model randomization</strong> — randomize the network's weights; if the heatmap barely changes, the method isn't explaining your model; (b) <strong>label randomization</strong> — train on shuffled labels; a method that still highlights "sensible" regions is fooling you. Grad-CAM passes both; vanilla gradients partially fail. Run the checks and cite them: "we verified our Grad-CAM explanations with the Adebayo et al. randomization sanity checks" is a sentence reviewers like reading.</p>
+<p><strong>Occlusion sensitivity, in code.</strong> The assumption-free method from this chapter — slow but honest:</p>
+<pre><code class="language-python">import numpy as np
+model.eval()
+base = model(img)[0, target].item()
+H, W, patch, stride = 224, 224, 32, 16
+heat = np.zeros((H, W))
+with torch.no_grad():
+    for y in range(0, H - patch + 1, stride):
+        for x in range(0, W - patch + 1, stride):
+            occ = img.clone(); occ[:, :, y:y+patch, x:x+patch] = 0
+            drop = base - model(occ)[0, target].item()
+            heat[y:y+patch, x:x+patch] += drop
+</code></pre>
+<p>Regions whose occlusion drops the score most are the most important. Now compare against Grad-CAM: agreement between two <em>independent</em> methods is far more convincing than either alone. "Grad-CAM and occlusion sensitivity agree on the lesion region" makes a strong figure panel — two witnesses beat one.</p>
+<p><strong>Figure checklist for papers.</strong> Every visualization figure needs: (a) the method named and cited, (b) normalization stated (per-image min-max? fixed scale?), (c) the layer identified (Grad-CAM at layer4 looks very different from layer3 — say which), and (d) at least one failure case alongside the successes. Reviewers distrust a page of perfect heatmaps; one honest failure with a one-sentence hypothesis reads as science rather than marketing.</p>
+<h3 id="beyond-grad-cam-score-cam-tcav-and-choosing-your-explainer">Beyond Grad-CAM: Score-CAM, TCAV, and choosing your explainer</h3>
+<p><strong>Grad-CAM's siblings.</strong> Grad-CAM's gradients can be noisy (saturating ReLUs flatten them). Two descendants fix this differently: <strong>Grad-CAM++</strong> (Chattopadhyay et al., 2018) uses second-order gradients for sharper localization, especially with multiple object instances; <strong>Score-CAM</strong> (Wang et al., 2020) drops gradients entirely — it masks the input with each upsampled feature map and measures the score change, weighting maps by their causal contribution. Score-CAM is slower (one forward pass per channel) but gradient-free, hence immune to saturation artifacts. Rule of thumb: Grad-CAM for routine debugging and paper figures (fast, standard, passes sanity checks); Score-CAM when gradients look suspicious or a reviewer challenges the explanation's faithfulness. The <code>pytorch-grad-cam</code> library implements all three behind one API — no reason to hand-roll.</p>
+<p><strong>TCAV: from "where" to "what."</strong> Grad-CAM answers <em>where</em> the network looked; <strong>TCAV</strong> (Kim et al., 2018, "Testing with Concept Activation Vectors") answers <em>what</em> it saw: given a human-defined concept (e.g., "striped texture," illustrated by example images), how sensitive is the class prediction to that concept's direction in activation space? A TCAV score of 0.9 for "microaneurysm texture" on a diabetic-retinopathy model is a far stronger claim than a heatmap — it quantifies reliance on a named, domain-meaningful concept. Cost: you must curate concept example sets (50–100 images each), which needs domain expertise. For medical and scientific papers, one TCAV result ("the model's decisions are sensitive to the clinically relevant concept, not to the scanner-artifact concept") can carry more weight than ten heatmaps.</p>
+<p><strong>Choosing your explainer — a decision table.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Method</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which pixels mattered for this prediction?</td>
+<td>Saliency / guided backprop</td>
+<td>1 backward pass; noisy</td>
+</tr>
+<tr>
+<td>Which regions drove this class score?</td>
+<td>Grad-CAM</td>
+<td>1 backward pass; standard</td>
+</tr>
+<tr>
+<td>Same, but gradients are saturated</td>
+<td>Score-CAM</td>
+<td>C forward passes; faithful</td>
+</tr>
+<tr>
+<td>Which named concept does the model rely on?</td>
+<td>TCAV</td>
+<td>Concept sets + statistics</td>
+</tr>
+<tr>
+<td>Honest model-agnostic check</td>
+<td>Occlusion sensitivity</td>
+<td>Hundreds of forward passes</td>
+</tr>
+<tr>
+<td>What does this neuron detect?</td>
+<td>Feature visualization</td>
+<td>Optimization loop</td>
+</tr>
+</tbody>
+</table>
+<p>For a paper: lead with Grad-CAM (everyone reads it), corroborate with occlusion on key examples, and reach for TCAV when the claim is about <em>what</em> rather than <em>where</em>. Never present a single method's output as proof — explanations corroborate quantitative results; they don't replace them.</p>
+<h3 id="reading-two-grad-cams-like-a-reviewer">Reading two Grad-CAMs like a reviewer</h3>
+<p><strong>Example A: the good heatmap.</strong> Chest X-ray, model predicts pneumonia (0.91). Grad-CAM at layer4 highlights the lower-left lung zone, matching the radiologist's opacity annotation. Occlusion sensitivity agrees (this chapter's two-witness rule). First-layer filters show Gabor structure; per-subgroup AUC holds across two hospitals. Verdict: the visualization <em>corroborates</em> the quantitative results. In the paper: one figure, caption states method/layer/normalization, and the text claims only "the model's salient regions coincide with clinically relevant zones" — not "the model understands pneumonia."</p>
+<p><strong>Example B: the heatmap that kills a paper (before submission).</strong> Skin-lesion classifier, 94% accuracy, Grad-CAM highlights... the ruler marks beside the lesion, not the lesion. The dataset's malignant cases were photographed with rulers more often — a spurious correlation, the classic published failure mode. The honest response, and what to do: (1) don't ship it — 94% is a lie about deployment; (2) crop/mask rulers or add ruler-augmented benign examples; (3) retrain and re-visualize; (4) report the episode in the paper's limitations ("initial models exploited ruler artifacts; we removed them and accuracy fell to 89%, which we report"). Reviewers reward this enormously — it demonstrates exactly the scientific judgment they want to see. A paper that hides its artifacts and a paper that found and fixed them are different papers; write the second one.</p>
+<p><strong>The one-sentence rule.</strong> For every visualization in your paper, write one sentence saying what it <em>doesn't</em> prove. If you can't write that sentence, you don't understand the figure well enough to publish it.</p>
+<p><strong>Key takeaways</strong>
+- First-layer filters: look at them. Edge/color structure = learning; noise = something's wrong.
+- Feature maps via forward hooks show the hierarchy: edges → textures → parts.
+- Grad-CAM = gradient-weighted feature maps: importance α_k = global-averaged ∂y^c/∂A^k, then ReLU(Σ α_k A^k).
+- Heatmaps show correlation, not understanding. Pair with quantitative analysis; watch for spurious correlations (tubes, tokens, rulers).
+- Visualize to debug first, to publish second.</p>
+<hr />
+<h2 id="chapter-11-cnns-for-your-domain-medical-agriculture-satellite">Chapter 11 — CNNs for Your Domain: Medical, Agriculture, Satellite</h2>
+<p>The core recipe — pretrained backbone, adapted head, augmentation, tuned training — is the same everywhere. What changes is the data's structure and the domain's constraints. This chapter adapts the recipe for three research-heavy domains.</p>
+<h3 id="medical-imaging">Medical imaging</h3>
+<p><strong>Data realities:</strong> small datasets (hundreds to low thousands), grayscale or specialized modalities (X-ray, CT, MRI, histopathology), expert annotations that are expensive and sometimes disagree, strict patient-level splitting, and high stakes for errors.</p>
+<p><strong>Recipe adjustments:</strong></p>
+<ol>
+<li><strong>Backbone</strong>: start from ImageNet-pretrained ResNet-50/EfficientNet anyway — early filters transfer. For radiology specifically, consider RadImageNet-pretrained weights (domain-specific pretraining beats ImageNet here). For 3D volumes (CT/MRI), use 3D CNNs (nn.Conv3d) or 2.5D approaches (multiple slice orientations) — a 2D ImageNet backbone on slices is a legitimate, common baseline.</li>
+<li><strong>Splitting</strong>: split by <strong>patient</strong>, never by image. Same-patient images in train and test is leakage, and it's the most common fatal flaw in medical-imaging papers.</li>
+<li><strong>Augmentation</strong>: conservative. Small rotations (±10°), mild crops, intensity jitter. <strong>No horizontal flips</strong> for anatomy with left-right asymmetry (chest X-ray: the heart's position matters). No elastic deformations unless validated — they can create anatomically impossible images.</li>
+<li><strong>Metrics</strong>: accuracy is nearly useless under class imbalance. Report <strong>AUC, sensitivity/recall, specificity, F1</strong>, and show the ROC curve. For segmentation (tumors, organs), the <strong>U-Net</strong> architecture (Ronneberger et al., 2015) — an encoder-decoder with skip connections — is the default; report <strong>Dice coefficient</strong> and IoU.</li>
+<li><strong>Interpretability</strong>: Grad-CAM figures are close to mandatory for clinical credibility (Chapter 10), plus subgroup analysis (does performance hold across age groups, scanners, hospitals?).</li>
+</ol>
+<pre><code class="language-python"># U-Net sketch: encoder-decoder with skip connections (segmentation default)
+class UNetBlock(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, 3, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(out_ch, out_ch, 3, padding=1), nn.ReLU(inplace=True))
+    def forward(self, x): return self.block(x)
+# Encoder downsamples (maxpool), decoder upsamples (transpose conv),
+# skip connections concatenate encoder features into the decoder at each scale.
+</code></pre>
+<h3 id="agriculture">Agriculture</h3>
+<p><strong>Data realities:</strong> field photographs with messy backgrounds, strong illumination/weather variation, seasonal shifts (a model trained on spring wheat fails on summer wheat), class imbalance (healthy &gt;&gt; diseased), and deployment on phones or drones in low-connectivity areas.</p>
+<p><strong>Recipe adjustments:</strong></p>
+<ol>
+<li><strong>Backbone</strong>: EfficientNet-B0/B3 or MobileNetV3 — accuracy per FLOP matters because inference happens on edge devices. Leaf-disease classification papers routinely hit 95%+ with these.</li>
+<li><strong>Augmentation</strong>: aggressive photometric augmentation (brightness/contrast/hue — sunlight varies enormously), moderate geometric. MixUp/CutMix help with cluttered backgrounds. <strong>Season-aware validation</strong>: hold out an entire season or field site as the test set — random splits overestimate real performance because same-field images are near-duplicates.</li>
+<li><strong>Deployment thinking</strong>: quantize (INT8) and benchmark on the actual phone; "98% accuracy, runs at 40 ms on a mid-range Android" is a complete result. Consider the offline constraint — the model must ship <em>in</em> the app.</li>
+<li><strong>Beyond classification</strong>: counting (fruit, plants) uses density-map regression or detection (Faster R-CNN, YOLO variants); weed detection is often framed as segmentation. Match the task formulation to the agronomist's actual question — "is this leaf diseased?" vs. "what fraction of the field is affected?" are different tasks.</li>
+</ol>
+<h3 id="satellite-remote-sensing">Satellite / remote sensing</h3>
+<p><strong>Data realities:</strong> multispectral input (RGB + near-infrared + more; Sentinel-2 has 13 bands), enormous images (tiles of 10,000×10,000 px — you train on patches), no canonical orientation, georeferencing metadata, and labels that are scarce and noisy.</p>
+<p><strong>Recipe adjustments:</strong></p>
+<ol>
+<li><strong>Input channels</strong>: adapt conv1 for N bands (Chapter 7, Option B). Don't throw away the infrared band — NDVI-like vegetation signals live there, and ImageNet-pretrained filters on RGB still transfer for the RGB subset.</li>
+<li><strong>Patch-based training</strong>: tile big scenes into 256×256 or 512×512 patches; at inference, run sliding-window with overlap and stitch (average the overlaps). For dense prediction (land cover), encoder-decoder architectures (U-Net, DeepLabV3+) are standard.</li>
+<li><strong>Augmentation</strong>: full 360° rotations and flips are safe (no canonical orientation); scale jitter simulates different ground resolutions. <strong>Spatial splitting</strong>: split train/test by geographic region, not randomly — nearby patches are autocorrelated, and random splits leak.</li>
+<li><strong>Receptive field matters</strong>: land-cover classes (urban vs. forest) need large context — verify your network's RF covers the discriminative scale (Chapter 3), or use dilated convolutions / DeepLab-style ASPP (atrous spatial pyramid pooling) for multi-scale context.</li>
+<li><strong>Pretraining</strong>: ImageNet transfer works, but remote-sensing-specific pretraining (e.g., SSL on unlabeled Sentinel-2 tiles, or the SatMAE line of work) increasingly wins. "In-domain pretraining beats ImageNet on our task" is a publishable finding.</li>
+</ol>
+<h3 id="the-domain-adaptation-checklist-all-three">The domain-adaptation checklist (all three)</h3>
+<ul>
+<li>[ ] Split by the right unit (patient / field-season / geographic region), not by image</li>
+<li>[ ] Augmentation policy reviewed against domain invariances (no lying transforms)</li>
+<li>[ ] Metrics match the domain (AUC/Dice, not raw accuracy)</li>
+<li>[ ] Backbone input adapted (channels, resolution) with initialization stated</li>
+<li>[ ] Visualizations inspected by a domain eye (radiologist, agronomist) before publication</li>
+<li>[ ] Deployment constraints (latency, device, offline) measured, not assumed</li>
+</ul>
+<blockquote>
+<p><strong>For your research.</strong> The fastest path to a solid applied paper: take the standard recipe, adapt it carefully to one domain using the checklist above, and report honestly — including where the standard recipe <em>failed</em> and what you changed. "ImageNet pretraining underperformed in-domain SSL by 4 points on our histopathology task" is more interesting than another 99%-accuracy leaf classifier with a random split. Domain reviewers reward domain competence: cite the domain's datasets and prior art, not just the vision papers.</p>
+</blockquote>
+<h3 id="3d-volumes-in-domain-pretraining-and-multi-task-heads">3D volumes, in-domain pretraining, and multi-task heads</h3>
+<p><strong>3D CNNs for volumetric data.</strong> CT and MRI are volumes, not images. The honest approach is 3D convolution — the same operation with one more dimension:</p>
+<pre><code class="language-python">conv3d = nn.Conv3d(in_channels=1, out_channels=32, kernel_size=3, padding=1)
+x = torch.randn(1, 1, 64, 128, 128)   # (B, C, D, H, W)
+print(conv3d(x).shape)                # (1, 32, 64, 128, 128)
+</code></pre>
+<p>Costs explode cubically: a 3×3×3 kernel has 27 weights per channel pair (versus 9), and volumes are large. Practical compromises: (a) <strong>2.5D</strong> — run axial, coronal, and sagittal slices through a 2D network and fuse the predictions, which keeps ImageNet pretraining usable; (b) <strong>anisotropic kernels</strong> (3×3×1) when slice spacing differs from in-plane resolution — extremely common in CT, where voxels aren't cubes. Report voxel-spacing handling explicitly: "resampled to 1mm³ isotropic" is a methods sentence medical reviewers look for, and its absence is a common criticism.</p>
+<p><strong>In-domain self-supervised pretraining.</strong> When your domain differs strongly from ImageNet (histopathology, satellite), pretrain on <em>your own unlabeled images</em> with contrastive learning, then fine-tune on labels. The <code>lightly</code> library makes SimCLR nearly turnkey:</p>
+<pre><code class="language-python"># pip install lightly
+from lightly.models import ResNetGenerator
+from lightly.loss import NTXentLoss
+backbone = ResNetGenerator('resnet-50')   # train on unlabeled domain images
+criterion = NTXentLoss(temperature=0.5)    # then attach your head, fine-tune
+</code></pre>
+<p>The publishable pattern: "in-domain SSL pretraining on 50K unlabeled tiles, then fine-tuning, beats ImageNet transfer by 3.1 points." Unlabeled data is usually abundant; the cost is one extra pretraining run — a fair trade for a clean, honest contribution that directly addresses the domain gap (Chapter 7's negative transfer).</p>
+<p><strong>Multi-task heads.</strong> Real deployments rarely need one prediction: a field app wants disease class <em>and</em> severity; a radiology tool wants the finding <em>and</em> its location. Share the backbone, attach multiple heads, train with a weighted loss sum. Benefits: shared features regularize each task (auxiliary tasks act as inductive bias), and one model ships instead of three. Start with equal loss weights, tune by per-task validation — or use uncertainty weighting (Kendall et al., 2018) to learn the balance automatically. Report per-task metrics separately; a multi-task paper lives or dies on showing that no task got worse.</p>
+<p><strong>Datasheets for datasets.</strong> Gebru et al. (2021) proposed documenting datasets like hardware datasheets: collection protocol, annotator expertise and agreement, known biases, intended uses. For domain papers, a half-page dataset description (or appendix datasheet) preempts the reviewer's hardest questions — "who labeled this, and how well did they agree?" Report inter-annotator agreement (Cohen's κ) for your labels: if experts disagree 15% of the time, a 95% model-accuracy claim needs that context, and providing it signals unusual seriousness.</p>
+<h3 id="two-end-to-end-project-plans">Two end-to-end project plans</h3>
+<p><strong>Project plan A: leaf-disease classifier (agriculture).</strong> Dataset: 12,000 field photos, 8 disease classes + healthy, heavy imbalance. (1) Split by <em>field site</em>, holding out 2 entire sites as test — random splits would leak near-duplicate images. (2) Backbone: EfficientNet-B0 pretrained (ImageNet), input 224, grayscale? No — keep RGB, disease coloration matters. (3) Augmentation: flips, crops (0.5–1.0), strong brightness/contrast jitter, ±30° rotation, CutMix; <strong>no hue jitter</strong> (disease coloration is signal). (4) Training: weighted sampler, AdamW 3e-4 backbone-staged fine-tuning (Chapter 7's ladder), label smoothing, 3 seeds. (5) Metrics: per-class F1 + confusion matrix + Grad-CAM review by a plant pathologist. (6) Deployment: INT8 quantization, benchmark on a mid-range Android, report ms/image. Timeline: 2 weeks data curation, 1 week training/ablations, 1 week figures + writing. This plan <em>is</em> a workshop paper.</p>
+<p><strong>Project plan B: land-cover segmentation (satellite).</strong> Dataset: Sentinel-2 tiles, 10 bands, 6 land-cover classes, labels from a national survey (noisy). (1) Preprocess: resample bands to 10m, normalize per-band, tile into 256×256 patches with 32px overlap. (2) Architecture: U-Net with ResNet-34 encoder; adapt conv1 to 10 channels (RGB weights kept, new bands from channel mean — Chapter 7). (3) Split by <em>geographic region</em> (spatial autocorrelation makes random splits leak). (4) Augmentation: 360° rotations, flips, scale jitter; per-band brightness only. (5) Loss: cross-entropy + Dice, class-weighted for rare classes (wetlands). (6) Pretraining comparison: ImageNet transfer vs in-domain SSL on 100K unlabeled tiles — the publishable question. (7) Inference: sliding window with overlap averaging, stitch to full tiles; report mIoU + per-class IoU. (8) Figures: prediction overlays on 3 diverse regions including one failure case (cloud shadows — honest limitation). Timeline: 3 weeks (tiling and SSL pretraining dominate). This plan <em>is</em> a conference paper's core.</p>
+<p><strong>The meta-lesson.</strong> Both plans are the same skeleton: domain-aware split → adapted backbone → honest augmentation → staged training → domain metrics → expert-reviewed visualization → deployment measurement. Memorize the skeleton; the domain fills in the parameters. When your supervisor asks "what's the plan," this — one page, six steps, with the domain-specific choices filled in — is the answer.</p>
+<h3 id="how-much-labeled-data-do-you-need-learning-curves-decide">How much labeled data do you need? (Learning curves decide)</h3>
+<p>Don't guess — measure. Train on 10%, 25%, 50%, 100% of your labeled data (stratified subsets, same protocol) and plot accuracy vs. data size. The curve's shape tells you the strategy:</p>
+<ul>
+<li><strong>Still rising steeply at 100%</strong> → labeling more data is your highest-ROI move. Budget for annotation before architecture experiments.</li>
+<li><strong>Flattening</strong> → more labels won't help much; invest in augmentation, pretraining, or harder negatives.</li>
+<li><strong>Flat from 10%</strong> → the task is either trivial (a linear probe would do) or the labels are noisy — check annotator agreement before anything else.</li>
+</ul>
+<p><strong>Annotation budgeting math.</strong> If labeling costs $2/image (expert) and the curve suggests you need 3× data for +2%, that's a concrete proposal: "$12K for 6,000 labels → ~2% gain" versus "2 weeks of architecture experiments → uncertain gain." Supervisors and grant reviewers think in these terms. Also consider <strong>active learning</strong>: label the images the current model is most uncertain about — often 2–3× more sample-efficient than random labeling. And <strong>weak supervision</strong>: cheap noisy labels (heuristics, reports) for pretraining + a small clean set for fine-tuning — the standard playbook when expert labels cost dollars each.</p>
+<p><strong>The 1,000-image rule of thumb.</strong> With transfer learning: &lt;300 images → linear probe territory, expect modest results; 300–2,000 → staged fine-tuning shines; 2,000–20,000 → fine-tuning + augmentation, competitive results; &gt;20,000 → from-scratch becomes viable, SSL pretraining worth it. Calibrate with your learning curve, but use the rule to set expectations before the first run.</p>
+<h3 id="augmentation-and-the-validation-gap-a-diagnostic-note">Augmentation and the validation gap: a diagnostic note</h3>
+<p>A subtle interaction: heavy augmentation <em>inflates</em> the train–validation gap even in a healthy model, because the training images are harder versions of the validation images. Don't misread this as overfitting. The check: evaluate the <em>training</em> set with validation transforms (no augmentation) — if that accuracy matches validation accuracy, the gap is augmentation difficulty, not memorization, and all is well. True overfitting shows as a gap even without augmentation. This two-evaluation trick (train-with-train-transforms vs train-with-val-transforms) takes one extra evaluation loop and resolves the ambiguity completely. Log both numbers; the difference quantifies your augmentation's difficulty contribution — occasionally an interesting paper footnote in itself.</p>
+<p><strong>Key takeaways</strong>
+- Medical: patient-level splits, conservative augmentation (no flips on asymmetric anatomy), AUC/Dice metrics, U-Net for segmentation, Grad-CAM expected.
+- Agriculture: edge-efficient backbones, aggressive photometric augmentation, season/site-held-out validation, deployment latency as a result.
+- Satellite: N-channel conv1 adaptation, patch training + stitched inference, rotation-safe augmentation, geographic splits, large receptive fields.
+- The universal checklist: right split unit, honest augmentation, domain metrics, adapted inputs, domain-expert eyeballs

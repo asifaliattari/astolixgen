@@ -1,0 +1,620 @@
+p><img alt="Wireless range comparison" src="/learn/images/book-29-ch5-connectivity.webp" /></p>
+<h3 id="51-the-iron-triangle-range-power-data-rate">5.1 The iron triangle: range, power, data rate</h3>
+<p>Every wireless choice trades off three things — you can optimize two, never all three:</p>
+<ul>
+<li><strong>Range:</strong> how far the signal usefully travels (meters to kilometers).</li>
+<li><strong>Power:</strong> how much energy each transmission costs (microwatts to watts).</li>
+<li><strong>Data rate:</strong> how much data per second (bits/sec to hundreds of Mb/s).</li>
+</ul>
+<p>High data rate over long range costs power. Long range on tiny power means tiny data rates. Short range can be fast and cheap. This triangle explains the entire connectivity landscape: each technology is a different point on it, and your research deployment must pick the point that matches the physical reality of your site. A farm with no Wi-Fi 2 km from the nearest building simply cannot use Wi-Fi — physics decides, not preference.</p>
+<h3 id="52-the-technologies">5.2 The technologies</h3>
+<h4 id="wi-fi-ieee-80211">Wi-Fi (IEEE 802.11)</h4>
+<p>The familiar standard. High data rates (tens to hundreds of Mb/s), range of tens of meters indoors (up to ~100 m line-of-sight outdoors), and high power draw — an ESP32 transmitting Wi-Fi pulls 100–200+ mA. <strong>Use when:</strong> mains power is available, data volumes are large (images, audio), and an access point exists nearby. <strong>Avoid when:</strong> battery-powered nodes must last months, or distances exceed ~100 m. For research: Wi-Fi is perfect for lab prototypes and building deployments, and a poor choice for field sensor networks. Note that Wi-Fi association and DHCP take seconds and significant energy — a major cost in sleep/wake cycles.</p>
+<h4 id="bluetooth-ble-bluetooth-low-energy">Bluetooth / BLE (Bluetooth Low Energy)</h4>
+<p>Classic Bluetooth streams audio; <strong>BLE</strong> is the IoT-relevant variant — designed for tiny, infrequent data exchanges (sensor readings, beacons) at very low power, over ~10–50 m. A BLE sensor can run a year on a coin cell. <strong>Use when:</strong> a phone or gateway is nearby to collect data (wearables, indoor asset tags, phone-configured devices). BLE <em>mesh</em> extends coverage across a building. <strong>Avoid when:</strong> you need internet backhaul directly (BLE needs a gateway) or kilometer ranges.</p>
+<h4 id="lora-and-lorawan">LoRa and LoRaWAN</h4>
+<p><strong>LoRa</strong> is a radio modulation technique (chirp spread spectrum) that achieves kilometers of range at milliwatts of power, at the cost of very low data rates (hundreds of bits/sec to ~tens of kb/s) and regulatory duty-cycle limits (in many regions, a device may transmit only ~1% of the time). <strong>LoRaWAN</strong> is the network protocol built on LoRa: end devices → gateways → network server → application server, with AES-128 encryption built in.</p>
+<p><strong>Use when:</strong> battery nodes spread over kilometers with tiny payloads (a 10-byte soil reading every 15 minutes is the canonical LoRaWAN application), especially where no Wi-Fi or cellular coverage exists. A single gateway can cover a village or a large farm. <strong>Avoid when:</strong> you need frequent updates, large payloads, or real-time control — LoRaWAN downlinks are limited and slow. Research gold: LoRaWAN deployments produce excellent papers on coverage mapping, energy measurement, and duty-cycle-compliant scheduling.</p>
+<h4 id="zigbee-ieee-802154">Zigbee (IEEE 802.15.4)</h4>
+<p>A low-power <strong>mesh</strong> networking standard: devices relay each other's messages, so the network heals around failures and extends range hop by hop. Data rates ~250 kb/s, range ~10–100 m per hop. <strong>Use when:</strong> dense indoor deployments (smart buildings, greenhouses) where mains-powered devices can act as always-on routers. <strong>Avoid when:</strong> nodes are sparse (mesh needs density) or all nodes are battery-powered (someone must stay awake to route).</p>
+<h4 id="cellular-2g4g-lte-nb-iot-lte-m">Cellular (2G/4G LTE, NB-IoT, LTE-M)</h4>
+<p>Cellular gives you the mobile network as backhaul — range wherever there is coverage, at the cost of a SIM/subscription and higher power (though <strong>NB-IoT</strong> and <strong>LTE-M</strong> are low-power variants designed for IoT: small data, deep sleep, years on battery where coverage exists). <strong>Use when:</strong> nodes are far apart, mobile coverage exists, and you cannot install your own gateway (vehicle tracking, remote pipeline monitoring). <strong>Avoid when:</strong> there is no coverage, subscription cost × hundreds of nodes breaks the budget, or power budget is extremely tight.</p>
+<h3 id="53-the-comparison-table-your-site-survey-in-one-page">5.3 The comparison table (your site survey in one page)</h3>
+<table>
+<thead>
+<tr>
+<th>Technology</th>
+<th>Typical range</th>
+<th>Data rate</th>
+<th>Power profile</th>
+<th>Topology</th>
+<th>Best research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wi-Fi</td>
+<td>~50–100 m</td>
+<td>10s–100s Mb/s</td>
+<td>High (100s mA TX)</td>
+<td>Star (via AP)</td>
+<td>Lab/building prototypes, image data</td>
+</tr>
+<tr>
+<td>BLE</td>
+<td>~10–50 m</td>
+<td>~1 Mb/s</td>
+<td>Very low (coin-cell years)</td>
+<td>Star/mesh, needs gateway</td>
+<td>Wearables, phone-adjacent sensing</td>
+</tr>
+<tr>
+<td>LoRaWAN</td>
+<td>2–15 km (rural–urban)</td>
+<td>0.3–50 kb/s</td>
+<td>Very low (years on battery)</td>
+<td>Star-of-stars via gateways</td>
+<td>Farms, villages, environmental monitoring</td>
+</tr>
+<tr>
+<td>Zigbee</td>
+<td>10–100 m/hop (mesh)</td>
+<td>250 kb/s</td>
+<td>Low (routers need mains)</td>
+<td>Mesh</td>
+<td>Dense indoor/greenhouse networks</td>
+</tr>
+<tr>
+<td>Cellular NB-IoT/LTE-M</td>
+<td>km (carrier coverage)</td>
+<td>~100s kb/s</td>
+<td>Low–medium</td>
+<td>Star via carrier</td>
+<td>Remote sites with coverage, no gateway option</td>
+</tr>
+</tbody>
+</table>
+<p>Ranges are environment-dependent: walls, vegetation, and interference shrink them dramatically. Always do a <strong>site survey</strong> — walk the site with a test node and log signal strength (RSSI) at planned locations — before finalizing a deployment. "It worked on my desk" is the most expensive sentence in IoT research.</p>
+<h3 id="54-network-topologies">5.4 Network topologies</h3>
+<ul>
+<li><strong>Star:</strong> every node talks directly to one central point (Wi-Fi AP, LoRaWAN gateway, cellular tower). Simple, but the center is a single point of failure and must be within range of all nodes.</li>
+<li><strong>Mesh:</strong> nodes relay for each other (Zigbee, BLE mesh). Self-healing and extendable, but routing costs energy and complexity.</li>
+<li><strong>Star-of-stars (LoRaWAN):</strong> nodes → multiple gateways → network server. Nodes don't associate with a specific gateway; any gateway in range forwards. Elegant for wide-area coverage.</li>
+</ul>
+<h3 id="55-a-connectivity-decision-walkthrough">5.5 A connectivity decision walkthrough</h3>
+<p>Scenario: soil-moisture monitoring across a 2 km² farm, readings every 15 minutes, no mains power, no Wi-Fi, patchy cellular coverage.</p>
+<ol>
+<li><strong>Data size:</strong> 10 bytes per reading — tiny. Eliminates nothing yet, but favors low-rate options.</li>
+<li><strong>Range:</strong> 2 km, no infrastructure → Wi-Fi, BLE, Zigbee eliminated (range). Left: LoRaWAN, cellular.</li>
+<li><strong>Power:</strong> battery for a growing season → both possible, LoRaWAN better.</li>
+<li><strong>Coverage:</strong> patchy cellular → risky; LoRaWAN lets you install your own gateway on a farmhouse roof.</li>
+<li><strong>Cost:</strong> one gateway + cheap nodes vs per-node SIM subscriptions → LoRaWAN wins.</li>
+</ol>
+<p><strong>Decision: LoRaWAN.</strong> Document this reasoning chain in your thesis — it is exactly the analysis reviewers expect, and it generalizes to any deployment.</p>
+<h3 id="56-deep-dive-lora-spreading-factors-and-lorawan-device-classes">5.6 Deep dive: LoRa spreading factors and LoRaWAN device classes</h3>
+<p>LoRa's range-vs-rate trade-off is tunable via the <strong>spreading factor (SF7–SF12)</strong>: higher SF = longer range and better obstacle penetration, but ~2× the airtime per step up. Airtime matters because (a) it costs energy and (b) regulations in many regions cap duty cycle at 1% — at SF12, a single 50-byte message can take over a second of airtime, limiting you to a handful of messages per hour. <strong>Adaptive Data Rate (ADR)</strong> lets the network server automatically step each device down to the fastest SF its link supports — always enable ADR for stationary nodes; it is free energy savings.</p>
+<p><strong>LoRaWAN device classes</strong> define downlink behavior:</p>
+<ul>
+<li><strong>Class A (default):</strong> device-initiated; after each uplink, two short receive windows open for downlinks. Lowest power — the right choice for sensors.</li>
+<li><strong>Class B:</strong> adds scheduled receive windows (beaconed) — for devices needing regular downlinks at known times.</li>
+<li><strong>Class C:</strong> receive window nearly always open — for mains-powered actuators needing instant commands, at high energy cost.</li>
+</ul>
+<p>Most research sensor nodes are Class A. If your experiment needs <em>commands to</em> battery devices (actuation over LoRaWAN), understand that Class A downlinks only arrive right after uplinks — control latency equals your uplink interval. Design the control law around that.</p>
+<h3 id="57-deep-dive-link-budgets-and-why-up-to-15-km-is-a-lie-indoors">5.7 Deep dive: link budgets and why "up to 15 km" is a lie indoors</h3>
+<p>Radio range claims assume ideal conditions. The <strong>link budget</strong> — transmit power + antenna gains − path loss − margins — determines reality, and path loss grows with the square of distance (worse with obstacles: a single concrete wall can cost 10–20 dB, equivalent to ~10× the distance in free space). Practical consequences:</p>
+<ul>
+<li><strong>Antenna matters enormously:</strong> the tiny PCB antenna on a cheap module vs a proper external antenna can be the difference between working and dead at 500 m. Keep antennas vertical, clear of metal, and away from the PCB ground plane.</li>
+<li><strong>Height is range:</strong> raising a gateway from 2 m to 10 m often doubles useful coverage (Fresnel zone clearance). Gateway placement is a deployment decision worth a site visit.</li>
+<li><strong>Measure, don't assume:</strong> log RSSI and SNR with every message (Chapter 8's metadata rule). SNR below ~−10 dB on LoRa means you're near the edge; Wi-Fi RSSI below −80 dBm means trouble. A coverage heatmap from real measurements is publishable data.</li>
+</ul>
+<h3 id="58-cellular-iot-nb-iot-vs-lte-m-vs-4g">5.8 Cellular IoT: NB-IoT vs LTE-M vs 4G</h3>
+<ul>
+<li><strong>NB-IoT:</strong> 180 kHz bandwidth, ~250 kb/s peak, excellent building penetration and battery life (PSM/eDRX sleep modes give 10-year claims), but no mobility handover and high latency — for stationary sensors.</li>
+<li><strong>LTE-M:</strong> 1.4 MHz, ~1 Mb/s, supports mobility and voice — for trackers and vehicles.</li>
+<li><strong>Standard 4G LTE:</strong> full speed, full power — for gateways and cameras, with a router, not a sensor node.</li>
+</ul>
+<p>The catch for researchers: module cost ($15–40), SIM/data-plan logistics per node, and carrier sunsets (2G/3G shutdowns have orphaned deployments — never design around a network generation being phased out). Where coverage is good and node count is low, cellular is the fastest path to a working wide-area deployment: no gateway to install, no duty-cycle limits.</p>
+<h3 id="59-emerging-options-5g-redcap-wi-fi-halow-satellite">5.9 Emerging options: 5G RedCap, Wi-Fi HaLow, satellite</h3>
+<p>Know what's on the horizon, and when to care:</p>
+<ul>
+<li><strong>5G RedCap (Reduced Capability):</strong> a mid-tier 5G profile — more capable than NB-IoT, far less power-hungry than full 5G. Relevant for video-capable IoT (cameras, drones) where LTE is being sunset. For typical sensor theses: watch, don't adopt yet.</li>
+<li><strong>Wi-Fi HaLow (802.11ah):</strong> Wi-Fi on sub-1 GHz — ~1 km range, low power, IP-native. Technically lovely for campus/farm sensor networks; ecosystem still maturing. A reasonable thesis topic <em>is</em> evaluating HaLow against LoRaWAN on real hardware.</li>
+<li><strong>Satellite IoT (e.g., Swarm/Lacuna-style store-and-forward, 3GPP NTN):</strong> for truly remote sites (ocean buoys, desert stations) — tiny messages, high latency, per-message cost. Only when nothing terrestrial reaches.</li>
+<li><strong>Matter/Thread:</strong> the smart-home interoperability push (Thread = 802.15.4 mesh with IPv6). Relevant if your research touches consumer smart-home devices.</li>
+</ul>
+<p>The pattern: adopt proven technology for the thesis deployment, and relegate emerging tech to the "future work" section — unless the emerging tech <em>is</em> your research question.</p>
+<p><strong>For your research:</strong> Connectivity choice is one of the most defensible "engineering contribution" sections in an IoT thesis. Measure and report: RSSI/SNR at deployment points, packet delivery ratio over at least a week, and energy per transmission. A table of measured link quality across your site is original data that no one else has — publishable in itself as part of a deployment paper.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Range, power, and data rate form an iron triangle — pick the technology whose corner matches your site.</li>
+<li>Wi-Fi = fast but power-hungry and short-range; BLE = ultra-low-power near a phone/gateway; LoRaWAN = kilometers on batteries for tiny payloads; Zigbee = indoor mesh; cellular = carrier coverage at subscription cost.</li>
+<li>Do a site survey with RSSI logging before committing; desk tests do not transfer to the field.</li>
+<li>Write down your connectivity decision chain — it is a core part of your methodology.</li>
+</ul>
+<hr />
+<h2 id="chapter-6-protocols-mqtt-http-coap">Chapter 6: Protocols — MQTT, HTTP, CoAP</h2>
+<h3 id="61-why-protocols-matter">6.1 Why protocols matter</h3>
+<p>Connectivity (Chapter 5) moves <em>bits through the air</em>. Protocols define <em>what the bits mean</em> — how devices address each other, how messages are structured, and what delivery guarantees exist. Choosing the wrong protocol wastes power, breaks at scale, or makes your data model unmanageable. For IoT, three application protocols cover nearly everything: <strong>MQTT</strong>, <strong>HTTP</strong>, and <strong>CoAP</strong>.</p>
+<h3 id="62-mqtt-publishsubscribe-deeply-explained">6.2 MQTT: publish/subscribe, deeply explained</h3>
+<p><strong>MQTT</strong> (MQ Telemetry Transport, standardized by OASIS and ISO/IEC 20922) is the dominant IoT messaging protocol, and understanding it deeply pays off across your whole research career. Its core idea is <strong>publish/subscribe with a broker</strong>:</p>
+<ul>
+<li><strong>Clients</strong> (sensors, dashboards, backend services) connect to a central <strong>broker</strong>.</li>
+<li>A client <strong>publishes</strong> messages to a <strong>topic</strong> — a hierarchical string like <code>farm/plot-3/soil-moisture</code>.</li>
+<li>Other clients <strong>subscribe</strong> to topics (exact or with wildcards: <code>farm/+/soil-moisture</code> subscribes to all plots; <code>farm/#</code> subscribes to everything under <code>farm/</code>).</li>
+<li>The broker routes each published message to all matching subscribers.</li>
+</ul>
+<p><strong>Why this design is brilliant for IoT:</strong></p>
+<ol>
+<li><strong>Decoupling.</strong> Publishers don't know who subscribes, and vice versa. Add a new dashboard or alerting service without touching a single sensor node. Your field nodes and your analysis code evolve independently — essential for long research deployments.</li>
+<li><strong>Tiny overhead.</strong> An MQTT packet header can be as small as 2 bytes. On a LoRa or battery budget, every byte costs energy; MQTT was designed for exactly this constraint.</li>
+<li><strong>Persistent connections.</strong> The device holds one TCP connection open and pushes data when ready, instead of repeatedly opening connections (HTTP's expensive habit). This is dramatically more energy-efficient for frequent small messages.</li>
+<li><strong>Quality of Service (QoS) levels</strong> — the delivery contract, and a favorite exam/reviewer question:</li>
+<li><strong>QoS 0 — at most once:</strong> fire and forget. Fastest, cheapest; messages can be lost. Fine for routine sensor readings where the next reading comes in a minute anyway.</li>
+<li><strong>QoS 1 — at least once:</strong> the broker acknowledges; the sender retries until acknowledged. Guaranteed delivery, but duplicates possible — your backend must handle duplicates (idempotency).</li>
+<li><strong>QoS 2 — exactly once:</strong> a four-step handshake guarantees single delivery. Safest, most expensive in energy and latency. Reserve for commands that must not duplicate (unlock a door, dispense medicine).</li>
+<li><strong>Retained messages:</strong> the broker stores the last message on a topic and delivers it immediately to new subscribers — so a dashboard that connects at noon instantly sees the latest soil reading from 11:45, not a blank screen.</li>
+<li><strong>Last Will and Testament (LWT):</strong> on connecting, a device registers a "will" message ("node-7 offline") that the broker publishes automatically if the device disconnects unexpectedly. This is how dashboards show honest online/offline status instead of frozen stale data.</li>
+<li><strong>Sessions:</strong> persistent sessions let the broker queue messages for a sleeping subscriber and deliver on reconnect — tailor-made for battery nodes that wake briefly.</li>
+</ol>
+<p><strong>A data-flow walkthrough — the full MQTT journey of one reading:</strong></p>
+<ol>
+<li>ESP32 wakes, reads soil moisture: 34%.</li>
+<li>It publishes <code>{"moisture": 34, "ts": "2026-10-08T06:15:00Z", "battery": 3.9}</code> to topic <code>farm/plot-3/soil-moisture</code> at QoS 1.</li>
+<li>The broker (e.g., Mosquitto, or a cloud broker) acknowledges receipt (QoS 1 handshake).</li>
+<li>The broker forwards the message to all subscribers: the time-series database ingester (subscribed to <code>farm/#</code>), the dashboard backend, and the alerting service (subscribed to <code>farm/+/soil-moisture</code>).</li>
+<li>The alerting service sees 34% &gt; threshold 30% → no action. Had it been 25%, it would publish a command to <code>farm/plot-3/pump/set</code> → the node's subscription receives it → pump starts.</li>
+<li>The ESP32 returns to deep sleep. Total airtime: a fraction of a second.</li>
+</ol>
+<p>Notice the <strong>topic design</strong> carries your data model: <code>site/plot/metric</code> hierarchies with wildcards are the standard pattern. Design topics before you deploy; renaming topics mid-experiment breaks subscribers.</p>
+<h3 id="63-http-the-familiar-workhorse">6.3 HTTP: the familiar workhorse</h3>
+<p><strong>HTTP</strong> (usually with REST APIs and JSON) is request/response: the device opens a connection, POSTs data to a URL, gets a response, closes. Every web developer knows it, every cloud platform accepts it, and debugging is trivial (curl, browser dev tools).</p>
+<p><strong>Trade-offs:</strong> each request carries large headers (hundreds of bytes — often bigger than the sensor payload itself), and establishing TLS + TCP connections costs seconds and significant energy. For a mains-powered gateway sending batches every minute, HTTP is perfectly fine. For a battery node sending 10 bytes every 15 minutes, HTTP's overhead can dominate the energy budget. Also, HTTP is <strong>client-initiated only</strong> — the server cannot push a command to the device without polling or workarounds (websockets, long polling), whereas MQTT subscriptions deliver commands naturally.</p>
+<p><strong>Rule of thumb:</strong> HTTP for gateway-to-cloud and dashboard APIs; MQTT for device-to-platform messaging.</p>
+<h3 id="64-coap-mqtts-lightweight-cousin">6.4 CoAP: MQTT's lightweight cousin</h3>
+<p><strong>CoAP</strong> (Constrained Application Protocol, IETF RFC 7252) is essentially "HTTP ideas redesigned for tiny devices": it uses <strong>UDP</strong> instead of TCP (no connection setup — big energy saving), supports GET/POST/PUT/DELETE semantics on resources (like REST), and adds an <strong>observe</strong> mode where a client subscribes to resource changes (like publish/subscribe). Message overhead is ~4 bytes.</p>
+<p><strong>Use when:</strong> extremely constrained devices/networks (6LoWPAN meshes, NB-IoT) where even MQTT's TCP connection is too heavy. <strong>Reality check:</strong> CoAP has a smaller ecosystem than MQTT — fewer brokers, fewer tutorials, fewer managed services. For most student research, MQTT's ecosystem advantage outweighs CoAP's technical elegance. Know CoAP exists, know why (UDP, observe), and reach for it only when measurements prove you need it.</p>
+<h3 id="65-protocol-chooser">6.5 Protocol chooser</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Choice</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Battery nodes, frequent small messages, commands to devices</td>
+<td><strong>MQTT</strong></td>
+<td>Tiny overhead, persistent connection, pub/sub, QoS, LWT</td>
+</tr>
+<tr>
+<td>Gateway → cloud batch uploads, dashboard APIs</td>
+<td><strong>HTTP/REST</strong></td>
+<td>Universal, debuggable, fine on mains power</td>
+</tr>
+<tr>
+<td>Ultra-constrained UDP networks, REST-like semantics</td>
+<td><strong>CoAP</strong></td>
+<td>4-byte header, observe mode; smaller ecosystem</td>
+</tr>
+<tr>
+<td>Must never lose a reading</td>
+<td>MQTT QoS 1 (+ idempotent backend)</td>
+<td>Retries with dedup logic</td>
+</tr>
+<tr>
+<td>Must never duplicate a command</td>
+<td>MQTT QoS 2</td>
+<td>Exactly-once handshake</td>
+</tr>
+<tr>
+<td>Dashboard needs latest value on connect</td>
+<td>MQTT retained messages</td>
+<td>Broker replays last value</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Security note (expanded in Chapter 9):</strong> MQTT without TLS sends credentials and data in cleartext. Always use TLS (port 8883), unique per-device credentials or certificates, and topic ACLs so a compromised node can't publish to another node's command topics.</p>
+<h3 id="66-deep-dive-mqtt-brokers-and-mqtt-v5">6.6 Deep dive: MQTT brokers and MQTT v5</h3>
+<p><strong>Choosing a broker:</strong> <strong>Eclipse Mosquitto</strong> is the open-source default — tiny, runs on a Raspberry Pi, perfect for research. <strong>EMQX</strong> and <strong>HiveMQ</strong> add clustering and management UIs for larger deployments. Cloud providers offer managed brokers (verify current offerings before committing a thesis to one — managed IoT services have been discontinued before). For a thesis, self-hosted Mosquitto on your gateway keeps you independent of cloud pricing changes and gives you full log access for analysis.</p>
+<p><strong>MQTT v5</strong> (the current standard) adds features worth knowing: <strong>reason codes</strong> on every acknowledgment (so you can distinguish "rejected: quota exceeded" from "rejected: not authorized" in logs), <strong>topic aliases</strong> (numeric shortcuts that shrink repeated topic strings — real bandwidth savings on constrained links), <strong>message expiry</strong> (stale sensor data auto-discarded by the broker), <strong>request/response</strong> patterns, and <strong>shared subscriptions</strong> (a <code>$share/group/topic</code> subscription distributes messages across multiple consumers — load balancing for your ingestion workers). You can do excellent research on MQTT v3.1.1, but cite v5 as the current standard.</p>
+<p><strong>MQTT-SN</strong> (Sensor Networks) adapts MQTT to UDP/non-TCP transports for the most constrained devices — know it exists; you will rarely need it with ESP32-class hardware.</p>
+<h3 id="67-topic-design-patterns-and-anti-patterns">6.7 Topic design: patterns and anti-patterns</h3>
+<p>Good topic hierarchies share traits: <strong>fixed depth</strong> (<code>site/device/metric</code>), <strong>no spaces or wildcards in published topics</strong>, <strong>device ID included</strong> (so you can trace every message to its source), and <strong>separate namespaces for telemetry vs commands</strong> (<code>…/telemetry/</code> vs <code>…/cmd/</code>) so ACLs are simple.</p>
+<p>Anti-patterns seen in failed deployments: encoding the <em>value</em> in the topic (<code>farm/temp/25.3</code> — topics are addresses, not data), one giant flat namespace with no hierarchy (unsubscribable), and changing topic structure mid-deployment (version your topics: <code>v1/farm/…</code> if you expect evolution). Write the topic schema in a one-page document before flashing the first node — it is a contract between your firmware team (you) and your backend team (also you, next month).</p>
+<h3 id="68-when-not-to-use-mqtt">6.8 When not to use MQTT</h3>
+<p>Honest engineering names the limits: for <strong>request/response RPC</strong> between services, HTTP is more natural; for <strong>high-throughput streaming</strong> (video, bulk transfer), dedicated streaming or file transfer wins; for <strong>browser-to-device</strong> direct control, MQTT-over-WebSockets bridges the gap (and is how web dashboards subscribe live). MQTT dominates device-to-platform telemetry — use the right tool elsewhere.</p>
+<h3 id="69-payload-formats-json-vs-binary">6.9 Payload formats: JSON vs binary</h3>
+<p>The examples in this book use <strong>JSON</strong> — human-readable, debuggable, universally supported. Its cost: verbosity. A 60-byte JSON reading might be 12 bytes in a binary format. Options:</p>
+<ul>
+<li><strong>JSON:</strong> default choice. Readable in logs, trivial to parse everywhere. Use it unless measurements say otherwise.</li>
+<li><strong>CBOR</strong> (Concise Binary Object Representation, RFC 8949): JSON's data model in binary — ~40–60% smaller, still self-describing. The natural upgrade for constrained links; CoAP's native partner.</li>
+<li><strong>Protocol Buffers / custom binary:</strong> smallest, fastest — but needs a shared schema and custom tooling on both ends. Worth it for LoRaWAN-scale constraints or very high message rates.</li>
+</ul>
+<p><strong>Rule:</strong> start with JSON, measure the energy/bandwidth cost, and switch to CBOR only if the numbers justify the debugging pain. A thesis that reports "switching payloads from JSON to CBOR cut airtime by 45% and extended battery life 12%" is a clean, honest contribution. Also consider <strong>SenML</strong> (Sensor Measurement Lists, RFC 8428) — a standard JSON/CBOR format for sensor data with units and timestamps built in. Using a standard format makes your dataset interoperable and your methodology section shorter.</p>
+<h3 id="610-lab-practice-running-your-own-broker-in-ten-minutes">6.10 Lab practice: running your own broker in ten minutes</h3>
+<p>Theory sticks when you touch it. On any Linux machine (or Raspberry Pi):</p>
+<ol>
+<li>Install Mosquitto (<code>apt install mosquitto mosquitto-clients</code>).</li>
+<li>In one terminal, subscribe: <code>mosquitto_sub -h localhost -t 'lab/#' -v</code> — this prints every message under <code>lab/</code>.</li>
+<li>In another, publish: <code>mosquitto_pub -h localhost -t 'lab/node-1/temp' -m '{"t": 24.6}'</code>.</li>
+<li>Watch the message arrive. Now publish with <code>-r</code> (retained), kill the subscriber, resubscribe — the retained message replays instantly. Publish a second message to <code>lab/node-1/temp</code> and a third to <code>lab/node-2/temp</code>, then subscribe to <code>lab/+/temp</code> — the <code>+</code> wildcard matches one level. Then <code>lab/#</code> — <code>#</code> matches everything below.</li>
+</ol>
+<p>Extend it: enable authentication (a password file), then TLS with a self-signed certificate, and observe what breaks at each step — that breakage is the curriculum. Every concept in this chapter (topics, wildcards, retained, QoS, auth, TLS) becomes concrete in under an hour, and the exact commands belong in your lab notebook for when you configure the field gateway.</p>
+<p><strong>For your research:</strong> Your protocol choice, QoS selection, and topic hierarchy belong in the methodology chapter with one paragraph of justification each. A strong, publishable mini-study: measure energy per message for MQTT (QoS 0 vs 1) versus HTTP POST on your actual hardware, and report the numbers — this is original, useful, and frequently cited data.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>MQTT's brokered publish/subscribe decouples producers from consumers; topics with wildcards are your data model — design them first.</li>
+<li>QoS 0 = fire-and-forget, QoS 1 = at-least-once (handle duplicates), QoS 2 = exactly-once (for critical commands).</li>
+<li>Retained messages solve the "blank dashboard" problem; Last Will gives honest offline detection.</li>
+<li>HTTP for gateways and APIs; MQTT for devices; CoAP when UDP-level constraints demand it. Always run MQTT over TLS with per-device credentials.</li>
+</ul>
+<hr />
+<p><em>End of chunk 2 of 4 — continues with Chapters 7–9.</em></p>
+<hr />
+<h2 id="chapter-7-edge-vs-cloud-where-should-computing-happen">Chapter 7: Edge vs Cloud — Where Should Computing Happen?</h2>
+<h3 id="71-the-spectrum-not-a-binary">7.1 The spectrum, not a binary</h3>
+<p>"Edge vs cloud" is often presented as a choice between two boxes. In reality it is a <strong>spectrum of where computation happens</strong>, measured by distance from the sensor:</p>
+<ol>
+<li><strong>On-device (tiny edge):</strong> the microcontroller itself — threshold checks, filtering, TinyML inference.</li>
+<li><strong>Gateway edge:</strong> a Raspberry Pi or industrial gateway near the devices — aggregation, local dashboards, protocol translation, buffering during outages.</li>
+<li><strong>Cloud:</strong> remote data centers — long-term storage, heavy analytics, training ML models, global dashboards.</li>
+</ol>
+<p>The right answer for each piece of logic is the <strong>closest place that can do the job reliably</strong>. Push work as close to the sensor as the hardware allows; pull it toward the cloud only when edge resources are insufficient. This principle — <em>compute at the lowest capable layer</em> — resolves most edge/cloud debates.</p>
+<h3 id="72-what-the-edge-is-good-at">7.2 What the edge is good at</h3>
+<ul>
+<li><strong>Latency:</strong> a greenhouse vent that must open within a second of a temperature spike cannot wait for a cloud round-trip (especially over LoRaWAN, where a downlink can take seconds to minutes). Control loops live at the edge.</li>
+<li><strong>Offline resilience:</strong> farms, factories, and remote sites lose connectivity. An edge gateway keeps logging locally and syncs when the link returns — your dataset gets no gaps.</li>
+<li><strong>Bandwidth and cost savings:</strong> a camera sending 24/7 video to the cloud is ruinously expensive; an edge device that sends only "intruder detected" events plus a snapshot is cheap. Rule of thumb: <strong>send insights, not raw streams.</strong></li>
+<li><strong>Privacy:</strong> health and human-monitoring data processed on-device never traverses the internet — easier ethics approval, easier GDPR-style compliance.</li>
+</ul>
+<h3 id="73-what-the-cloud-is-good-at">7.3 What the cloud is good at</h3>
+<ul>
+<li><strong>Scale and elasticity:</strong> storing years of data from thousands of nodes, running queries over all of it, training ML models on GPUs.</li>
+<li><strong>Accessibility:</strong> dashboards and APIs reachable from anywhere, managed backups, managed MQTT brokers and time-series databases you don't have to babysit.</li>
+<li><strong>Heavy computation:</strong> model training, large-scale aggregation, cross-site analytics — workloads no microcontroller or Pi can touch.</li>
+</ul>
+<h3 id="74-decision-framework">7.4 Decision framework</h3>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Favors edge</th>
+<th>Favors cloud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Response time needed</td>
+<td>&lt; 1 s, or control loop</td>
+<td>Minutes to hours acceptable</td>
+</tr>
+<tr>
+<td>Connectivity</td>
+<td>Intermittent or expensive</td>
+<td>Reliable and cheap</td>
+</tr>
+<tr>
+<td>Data volume</td>
+<td>High raw volume, low insight density (video, vibration)</td>
+<td>Small, structured readings</td>
+</tr>
+<tr>
+<td>Compute need</td>
+<td>Simple rules, thresholds, tiny models</td>
+<td>Training, large joins, complex analytics</td>
+</tr>
+<tr>
+<td>Privacy sensitivity</td>
+<td>Personal/health data</td>
+<td>Aggregated, anonymized data</td>
+</tr>
+<tr>
+<td>Power</td>
+<td>Mains-powered gateway available</td>
+<td>Battery nodes only (keep them dumb, compute centrally)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Worked example — air-quality research station:</strong> The node (ESP32 + PMS5003 + SCD30) computes 5-minute medians on-device (rejects outliers, saves power by transmitting summaries — edge). A Raspberry Pi gateway collects from 10 nodes, stores to a local database, serves a local dashboard, and syncs hourly to the cloud (gateway edge). The cloud holds the full multi-month dataset, runs calibration models against the reference station, and hosts the public dashboard (cloud). Each layer does what it's best at — and the thesis can describe this cleanly.</p>
+<h3 id="75-tinyml-machine-learning-on-microcontrollers">7.5 TinyML: machine learning on microcontrollers</h3>
+<p><strong>TinyML</strong> is the practice of running small neural networks directly on microcontrollers (tens of KB of RAM). Frameworks like TensorFlow Lite for Microcontrollers let you deploy models that do keyword spotting, anomaly detection on vibration data, or simple image classification on devices like the ESP32. The workflow: train in the cloud on collected data → quantize/compress the model → deploy to the MCU → run inference locally, sending only results.</p>
+<p>For researchers, TinyML is attractive because it turns a <em>data collection</em> project into a <em>smart sensing</em> project — a publishable step up. But be honest about limits: MCU models are small, accuracy is bounded, and evaluation must be on real device-collected data, not just lab datasets.</p>
+<h3 id="76-fog-computing-know-the-term">7.6 Fog computing (know the term)</h3>
+<p><strong>Fog</strong> is sometimes used for the layer between edge and cloud — regional servers, on-premise clusters. In practice, most student work needs only the three tiers above. If a paper says "fog," mentally map it to "gateway/regional edge" and move on.</p>
+<h3 id="77-deep-dive-the-gateway-software-stack">7.7 Deep dive: the gateway software stack</h3>
+<p>A Raspberry Pi gateway typically runs a small constellation of services — learn the standard pieces:</p>
+<ul>
+<li><strong>Mosquitto</strong> (MQTT broker) — the message hub.</li>
+<li><strong>Node-RED</strong> — a visual flow-based tool for wiring logic: "when MQTT topic X exceeds threshold, send email and write to database." Invaluable for prototyping gateway logic without writing backend code; many theses use it as the actual (not just prototype) rules engine.</li>
+<li><strong>InfluxDB/TimescaleDB</strong> — time-series storage.</li>
+<li><strong>Grafana</strong> — dashboards and alerting.</li>
+<li><strong>A sync agent</strong> — rsync, or a small script that replays buffered data to the cloud when connectivity returns.</li>
+</ul>
+<p>All five run comfortably on one Pi for tens of nodes. Deploy them with <strong>Docker Compose</strong> — one YAML file defines the whole stack, making your setup reproducible and your methodology's "system setup" section a single code listing. Reproducibility is a research virtue; a compose file is reproducibility you can download.</p>
+<h3 id="78-deep-dive-tinyml-workflow-in-practice">7.8 Deep dive: TinyML workflow in practice</h3>
+<p>The TinyML pipeline, concretely:</p>
+<ol>
+<li><strong>Collect</strong> labeled data from your actual sensors (e.g., 500 vibration samples: normal vs bearing-fault).</li>
+<li><strong>Train</strong> a small model (a tiny neural net or even a decision tree) in Python on your laptop/cloud.</li>
+<li><strong>Quantize</strong> — convert 32-bit floats to 8-bit integers. This shrinks the model ~4× with typically 1–3% accuracy loss; <strong>TensorFlow Lite for Microcontrollers</strong> and <strong>Edge Impulse</strong> (a managed TinyML platform popular in research) automate this.</li>
+<li><strong>Deploy</strong> the resulting C array to the ESP32; run inference in the loop.</li>
+<li><strong>Evaluate on-device</strong> — measure accuracy <em>and</em> inference time <em>and</em> energy per inference on the real board, not just in simulation.</li>
+</ol>
+<p>The research contribution is usually in step 5's honest measurement or in making the model smaller without losing accuracy (pruning, quantization studies). A keyword-spotting or anomaly-detection demo that reports only lab accuracy is a demo; one that reports on-device latency, RAM, and energy is a paper.</p>
+<h3 id="79-measuring-what-matters-latency-budgets">7.9 Measuring what matters: latency budgets</h3>
+<p>"Edge is faster" is a slogan; a <strong>latency budget</strong> is engineering. Break end-to-end latency into components and measure each: sensor acquisition time + on-device processing + transmission airtime + network transit + broker routing + backend processing + dashboard render. For a LoRaWAN Class A control loop, the dominant term is often the <em>downlink wait</em> (up to your uplink interval) — which no amount of cloud optimization fixes. Measure the budget for your critical loop, publish the breakdown, and place computation to attack the biggest term. This is the kind of figure reviewers remember.</p>
+<h3 id="710-cost-modeling-the-other-half-of-the-decision">7.10 Cost modeling: the other half of the decision</h3>
+<p>Latency and reliability get the attention, but cost decides deployments. Model <strong>total cost of ownership (TCO)</strong> over the deployment lifetime:</p>
+<ul>
+<li><strong>Cloud costs:</strong> managed broker messages/month, database storage and queries, egress bandwidth, dashboard users. A "free tier" that covers your pilot can become a real bill at 100 nodes — price the full deployment, not the demo.</li>
+<li><strong>Edge costs:</strong> gateway hardware (one-time), power, physical maintenance visits (the dominant cost in remote deployments — a site visit can cost more than the node).</li>
+<li><strong>Connectivity costs:</strong> SIM subscriptions × nodes × months vs one LoRaWAN gateway (one-time) vs existing Wi-Fi (free but not yours to rely on).</li>
+</ul>
+<p>A simple TCO table (3-year horizon, per-node and total) belongs in any deployment paper's discussion — and often the conclusion surprises: for the greenhouse capstone, the self-hosted Pi stack costs ~$70 once versus managed-cloud fees that exceed it within a year at scale. For a 5-node pilot, the cloud wins on convenience. State the crossover point; that's analysis, not opinion.</p>
+<h3 id="711-case-study-the-same-system-two-placements">7.11 Case study: the same system, two placements</h3>
+<p>Consider a vibration-monitoring node on factory motors, sampling at 1 kHz to detect bearing faults:</p>
+<ul>
+<li><strong>Placement A (cloud):</strong> stream raw vibration to the cloud; run FFT + classifier there. Bandwidth: ~86 M samples/day/node — prohibitive over any wireless link; latency to alert: seconds; works only with wired Ethernet.</li>
+<li><strong>Placement B (edge):</strong> compute FFT on the ESP32, run a tiny anomaly model, transmit only spectral features + alerts (a few hundred bytes/hour). Bandwidth: trivial; latency: milliseconds; runs on Wi-Fi or even LoRaWAN.</li>
+</ul>
+<p>Placement B is the only feasible wireless design — and the thesis writes itself: on-device FFT accuracy vs cloud FFT accuracy (quantization effects), energy per inference, and alert latency. Whenever someone proposes "just send it to the cloud," ask for the bandwidth math first.</p>
+<h3 id="712-decision-worksheet-scoring-a-placement">7.12 Decision worksheet: scoring a placement</h3>
+<p>When the choice isn't obvious, score it. List candidate placements as rows, decision factors as columns, weight what matters:</p>
+<table>
+<thead>
+<tr>
+<th>Factor (weight)</th>
+<th>On-device</th>
+<th>Gateway</th>
+<th>Cloud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latency need: &lt;1 s (×3)</td>
+<td>9</td>
+<td>6</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Works offline (×3)</td>
+<td>9</td>
+<td>8</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Compute adequate (×2)</td>
+<td>3</td>
+<td>7</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Bandwidth cost (×2)</td>
+<td>9</td>
+<td>7</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Dev effort (×1)</td>
+<td>4</td>
+<td>6</td>
+<td>8</td>
+</tr>
+<tr>
+<td><strong>Weighted total</strong></td>
+<td><strong>70</strong></td>
+<td><strong>71</strong></td>
+<td><strong>48</strong></td>
+</tr>
+</tbody>
+</table>
+<p>(Scores 1–9 per cell; totals illustrative.) The worksheet's value isn't the winner — it's forcing you to name factors and weights explicitly, which is exactly what your methodology's architecture justification should contain. Different deployments weight differently: a hospital monitor weights latency and offline at ×5; a climate archive weights compute and storage. Show your weights; defend them in one paragraph each.</p>
+<h3 id="713-the-hybrid-reality-most-systems-use-all-three-tiers">7.13 The hybrid reality: most systems use all three tiers</h3>
+<p>Purist "all edge" or "all cloud" designs are rare in practice. The greenhouse capstone (Chapter 12) is typical: threshold control on the ESP32 (tier 1 — must work during outages), aggregation, storage, and dashboard on the Pi gateway (tier 2 — the offline-capable core), and nightly cloud backup plus heavy analysis on a server (tier 3 — scale and convenience). When you draw your architecture, expect arrows at every tier boundary and label what crosses each one (raw readings up, aggregates up, commands down, backups up). A reviewer who sees a thoughtful hybrid with justified boundaries reads "systems thinker"; a reviewer who sees everything crammed into one tier reads "demo." Design for the hybrid from the start — retrofitting a tier boundary into finished firmware is painful.</p>
+<p><strong>For your research:</strong> Draw your system's compute placement as a diagram with one sentence of justification per component ("thresholding on-device to guarantee &lt;1 s response during connectivity outages"). Reviewers treat this as evidence of systems thinking. An excellent thesis contribution: measure the <em>same</em> pipeline's latency, bandwidth, and energy at two placements (e.g., raw-data-to-cloud vs edge-aggregated) and report the trade-off curve.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Edge vs cloud is a spectrum: on-device → gateway → cloud. Compute at the lowest capable layer.</li>
+<li>Edge wins on latency, offline resilience, bandwidth savings, and privacy; cloud wins on scale, heavy compute, and accessibility.</li>
+<li>Send insights, not raw streams — aggregation at the edge is the single biggest cost saver.</li>
+<li>TinyML lets microcontrollers run small models locally; train in cloud, infer at edge.</li>
+</ul>
+<hr />
+<h2 id="chapter-8-iot-data-pipelines-from-sensor-to-dashboard">Chapter 8: IoT Data Pipelines — From Sensor to Dashboard</h2>
+<p><img alt="IoT data pipeline flow" src="/learn/images/book-29-ch8-pipeline.webp" /></p>
+<h3 id="81-the-pipeline-end-to-end">8.1 The pipeline, end to end</h3>
+<p>A single sensor reading travels a long road before it becomes a dot on a chart. Trace it once, completely, and you will never be confused by IoT architecture diagrams again:</p>
+<ol>
+<li><strong>Sense:</strong> the physical quantity becomes an electrical signal (Chapter 2).</li>
+<li><strong>Digitize &amp; calibrate:</strong> ADC → raw number → calibrated value via the sensor's formula.</li>
+<li><strong>Timestamp:</strong> attach the time of measurement. This is more important than beginners think — without trustworthy timestamps, your data is a pile of numbers, not a time series.</li>
+<li><strong>Buffer locally:</strong> store readings in flash/RAM so nothing is lost during network outages.</li>
+<li><strong>Transmit:</strong> send via the chosen connectivity and protocol (Chapters 5–6).</li>
+<li><strong>Ingest:</strong> the broker/backend receives, validates (range checks, schema checks), and deduplicates.</li>
+<li><strong>Store:</strong> write to a <strong>time-series database</strong> (TSDB) — databases optimized for timestamped data (InfluxDB, TimescaleDB, or even PostgreSQL with the Timescale extension).</li>
+<li><strong>Process:</strong> clean, aggregate (minute/hourly means), join with other sources, run detection rules or models.</li>
+<li><strong>Serve:</strong> dashboards (Grafana is the open-source standard), APIs, alerts (SMS/email), and exports for analysis.</li>
+</ol>
+<p>Every stage can fail, and each failure has a characteristic symptom — learn the mapping: <em>gaps in data</em> → buffering/transmission; <em>wrong values</em> → calibration; <em>wrong times</em> → clock sync; <em>duplicates</em> → QoS retries without dedup; <em>dashboard blank after reconnect</em> → no retained messages.</p>
+<h3 id="82-time-the-hidden-hard-problem">8.2 Time: the hidden hard problem</h3>
+<p>Microcontrollers have no real clock — they count milliseconds since boot. For research data, you need wall-clock time, and there are three standard approaches:</p>
+<ul>
+<li><strong>NTP (Network Time Protocol):</strong> over Wi-Fi/cellular, the device asks internet time servers. Accurate to tens of milliseconds; costs a network transaction at boot and periodically.</li>
+<li><strong>RTC (real-time clock) modules (e.g., DS3231):</strong> a battery-backed chip that keeps time through power loss, accurate to ~a minute per year. Essential for offline/log-first devices.</li>
+<li><strong>Network-provided time:</strong> LoRaWAN and cellular networks can provide timestamps; GPS modules give extremely accurate time (plus location) at high power cost.</li>
+</ul>
+<p><strong>Best practice:</strong> timestamp at the <em>moment of measurement</em> on the device (not when the server receives it — network delays of seconds to hours would corrupt your time axis), store in <strong>UTC</strong> (ISO 8601 format), and convert to local time only for display. Document your time source and its accuracy in the methodology.</p>
+<h3 id="83-data-formats-and-schemas">8.3 Data formats and schemas</h3>
+<p>Keep payloads small, structured, and self-describing:</p>
+<pre><code class="language-json">{
+  &quot;device_id&quot;: &quot;node-07&quot;,
+  &quot;ts&quot;: &quot;2026-10-08T06:15:00Z&quot;,
+  &quot;soil_moisture_pct&quot;: 34.2,
+  &quot;soil_temp_c&quot;: 24.8,
+  &quot;battery_v&quot;: 3.92,
+  &quot;rssi_dbm&quot;: -87
+}
+</code></pre>
+<p>Include <strong>metadata with the data</strong>: device ID, timestamp, battery voltage, and signal strength (RSSI) in every message. When a sensor starts drifting six weeks into a deployment, the battery-voltage and RSSI columns are what let you diagnose it instead of guessing. This is the cheapest insurance in IoT research.</p>
+<h3 id="84-storage-why-time-series-databases">8.4 Storage: why time-series databases</h3>
+<p>A TSDB stores (timestamp, measurement, tags) efficiently and answers time-range queries fast: "hourly mean soil moisture for plot 3 in July" should return in milliseconds, not minutes. <strong>InfluxDB</strong> and <strong>TimescaleDB</strong> are the common open-source choices; both integrate with <strong>Grafana</strong> for dashboards. For a thesis-scale deployment (tens of nodes, months of data), a single Raspberry Pi can comfortably run all three — a fact that keeps research budgets sane.</p>
+<p><strong>Retention and downsampling:</strong> raw data accumulates fast. A common policy: keep raw readings for 90 days, keep hourly aggregates for 2 years, keep daily aggregates indefinitely. Define this before deploying, not after the disk fills.</p>
+<h3 id="85-dashboards-and-alerts">8.5 Dashboards and alerts</h3>
+<p><strong>Grafana</strong> is the standard: connect it to your TSDB, build time-series panels, set alert rules (e.g., "soil moisture &lt; 30% for 2 hours → send email/SMS"). For public-facing or custom needs, a small web app (Python Flask/FastAPI, Node.js) reading from the database works. Whatever you build, include: live values with "last updated" timestamps (stale data must <em>look</em> stale), historical charts with zoom, and an honest device-status view (online/offline via MQTT Last Will, battery levels).</p>
+<h3 id="86-a-pipeline-walkthrough-the-complete-journey-of-one-reading">8.6 A pipeline walkthrough: the complete journey of one reading</h3>
+<p>Revisit the soil node, now with the full pipeline visible:</p>
+<ol>
+<li>06:15:00 — capacitive probe read; ADC value 2,847 → calibration curve → 34.2% moisture.</li>
+<li>Device clock (synced via NTP at boot, drift &lt; 1 s/day) stamps <code>2026-10-08T06:15:00Z</code>.</li>
+<li>Reading appended to a local ring buffer in flash (holds 48 h of readings).</li>
+<li>MQTT publish (QoS 1) to <code>farm/plot-3/soil-moisture</code>; broker acknowledges; buffer entry marked sent.</li>
+<li>Ingestion service validates: moisture within 0–100%, timestamp within 24 h of now → accept.</li>
+<li>Written to InfluxDB with tags <code>plot=3, device=node-07</code>.</li>
+<li>A continuous query computes the hourly mean into a downsampled table.</li>
+<li>Grafana shows the live chart; the alert rule watches the threshold; at 06:15 the value is fine — no alert.</li>
+<li>Weekly, a script exports CSV for the researcher's analysis notebook.</li>
+</ol>
+<p>If the network had been down at step 4, the reading would have waited in the buffer and been sent with its original timestamp when connectivity returned — no gap, no time corruption. <em>That</em> is what a well-built pipeline guarantees, and it is worth a paragraph in every IoT thesis.</p>
+<h3 id="87-deep-dive-ingestion-validation-dedup-and-ordering">8.7 Deep dive: ingestion — validation, dedup, and ordering</h3>
+<p>The ingestion service is where raw messages become trustworthy data. Build it as an explicit stage (a small Python/Node.js service subscribed to <code>…/#</code>), not as hope:</p>
+<ul>
+<li><strong>Schema validation:</strong> reject messages missing required fields or with wrong types. Log rejections with counts — a sudden spike in rejections is your first warning of a firmware bug or a dying sensor.</li>
+<li><strong>Range checks:</strong> per-sensor plausible ranges (soil moisture 0–100%, battery 3.0–4.2 V). Out-of-range values are quarantined, not silently stored.</li>
+<li><strong>Deduplication:</strong> QoS 1 retries and reconnect replays create duplicates. Dedup on <code>(device_id, ts)</code> — keep a short window of seen keys. Without this, your "hourly mean" double-counts.</li>
+<li><strong>Out-of-order handling:</strong> buffered replays arrive late. Your TSDB must accept out-of-order writes (InfluxDB and TimescaleDB both do), and your aggregation jobs must tolerate late data (recompute windows, or accept small corrections).</li>
+<li><strong>Backpressure:</strong> if the database slows, the ingester must queue rather than drop — a bounded in-memory queue spilling to disk. Size it for your worst outage.</li>
+</ul>
+<p>A one-page description of this stage, with the validation rules listed, answers the reviewer's "how do you know the data is clean?" before they ask.</p>
+<h3 id="88-deep-dive-aggregation-strategy-and-the-single-pane-problem">8.8 Deep dive: aggregation strategy and the "single pane" problem</h3>
+<p>Raw data answers "what happened at 06:15:00"; research answers "what happened this season." Bridge the gap with a deliberate aggregation strategy:</p>
+<ul>
+<li><strong>Continuous queries / downsampling tasks:</strong> precompute 5-min, hourly, and daily aggregates (mean, min, max, count) into separate tables. Dashboards query the aggregates (fast); analysts can still drill to raw (complete).</li>
+<li><strong>Event tables:</strong> control actions (pump ON/OFF), alerts, and maintenance events belong in their own tables with timestamps — joining events against sensor traces ("did irrigation actually raise moisture?") is the core analysis of control-system theses.</li>
+<li><strong>The single-pane rule:</strong> every number on your dashboard must be traceable to its source query. When a supervisor asks "where does this chart come from?", the answer is a query name, not a shrug.</li>
+</ul>
+<h3 id="89-data-dictionaries-and-dataset-release">8.9 Data dictionaries and dataset release</h3>
+<p>Research data outlives the project only if it's documented. Maintain a <strong>data dictionary</strong> from day one: every field name, unit, sensor model, calibration equation, and known quirk ("node-03's probe replaced 2026-11-02; offset +2.1% before"). When you release the dataset (and you should — released datasets are cited), package it as versioned CSV/Parquet + the dictionary + a README describing the deployment, following FAIR principles (Findable, Accessible, Interoperable, Reusable). A well-documented dataset from a student deployment routinely earns more citations than the paper that produced it.</p>
+<h3 id="810-choosing-your-storage-a-practical-guide">8.10 Choosing your storage: a practical guide</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Strengths</th>
+<th>Weaknesses</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>InfluxDB</strong></td>
+<td>Purpose-built TSDB, great Grafana integration, continuous queries</td>
+<td>Query language (Flux/InfluxQL) learning curve; clustering is a paid feature</td>
+<td>Default choice for sensor time series</td>
+</tr>
+<tr>
+<td><strong>TimescaleDB</strong> (PostgreSQL extension)</td>
+<td>Full SQL, joins with relational data, hypertables</td>
+<td>Heavier than InfluxDB for pure time series</td>
+<td>You need SQL or mixed relational + series data</td>
+</tr>
+<tr>
+<td><strong>SQLite</strong></td>
+<td>Zero setup, single file, survives on tiny devices</td>
+<td>No concurrent writers, weak for large scale</td>
+<td>Single-node logging, prototypes</td>
+</tr>
+<tr>
+<td><strong>CSV files</strong></td>
+<td>Universal, human-readable, version-controllable</td>
+<td>No indexing, slow queries, no types</td>
+<td>Dataset release and interchange, not live storage</td>
+</tr>
+</tbody>
+</table>
+<p>For a thesis: log to InfluxDB or TimescaleDB live, export versioned CSV/Parquet for analysis and release. Never analyze directly against the live database from a notebook — snapshot first, so your results are reproducible against a fixed dataset version.</p>
+<h3 id="811-alerting-done-right">8.11 Alerting done right</h3>
+<p>Alerts are where pipelines meet humans, and bad alerting destroys trust in the system:</p>
+<ul>
+<li><strong>Threshold + duration:</strong> alert when soil moisture &lt; 30% <em>for 2 consecutive readings</em>, not on a single dip — single-reading alerts fire on noise and get ignored (alert fatigue).</li>
+<li><strong>Severity tiers:</strong> info (log it), warning (dashboard badge + email digest), critical (SMS/immediate). Define what each tier means before deployment.</li>
+<li><strong>Alert on the pipeline itself:</strong> "no data from node-07 for 1 hour" is often more important than any sensor threshold — silent nodes are failed nodes.</li>
+<li><strong>Rate limiting:</strong> one alert per condition per hour, with auto-resolve notifications ("moisture recovered to 46%"). Nobody reads the 47th identical SMS.</li>
+</ul>
+<p>Grafana's alerting covers all of this with a few clicks — configure it on the gateway so alerts work even when the cloud link is down.</p>
+<h3 id="812-schema-evolution-and-backfill-planning-for-change">8.12 Schema evolution and backfill: planning for change</h3>
+<p>Your data model <em>will</em> change mid-deployment — a sensor gets added, a field gets renamed, a calibration equation updates. Plan for it:</p>
+<ul>
+<li><strong>Version your payloads:</strong> include <code>"schema": 2</code> in the JSON. The ingester routes v1 and v2 through different parsers instead of crashing.</li>
+<li><strong>Never rewrite raw history:</strong> when calibration improves, write <em>corrected</em> values to a new table/column and keep the raw untouched. "We reprocessed with calibration v3" is reproducible; silently overwriting raw data is not.</li>
+<li><strong>Backfill procedure:</strong> when late/buffered data arrives, insert it into the raw table (TSDBs accept old timestamps), then re-run the aggregation jobs for the affected windows. Document the backfill in the dataset changelog.</li>
+<li><strong>Changelog:</strong> a simple CHANGELOG.md in your dataset repo — "2026-11-02: node-03 probe replaced; 2026-12-01: calibration v2 applied from this date" — is the difference between a dataset people trust and one they don't.</li>
+</ul>
+<p>Deployments are living systems; the pipeline that assumes otherwise corrupts data quietly. Assume change, version everything, and keep raw data sacred.</p>
+<p><strong>For your research:</strong> Your thesis needs a pipeline diagram (like the one in this chapter's figure) with each stage labeled and the technology named at each stage. Then add a "failure handling" table: for each stage, what can fail and what your system does about it. This table is short to write and disproportionately impressive to reviewers — it proves you built a system, not a demo.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Trace every reading through nine stages: sense → digitize → timestamp → buffer → transmit → ingest → store → process → serve.</li>
+<li>Timestamp at measurement time, in UTC; know your clock source and its accuracy.</li>
+<li>Include metadata (device ID, battery, RSSI) in every payload — it is your future debugging lifeline.</li>
+<li>Buffer locally and sync later: offline resilience is what separates deployments from demos.</li>
+</ul>
+<hr />
+<h2 id="chapter-9-security-basics-for-iot">Chapter 9: Security Basics for IoT</h2>
+<h3 id="91-why-iot-security-is-uniquely-hard">9.1 Why IoT security is uniquely hard</h3>
+<p>IoT devices are attractive targets and hard to defend: they are physically accessible (an attacker can steal or tamper with a field node), computationally weak (limited room for heavy cryptography), numerous (hundreds of identical devices = hundreds of identical attack surfaces), long-lived (deployed for years, rarely patched), and often built from default credentials and unencrypted protocols by developers in a hurry. High-profile incidents — from the Mirai botnet (2016), which hijacked hundreds of thousands of IoT devices with default passwords to launch record-breaking DDoS attacks, to compromised cameras and routers — all trace back to basics done wrong, not exotic zero-days.</p>
+<p>For researchers, security matters twice: your deployment must not become someone else's attack infrastructure, and if your thesis involves human subjects (wearables, indoor monitoring), you carry ethical and legal obligations for their data.</p>
+<h3 id="92-the-threat-model-think-like-an-attacker">9.2 The threat model: think like an attacker</h3>
+<p>Before choosing defenses, list what you are defending against — your <strong>threat model</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Threat</th>
+<th>Example</th>
+<th>Defense</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eavesdropping</td>
+<td>Sniffing unencrypted MQTT to read farm data</td>
+<td>TLS encryption in transit</td>
+</tr>
+<tr>
+<td>Credential theft</td>
+<td>Default passwords (admin/admin) on cameras/gateways</td>
+<td>Unique strong credentials per device; no defaults</td>
+</tr>
+<tr>
+<td>Device impersonation</td>
+<td>Fake node injecting false sensor data</td>
+<td>Per-device certificates or unique tokens; broker ACLs</td>
+</tr>
+<tr>
+<td>Physical tampering</td>
+<td>Stolen node, SD card read, sensor spoofing</td>
+<td>Enclosures, encrypted storage where feasible, tamper-evident seals</td>
+</tr>
+<tr>
+<td>Firmware attacks</td>
+<td>Malicious OTA update</td>
+<td>Signed firmware updates; secure boot on capable chips</td>
+</tr>
+<tr>
+<td>Cloud/API attacks</td>
+<td>Exposed dashboard with no login</td>
+<td>Authentication, HTTPS, minimal exposed ports</td>
+</tr>
+<tr>
+<td>Denial of service</td>
+<td>Flooding the broker</td>
+<td>Rate limiting, authentication, network segmentation</td>
+</tr>
+</tbody>
+</table>
+<p>You do not need military-grade security; you need to close the cheap, well-known holes. Mirai succeeded because of <em>default passwords</em> — the fix was trivial and free.</p>
+<h3 id="93-the-non-negotiable-baseline-do-all-of-these">9.3 The non-negotiable baseline (do all of these)</h3>
+<ol>
+<li><strong>No default credentials.</strong> Every device, gateway, broker, and dashboard gets unique, strong credentials. This single step defeats the most common IoT attacks in existence.</li>
+<li><strong>Encrypt in transit.</strong> MQTT over TLS (por

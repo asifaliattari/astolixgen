@@ -1,0 +1,429 @@
+<h1 id="data-preprocessing-and-feature-engineering">Data Preprocessing and Feature Engineering</h1>
+<p><strong>Book 4 of 10 — AstolixGen Learning Series (Detailed Edition)</strong> · For researcher and publication students</p>
+<p><img alt="Cover" src="/learn/images/media-generation-book-04-cover-detailed-0-8d047f51-aa06-4c92-adf5-3b6062c9d69d.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>You can have the most advanced model in the world, but if you feed it bad data, it will give you bad answers. This is the least glamorous and most decisive part of machine learning research. Surveys of working data scientists consistently find that they spend the majority of their project time — often cited around 60–80% — preparing data rather than tuning models. This book is about that work: how to explore, clean, transform, and document your data so that everything downstream is trustworthy.</p>
+<p>This book is written for MS and PhD students and early researchers who want publishable results. You will learn why data quality decides outcomes, how to handle missing values and outliers without silently biasing your results, how to encode and scale features properly, how to engineer new features that carry real signal, how to select the right ones, and how to build preprocessing pipelines that someone else — a reviewer, a collaborator, a future you — can reproduce exactly. Many papers are rejected not because the model was weak, but because the preprocessing was sloppy, undocumented, or leaked information from the test set. This book teaches you to avoid every one of those traps.</p>
+<p><strong>Learning objectives:</strong>
+- Explain why data quality determines model success more than model choice, with evidence
+- Perform exploratory data analysis (EDA): distributions, missingness, outliers, and relationships
+- Diagnose why data is missing and choose an imputation strategy that does not distort results
+- Encode categorical variables using one-hot, ordinal, and target encoding, and avoid their pitfalls
+- Apply standardization and normalization correctly and explain when each matters
+- Engineer new features from raw data (dates, text, interactions, aggregations)
+- Select relevant features using filter, wrapper, and embedded methods
+- Preprocess text and image data for machine learning
+- Handle imbalanced datasets with resampling, class weights, and SMOTE
+- Build reproducible preprocessing pipelines and document datasets for papers (datasheets)</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Definition (one line)</th>
+<th>Example</th>
+<th>Use in research</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Garbage in, garbage out</td>
+<td>Bad input data produces unreliable model outputs no matter how good the model is.</td>
+<td>Mislabeled tumor scans → a cancer classifier that looks accurate but fails in clinics.</td>
+<td>Motivate data quality sections in your paper's methodology.</td>
+</tr>
+<tr>
+<td>Exploratory data analysis (EDA)</td>
+<td>Systematic inspection of data (distributions, missingness, relationships) before modeling.</td>
+<td>Plotting histograms reveals an income column stored as text.</td>
+<td>Prevents modeling on misunderstood data; many EDA findings become paper figures.</td>
+</tr>
+<tr>
+<td>Missing data mechanism (MCAR / MAR / MNAR)</td>
+<td>MCAR: missing at random; MAR: missing depends on observed data; MNAR: missing depends on the missing value itself.</td>
+<td>Sensor failure = MCAR; older patients skip a question = MAR; patients hide low income = MNAR.</td>
+<td>Justifies your imputation choice; reviewers check this reasoning.</td>
+</tr>
+<tr>
+<td>Imputation</td>
+<td>Filling in missing values with estimates.</td>
+<td>Replacing missing blood pressure with the median.</td>
+<td>Keeps sample size without inventing false precision; report what you did.</td>
+</tr>
+<tr>
+<td>Outlier</td>
+<td>A value far from the rest, either a real rare event or an error.</td>
+<td>Age = 250 in a survey.</td>
+<td>Detect with z-scores/IQR; decide removal vs. correction per case.</td>
+</tr>
+<tr>
+<td>One-hot encoding</td>
+<td>Converting categories into binary columns, one per category.</td>
+<td>City → columns city_Lahore, city_Karachi.</td>
+<td>Required for most models; watch for high-cardinality blow-up.</td>
+</tr>
+<tr>
+<td>Ordinal encoding</td>
+<td>Mapping ordered categories to numbers that preserve rank.</td>
+<td>low=1, medium=2, high=3.</td>
+<td>Use only when order is meaningful.</td>
+</tr>
+<tr>
+<td>Target encoding</td>
+<td>Replacing a category with the average target value for that category.</td>
+<td>Encoding district by its average house price.</td>
+<td>Powerful but leaks target info — always compute inside cross-validation folds.</td>
+</tr>
+<tr>
+<td>Standardization</td>
+<td>Rescaling to zero mean and unit variance: z = (x − μ)/σ.</td>
+<td>Scaling features before logistic regression or SVM.</td>
+<td>Required for distance-based and gradient-based models.</td>
+</tr>
+<tr>
+<td>Min-max normalization</td>
+<td>Rescaling to a fixed range, usually [0, 1]: (x − min)/(max − min).</td>
+<td>Pixel values to [0, 1] for neural networks.</td>
+<td>Use when a bounded range is needed (e.g., image inputs).</td>
+</tr>
+<tr>
+<td>Feature engineering</td>
+<td>Creating new informative features from raw data.</td>
+<td>Extracting "days since last purchase" from timestamps.</td>
+<td>Often the biggest performance lever in a paper; reportable as a contribution.</td>
+</tr>
+<tr>
+<td>Feature selection</td>
+<td>Keeping only the features that help the model.</td>
+<td>Dropping 50 noisy sensor channels to keep 8 useful ones.</td>
+<td>Reduces overfitting and training cost; simplifies interpretation.</td>
+</tr>
+<tr>
+<td>Tokenization</td>
+<td>Splitting text into units (words, subwords) a model can process.</td>
+<td>"good movie" → ["good", "movie"].</td>
+<td>First step of any NLP experiment.</td>
+</tr>
+<tr>
+<td>Embeddings</td>
+<td>Dense vector representations capturing word meaning.</td>
+<td>"king" − "man" + "woman" ≈ "queen".</td>
+<td>Lets models understand semantic similarity in text.</td>
+</tr>
+<tr>
+<td>Data augmentation</td>
+<td>Creating extra training examples by transforming existing ones.</td>
+<td>Rotating/flipping training images.</td>
+<td>Reduces overfitting in vision tasks with small datasets.</td>
+</tr>
+<tr>
+<td>Class imbalance</td>
+<td>One class having far fewer examples than others.</td>
+<td>5% fraud vs. 95% normal transactions.</td>
+<td>Fix with resampling, class weights, or SMOTE; never judge by accuracy alone.</td>
+</tr>
+<tr>
+<td>SMOTE</td>
+<td>Synthetic Minority Oversampling: creating synthetic minority samples by interpolating between neighbors.</td>
+<td>Generating new fraud-like transaction records.</td>
+<td>Improves minority-class recall; apply only to training data.</td>
+</tr>
+<tr>
+<td>Pipeline</td>
+<td>A fixed, reusable sequence of preprocessing + modeling steps.</td>
+<td>Clean → encode → scale → train, applied identically to train and test.</td>
+<td>Guarantees no train/test leakage and full reproducibility.</td>
+</tr>
+<tr>
+<td>Data leakage</td>
+<td>Test-set information accidentally influencing training.</td>
+<td>Fitting the scaler on the full dataset before splitting.</td>
+<td>The #1 reason reported results are inflated; pipelines prevent it.</td>
+</tr>
+<tr>
+<td>Datasheet for datasets</td>
+<td>A structured document describing a dataset's purpose, composition, collection, and limitations.</td>
+<td>Documenting who labeled the images and under what conditions.</td>
+<td>Increasingly expected by journals/conferences for dataset papers.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Roadmap of chapter connections.</strong> Think of this book as an assembly line: Chapter 1 explains <em>why</em> the line matters (data quality is the bottleneck). Chapter 2 gives you the inspection tools (EDA) to see what is broken. Chapters 3–4 fix the two most common defects: missing values and outliers. Chapters 5–6 convert raw columns into a numeric form models can digest (encoding, scaling). Chapters 7–8 are the creative core: building better features (engineering) and discarding useless ones (selection). Chapters 9–10 specialize the same ideas for text and images. Chapter 11 fixes the class-imbalance trap that ruins many first papers. Chapter 12 locks everything into a reproducible pipeline with documentation — the part reviewers actually read. Each chapter assumes only the previous ones; by the end, you can take any raw dataset and turn it into a defensible, publishable input.</p>
+<hr />
+<h2 id="chapter-1-why-data-quality-decides-everything">Chapter 1: Why Data Quality Decides Everything</h2>
+<p>Every machine learning project begins with a hope: that a clever algorithm will find patterns in our data. But there is an old saying in computing that no algorithm has ever escaped — <strong>garbage in, garbage out (GIGO)</strong>. Feed a model noisy, mislabeled, biased, or badly formatted data, and the output will be wrong, no matter how sophisticated the model is. Feed it clean, well-understood data, and even a simple model can perform remarkably well.</p>
+<p>This is not just folk wisdom. There is evidence. The widely used data mining methodology CRISP-DM (Cross-Industry Standard Process for Data Mining) was built on the experience that data preparation consumes most of a project's effort. Practitioner surveys over many years — including CrowdFlower's and Kaggle's surveys of data scientists — have consistently reported that practitioners spend roughly 60–80% of their time collecting, cleaning, and organizing data, and only a small fraction tuning models [4]. Kaggle competition winners routinely say the same thing: victory came from better features and cleaner data, not from a fancier model. In research, the pattern repeats. Studies of published ML models in healthcare have shown that models trained on datasets with label errors or distribution shifts fail when deployed, even though their published accuracy looked excellent. The model did not fail; the data pipeline failed.</p>
+<h3 id="why-models-cannot-fix-bad-data">Why models cannot fix bad data</h3>
+<p>A model learns whatever pattern is in the training data — including the wrong patterns. Consider these real failure modes:</p>
+<ul>
+<li><strong>Mislabeled data.</strong> If 20% of "diseased" leaf photos are actually healthy leaves mislabeled by tired annotators, the model learns the wrong boundary. It cannot know the labels were wrong; labels are its ground truth.</li>
+<li><strong>Systematic bias.</strong> A hiring dataset where past decisions favored one group will teach the model to reproduce that bias. The model is "correct" relative to the data, and wrong relative to the world.</li>
+<li><strong>Measurement error.</strong> A temperature sensor that drifts 5 degrees in summer makes "summer" look like a predictor of machine failure. The model finds a real pattern in bad measurements.</li>
+<li><strong>Inconsistent formats.</strong> Dates written as "05/06/2026" (June 5 in Pakistan, May 6 in the US) silently corrupt time features.</li>
+</ul>
+<p>The key insight: <strong>a model amplifies what the data contains</strong>. It cannot add information that is not there, and it cannot remove poison that is. Your job as a researcher is to make the data worthy of the model.</p>
+<h3 id="the-researchers-responsibility">The researcher's responsibility</h3>
+<p>In a publication, you will be judged on your data work at least as much as your model. Reviewers ask: Where did the data come from? How was it labeled, and by whom? What was removed, and why? If you cannot answer, your results are not trusted. Good data work is also a research contribution in itself: a well-cleaned public dataset, a documented labeling protocol, or a careful analysis of data limitations can be the core of a paper.</p>
+<p><strong>Worked example.</strong> A student team built a model to predict student dropout from university records. Their first dataset had a column "last_login_days" — days since the student last logged into the portal. The model achieved 97% accuracy. Celebration — until someone noticed the column was computed from data <em>after</em> the dropout date for dropouts (their accounts were deactivated, so "last login" froze at a huge value). The model had simply learned "accounts that never log in again are dropouts" — a tautology, not a prediction. After rebuilding the feature using only data available <em>before</em> the prediction date, accuracy fell to 74% — honest, useful, publishable. This is <strong>data leakage</strong>, and Chapter 12 will teach you to prevent it systematically.</p>
+<blockquote>
+<p><strong>For your research:</strong> Before you touch a model, write a one-page "data story": where the data came from, who collected it, how it was labeled, what is missing, and what could be wrong. Keep it. Half of your paper's methodology section will grow out of it, and it forces you to confront quality problems early, when they are cheapest to fix.</p>
+</blockquote>
+<h3 id="evidence-data-quality-in-the-research-literature">Evidence: data quality in the research literature</h3>
+<p>The claim that data beats models is not just practitioner lore — it has been studied. Research on label noise has shown that deep neural networks can memorize completely random labels, which means a network trained on mislabeled data will happily learn the mislabels and report high training accuracy while generalizing poorly [7]. Other studies have found that a significant fraction of widely used benchmark datasets contain label errors, and that correcting those errors changes model rankings. The lesson for your research: when your model underperforms, your first suspect should be the labels, not the architecture.</p>
+<p>This has grown into an explicit movement called <strong>data-centric AI</strong>: instead of iterating on the model while holding the data fixed, you hold the model fixed and iterate on the data — improving labels, adding hard examples, removing corrupt ones. In several benchmarks, data-centric iterations produced larger gains than model-centric ones. For a student researcher, this is good news: you may not have the compute to train giant models, but you can always afford to understand and improve your data. A paper whose contribution is "we fixed the dataset and everything got better" is a legitimate, publishable contribution.</p>
+<p>There is also a cost argument reviewers understand. Collecting more data is expensive; cleaning the data you have is cheap. A careful error analysis — looking at the specific examples your model gets wrong and asking whether the <em>data</em> is wrong — often reveals that 20% of errors come from 2% of bad labels. Fixing those is an afternoon's work with outsized returns.</p>
+<h3 id="data-quality-dimensions">Data quality dimensions</h3>
+<p>Researchers often find it useful to name the specific dimensions of quality they checked:</p>
+<ul>
+<li><strong>Accuracy</strong> — are the values correct? (Verified against a trusted source or domain rules.)</li>
+<li><strong>Completeness</strong> — how much is missing, and is the missingness biased? (Chapter 3.)</li>
+<li><strong>Consistency</strong> — do formats, units, and categories agree across the dataset?</li>
+<li><strong>Timeliness</strong> — does the data reflect the period your claims cover? (A 2019 traffic dataset says little about 2026 traffic.)</li>
+<li><strong>Representativeness</strong> — does the sample match the population you claim to generalize to?</li>
+</ul>
+<p>Walking through these five in your paper's dataset section — even briefly — shows a reviewer you thought systematically rather than hoping for the best.</p>
+<h3 id="data-quality-as-a-research-contribution">Data quality as a research contribution</h3>
+<p>Here is a perspective shift that helps many students: data work is not the janitorial preamble to "real" research — it can <em>be</em> the research. Some of the most cited papers in applied ML are dataset papers: the authors collected, cleaned, and documented a dataset the community needed, and hundreds of later papers built on it. Even without releasing a dataset, a paper that carefully analyzes data quality — "we found 12% label error in the standard benchmark, corrected it, and re-evaluated five published models" — makes a genuine contribution and gets cited.</p>
+<p>For your thesis, consider making one chapter or section a data audit: document the five quality dimensions above for your dataset, quantify each problem you found, and show the effect of fixing it on a baseline model. This demonstrates exactly the skills examiners and reviewers value: skepticism, rigor, and honesty about limitations. It also protects you in the viva — "why should we trust your results?" is answered by "here is everything I checked, with numbers."</p>
+<h3 id="the-replication-angle">The replication angle</h3>
+<p>The broader science community has learned — painfully, through the replication crisis in psychology and medicine — that results built on shaky data do not replicate. Machine learning is now going through its own reckoning: "reproducibility checklists" at major conferences explicitly ask about data collection, labeling, splits, and preprocessing. Meeting those checklist items is not bureaucracy; it is how your work survives contact with other researchers trying to build on it. Every section of this book maps to one or two checklist items. When you finish the book, you will be able to tick them all.</p>
+<h3 id="how-much-data-is-enough">How much data is enough?</h3>
+<p>A question every student asks: "Is my dataset big enough?" The honest answer: it depends on the signal-to-noise ratio, not on a magic number. A practical tool is the <strong>learning curve</strong>: train your model on 10%, 20%, …, 100% of the data and plot validation performance. If the curve is still rising steeply at 100%, more data would help — consider collecting or augmenting. If it plateaued long ago, your bottleneck is elsewhere (features, labels, model). Include the learning curve in your paper when data size is a plausible concern; it converts "we used 5,000 examples" from an arbitrary choice into an analyzed one. And remember the quality corollary from this chapter: 1,000 clean, well-labeled examples routinely beat 10,000 noisy ones.</p>
+<h3 id="the-8020-of-data-quality">The 80/20 of data quality</h3>
+<p>If you are short on time, spend it where it counts: (1) verify your labels on a random sample — label errors are the highest-leverage problem; (2) check for leakage — the highest-risk problem; (3) fix the worst missingness and the obvious outliers. Everything else is refinement. This prioritization also structures your paper's limitations section honestly: "we verified labels on a 300-sample audit (4% error, corrected); residual label noise remains a limitation." Reviewers accept limitations they can see; they punish ones they discover.</p>
+<p><strong>Key takeaways</strong>
+- Garbage in, garbage out: model output quality is bounded by input data quality.
+- Practitioners spend most project time on data preparation; competition winners win on features, not models.
+- Models amplify whatever is in the data — including mislabels, bias, and measurement errors.
+- Data leakage (using information unavailable at prediction time) produces fake high accuracy.
+- Document your data story from day one; reviewers judge data work as seriously as model work.</p>
+<hr />
+<h2 id="chapter-2-exploratory-data-analysis-understanding-your-data-before-modeling">Chapter 2: Exploratory Data Analysis — Understanding Your Data Before Modeling</h2>
+<p>Exploratory data analysis (EDA) is the habit of looking at your data carefully before you model it. It means checking shapes, distributions, missing values, and relationships — with tables, summary statistics, and plots — so that you build your model on facts, not assumptions. EDA is where most data problems are discovered: the column stored as text that should be numeric, the "gender" column with 14 distinct spellings, the sensor that recorded zeros all weekend.</p>
+<h3 id="the-eda-checklist">The EDA checklist</h3>
+<p>Work through these steps on every new dataset:</p>
+<ol>
+<li><strong>Shape and types.</strong> How many rows and columns? What is the data type of each column? A quick <code>df.info()</code> in pandas (or <code>glimpse()</code> in R) often reveals the first surprises — numbers stored as strings, dates stored as strings, columns that are entirely empty.</li>
+<li><strong>Summary statistics.</strong> <code>df.describe()</code> gives count, mean, standard deviation, min, max, and quartiles for numeric columns. Look for impossible values: negative ages, percentages above 100, a "year" column containing 190.</li>
+<li><strong>Missing values.</strong> Count missing values per column (<code>df.isnull().sum()</code>). A column missing 60% of its values is a different problem from one missing 2% — the first may need to be dropped or investigated; the second can be imputed.</li>
+<li><strong>Unique values and cardinality.</strong> For categorical columns, check <code>df['col'].value_counts()</code>. This reveals typos ("Male", "male", "M", "m"), unexpected categories, and high-cardinality columns (e.g., 10,000 unique user IDs) that need special handling.</li>
+<li><strong>Distributions.</strong> Plot histograms of numeric features. Is the data symmetric or skewed? Are there spikes at suspicious values (like 0 or 999, often codes for "missing")? Skewed features may need transformation (Chapter 7).</li>
+<li><strong>Relationships.</strong> Plot the target against key features (scatter plots, box plots by category). Compute a correlation matrix. Strong correlations hint at useful features; near-perfect correlation between two features hints at redundancy.</li>
+<li><strong>Duplicates.</strong> Check for duplicate rows. Duplicates inflate sample size artificially and, worse, can leak identical rows into both train and test sets.</li>
+</ol>
+<h3 id="plots-that-earn-their-keep">Plots that earn their keep</h3>
+<p>You do not need dozens of plots. Five cover most needs: histograms (distributions), box plots (spread and outliers per group), scatter plots (relationships between two numeric variables), bar charts of value counts (categorical balance), and a correlation heatmap (feature redundancy). Each plot should answer one question. If you cannot say what question a plot answers, skip it.</p>
+<h3 id="eda-is-part-of-the-paper">EDA is part of the paper</h3>
+<p>Good EDA produces figures and tables that belong in your publication: a table of dataset statistics, a plot of class distribution, a missingness summary. Reviewers trust papers whose authors clearly <em>looked</em> at their data. Conversely, a paper that jumps straight to model architecture with no dataset description raises suspicion.</p>
+<p><strong>Worked example.</strong> A researcher received a crop-yield dataset with 12,000 rows and a "rainfall_mm" column. <code>describe()</code> showed a maximum of 9999 mm — impossible. A histogram revealed a spike exactly at 9999. Checking the data dictionary (a habit worth building), 9999 turned out to be the sensor's code for "sensor offline." Treating those as real rainfall values would have destroyed the model; EDA caught it in ten minutes. The researcher documented the finding, converted 9999 to missing, and imputed it properly (Chapter 3). That one EDA step changed the model's error by 15%.</p>
+<blockquote>
+<p><strong>For your research:</strong> Do EDA in a notebook you keep, and save the key plots. When you write your paper, your "Dataset" subsection almost writes itself from the EDA notebook. Never skip EDA to "save time" — the time it saves you is debugging a model trained on data you never understood.</p>
+</blockquote>
+<h3 id="eda-beyond-tables-text-images-and-time">EDA beyond tables: text, images, and time</h3>
+<p>The checklist above assumes tabular data, but EDA adapts to every modality:</p>
+<ul>
+<li><strong>Text data.</strong> Check document length distributions (a histogram of word counts reveals outliers — one 50,000-word document among tweets), language identification (is your "English" corpus 30% Spanish?), character encoding problems (mojibake like "cafÃ©"), and label balance per class. Read 50 random examples by eye — nothing replaces looking at the actual text.</li>
+<li><strong>Image data.</strong> Check image dimensions (a histogram catches the odd 40×40 thumbnail among 4K photos), color modes (grayscale mixed into RGB), corrupted files (try loading every image — some will fail), and class balance. View random samples per class; mislabeled images jump out visually.</li>
+<li><strong>Time series.</strong> Plot the series itself. Look for gaps, flatlines (dead sensors), sudden level shifts (sensor recalibration), and seasonality. Plot missingness over time — a sensor that dies every night tells a different story from random dropouts.</li>
+</ul>
+<h3 id="from-eda-to-hypotheses">From EDA to hypotheses</h3>
+<p>EDA is not just bug-hunting; it generates the hypotheses your modeling will test. When the box plot shows readmission rates rising steeply after age 70, that suggests an age interaction feature (Chapter 7). When two features correlate at 0.97, that suggests dropping one (Chapter 8). When the histogram of the target is bimodal, that suggests a hidden subgroup worth investigating — possibly your paper's most interesting finding.</p>
+<p>Write down every hypothesis EDA suggests, even the ones that turn out wrong. In your paper's discussion section, the story "EDA suggested X; the model confirmed/refuted it" reads as genuine scientific reasoning, because it is.</p>
+<h3 id="automating-the-first-pass">Automating the first pass</h3>
+<p>For large datasets, automated EDA tools (pandas-profiling / ydata-profiling, Sweetviz) generate a full report — distributions, correlations, missingness, duplicates — in one command. Use them for the first pass, but do not stop there: automated reports do not know your domain, cannot read your text samples, and will not notice that "9999" is a sensor code. Automation finds candidates; you make judgments.</p>
+<h3 id="eda-mistakes-to-avoid">EDA mistakes to avoid</h3>
+<ul>
+<li><strong>EDA on the test set, then "unseeing" it.</strong> If you explore the full dataset before splitting, your modeling decisions (which features to engineer, which outliers to drop) were informed by test data. The clean habit: split first, explore the training set freely, and treat the test set as locked until final evaluation. At minimum, be honest in the paper about what was explored when.</li>
+<li><strong>Survivorship bias.</strong> Analyzing only the records that "survived" to your dataset — e.g., studying startup success using only currently operating companies — silently deletes the failures you most need to learn from. Always ask: "who is missing from this data entirely?"</li>
+<li><strong>Aggregating away the story.</strong> Averages hide distributions. Before reporting "average session length is 12 minutes," check the histogram — it may be bimodal (bots at 2 seconds, humans at 25 minutes), and the average describes nobody.</li>
+<li><strong>Confusing correlation with a modeling plan.</strong> EDA correlations suggest candidates; they do not validate features. A feature correlated with the target <em>because of leakage</em> (Chapter 1's dropout example) will look wonderful in EDA and destroy your paper. Run every promising EDA finding through the leakage question.</li>
+</ul>
+<h3 id="eda-deliverables-what-to-keep">EDA deliverables: what to keep</h3>
+<p>By the end of EDA you should have: (1) the data story document (Chapter 1), (2) a cleaned EDA notebook with key plots, (3) a data dictionary — one row per column: name, type, meaning, units, allowed values, missingness rate, and notes, and (4) a list of decisions (columns to drop, values to recode, hypotheses to test). The data dictionary is the single most useful artifact: it becomes your paper's dataset table, your collaborator's onboarding doc, and your own memory six months later.</p>
+<h3 id="eda-on-the-target-variable">EDA on the target variable</h3>
+<p>Beginners explore features and forget the target — but the target deserves its own EDA. For classification: plot class counts (imbalance, Chapter 11), and check for label noise by inspecting random samples per class — mislabeled examples are often visible (a "healthy" leaf photo showing blight). For regression: histogram the target; heavy skew suggests a log transform of the target itself (common for prices, counts); a bimodal target suggests hidden subgroups. Also check the target's relationship with obvious features: if nothing correlates with the target at all, either your features are wrong or your target is broken — better to learn that in EDA than after weeks of modeling.</p>
+<h3 id="when-to-stop-exploring">When to stop exploring</h3>
+<p>EDA has a failure mode: endless exploration that never becomes modeling. Time-box it. A good rule: stop when new plots stop changing your plan — when the last three things you checked confirmed what you already knew. Write the decision list (Chapter 2's deliverable #4), start building the pipeline, and let modeling results send you back to EDA with sharper questions. EDA is a loop, not a phase: explore → build → evaluate → explore again, each round more targeted than the last.</p>
+<p><strong>Key takeaways</strong>
+- EDA means inspecting shape, types, statistics, missingness, distributions, relationships, and duplicates before modeling.
+- Simple tools (info, describe, value_counts, histograms, box plots, correlation heatmaps) catch most problems.
+- Suspicious values (9999, 0-spikes, impossible ranges) are often missing-value codes or errors — investigate before modeling.
+- EDA outputs (tables, plots) become the dataset section of your paper.
+- Keep your EDA notebook; it is the audit trail of your data understanding.</p>
+<hr />
+<h2 id="chapter-3-handling-missing-data">Chapter 3: Handling Missing Data</h2>
+<p>Almost every real dataset has missing values — sensors fail, respondents skip questions, records get corrupted. How you handle them matters enormously: the wrong approach silently biases your results, while the right approach preserves your sample size and your honesty. The first step is not to fill anything in. It is to ask <em>why</em> the data is missing.</p>
+<h3 id="the-three-mechanisms-of-missingness">The three mechanisms of missingness</h3>
+<p>Statisticians classify missing data into three mechanisms [1], [5]:</p>
+<ul>
+<li><strong>MCAR — Missing Completely At Random.</strong> The missingness has nothing to do with any data, observed or not. Example: a sensor randomly fails 2% of the time. The remaining data is a representative sample. This is the easy case.</li>
+<li><strong>MAR — Missing At Random.</strong> The missingness depends on <em>observed</em> data, but not on the missing value itself. Example: older respondents are less likely to answer an income question, but among older respondents, those who skip are similar to those who answer. If you account for age, the remaining bias is small.</li>
+<li><strong>MNAR — Missing Not At Random.</strong> The missingness depends on the <em>missing value itself</em>. Example: high-income respondents skip the income question precisely because their income is high. No amount of clever imputation on observed data fully fixes this — the missing values are systematically different.</li>
+</ul>
+<p>Why does this matter? Because <strong>the mechanism determines which fixes are valid</strong>. Simple imputation works reasonably under MCAR and MAR (with the right variables included), but under MNAR, standard imputation underestimates the truth, and you must say so in your paper as a limitation.</p>
+<h3 id="strategies-from-simplest-to-most-careful">Strategies, from simplest to most careful</h3>
+<ol>
+<li><strong>Deletion.</strong> Drop rows with missing values (listwise deletion) or drop mostly-missing columns. Simple and honest, but it shrinks your sample and <em>biases</em> results unless data is MCAR. Dropping 40% of rows because one column is sparse is usually a mistake.</li>
+<li><strong>Simple imputation.</strong> Fill with the mean, median, or mode. Median is robust to outliers; mode works for categories. Fast and common — but it artificially reduces variance and ignores relationships between variables. Fine for a baseline, weak for a final paper.</li>
+<li><strong>Model-based imputation.</strong> Predict the missing value from other columns (e.g., k-nearest neighbors imputation, or iterative imputation where each column is predicted from the others). Captures relationships; more defensible.</li>
+<li><strong>Multiple imputation.</strong> Create several plausible filled-in datasets, analyze each, and combine results. This properly reflects the <em>uncertainty</em> of imputation. It is the gold standard in statistics [1], though less common in ML papers — using it (or citing it) strengthens your methodology section.</li>
+<li><strong>Missingness as a feature.</strong> Sometimes <em>that</em> a value is missing is informative (patients too sick for a test). Add a binary indicator column "was missing." This is legitimate feature engineering (Chapter 7).</li>
+</ol>
+<h3 id="the-leakage-trap-in-imputation">The leakage trap in imputation</h3>
+<p>A classic beginner error: computing the mean over the <em>entire</em> dataset and filling missing values <em>before</em> splitting into train and test. The test set's values then influenced the training data — leakage (Chapter 12). Always: split first, compute imputation statistics on the training set only, apply to both.</p>
+<p><strong>Worked example.</strong> A hospital dataset (n = 2,000) had missing blood pressure for 15% of patients. Analysis showed missingness correlated with age (older patients, rushed visits) — MAR, not MCAR. The researcher compared three approaches with 5-fold cross-validation: (a) dropping rows (n fell to 1,700, model AUC 0.78), (b) median imputation (AUC 0.81), (c) k-NN imputation using age, weight, and diagnosis (AUC 0.84). The paper reported all three in an ablation-style table, chose (c), and noted the MAR assumption with its limitation. Reviewers praised the comparison — it turned a chore into evidence.</p>
+<blockquote>
+<p><strong>For your research:</strong> In your paper's methodology, write one short paragraph: what percentage was missing per key variable, what mechanism you believe applies and why, and which imputation you chose. Add an ablation (with vs. without, or two strategies compared) if space allows. This single paragraph signals methodological maturity to reviewers more than almost anything else in preprocessing.</p>
+</blockquote>
+<h3 id="when-not-to-impute">When not to impute</h3>
+<p>Imputation is not always the answer. Do not impute when:</p>
+<ul>
+<li><strong>The column is mostly missing</strong> (say, &gt;50–60%). You would be fabricating the majority of the data. Either drop the column or, better, ask why it is so sparse — the answer is often informative.</li>
+<li><strong>The missingness is the signal.</strong> If "income missing" predicts loan default better than income itself, imputing destroys the signal. Keep the indicator, drop or down-weight the imputed values.</li>
+<li><strong>The value is structurally absent.</strong> A "pregnancy test result" column is empty for male patients — not missing, but inapplicable. Imputing a value is nonsense; the correct handling is a separate modeling path or an explicit "not applicable" category.</li>
+<li><strong>You are imputing the target variable.</strong> If the label itself is missing, filling it in with a model's prediction and then training on it is circular. Either drop those rows or treat it as a semi-supervised problem — and say so explicitly.</li>
+</ul>
+<h3 id="multiple-imputation-the-gold-standard-briefly">Multiple imputation: the gold standard, briefly</h3>
+<p>Single imputation (one filled-in value) pretends you know the missing value, understating uncertainty. <strong>Multiple imputation</strong> creates, say, 5–10 completed datasets with different plausible values drawn from a model, runs your analysis on each, and pools the results with rules that combine both the average estimate and the disagreement between imputations [1], [5]. The wider the disagreement, the more honest your confidence intervals become.</p>
+<p>In ML papers this is still rare — most authors use single imputation — but knowing it exists strengthens your methodology discussion. A defensible middle ground used in many papers: single model-based imputation for the main results, plus a sensitivity check (e.g., "results were unchanged under median imputation and under complete-case analysis"), reported in one sentence. That sentence tells reviewers your conclusions do not hinge on an arbitrary filling choice.</p>
+<h3 id="reporting-template">Reporting template</h3>
+<p>Copy, adapt, and paste this into your methodology section:</p>
+<blockquote>
+<p>"Variable X was missing in N% of records. Missingness was associated with [variables], consistent with a MAR mechanism. We applied [method], with parameters estimated on the training set only. A sensitivity analysis using [alternative] produced qualitatively identical results."</p>
+</blockquote>
+<p>Four sentences. Reviewers who check preprocessing will nod and move on — which is exactly what you want.</p>
+<h3 id="imputation-in-practice-a-concrete-sketch">Imputation in practice: a concrete sketch</h3>
+<p>In scikit-learn [6], the pieces look like this. Simple imputation: <code>SimpleImputer(strategy='median')</code> for numbers, <code>strategy='most_frequent'</code> for categories. Smarter: <code>KNNImputer(n_neighbors=5)</code> fills each gap from the five most similar complete rows; <code>IterativeImputer</code> cycles through columns, predicting each from the others — slower but often better. The non-negotiable pattern:</p>
+<pre><code>split data into train / test FIRST
+imputer.fit(train)        # learn medians / neighbors from train only
+train_filled = imputer.transform(train)
+test_filled  = imputer.transform(test)   # apply, never re-fit
+</code></pre>
+<p>Inside cross-validation, wrap the imputer and model in a <code>Pipeline</code> so each fold re-fits the imputer on its own training portion (Chapter 12). And add the missingness indicator with a second tiny step: a binary column per imputed feature marking "was missing here." Three lines of code, and your paper can honestly say the model had access to the missingness signal.</p>
+<p>A final practical note: imputation changes distributions — median imputation creates a spike at the median, visible in a histogram. That spike is fine for tree models but can distort linear models slightly; it is one more reason the sensitivity check (try two strategies, compare) is worth its one sentence in the paper.</p>
+<h3 id="missing-values-in-categorical-columns">Missing values in categorical columns</h3>
+<p>Categorical missingness needs its own handling. Options: impute with the mode (most frequent category) — simple, but can inflate the majority class; add an explicit "Missing" category — often the best choice, since it preserves the information that the value was absent and works naturally with one-hot or target encoding; or predict the category from other columns (classification-based imputation). Avoid imputing rare categories — a category with 5 examples that gains 500 imputed ones is no longer a real category. And watch the semantics: "unknown" as a category is honest; silently filling the mode pretends knowledge you do not have.</p>
+<h3 id="a-decision-tree-for-missing-data">A decision tree for missing data</h3>
+<p>Pin this to your wall: <strong>&gt;60% missing?</strong> → drop the column (or investigate why). <strong>Structurally absent?</strong> → "not applicable" category, never impute. <strong>MCAR and &lt;5%?</strong> → median/mode is fine. <strong>MAR?</strong> → model-based imputation (k-NN or iterative) using the variables that explain the missingness. <strong>MNAR?</strong> → impute cautiously, add the missingness indicator, and state the limitation plainly. <strong>Target missing?</strong> → drop the rows or go semi-supervised; never impute the label. Run this tree per column, record the branch you took, and your missing-data paragraph practically writes itself.</p>
+<p><strong>Key takeaways</strong>
+- Diagnose the missingness mechanism first: MCAR, MAR, or MNAR.
+- Deletion is honest but wasteful and biased unless MCAR; simple imputation is a baseline; model-based and multiple imputation are stronger.
+- Missingness itself can be a useful feature — add an indicator column.
+- Compute imputation statistics on training data only, then apply to test data — never the reverse.
+- Report missingness rates, assumed mechanism, and your chosen strategy in the paper.</p>
+<hr />
+<p><img alt="Figure 1: The data preprocessing pipeline" src="/learn/images/media-generation-book-04-fig1-0-56a7c80f-487d-4c7f-ba47-1bd89abd442d.webp" /></p>
+<hr />
+<h2 id="chapter-4-outliers-detection-and-treatment">Chapter 4: Outliers — Detection and Treatment</h2>
+<p>An outlier is a data point far from the rest. Outliers come in two flavors, and confusing them is expensive. <strong>Errors</strong> are values that cannot be true: age 250, a negative house price, a temperature reading of 85°C in a Karachi winter. <strong>Genuine rare events</strong> are extreme but real: a billionaire in an income survey, a once-in-a-decade flood in rainfall data. Errors should be fixed or removed. Genuine rare events often carry the most important signal — a fraud detection model <em>is</em> an outlier detector, and deleting the outliers would delete the entire point.</p>
+<h3 id="detection-methods">Detection methods</h3>
+<p><strong>1. Statistical rules.</strong> For roughly symmetric data, the <strong>z-score</strong> flags points more than 3 standard deviations from the mean. But z-scores themselves are distorted by extreme outliers (they inflate the standard deviation), so the <strong>IQR method</strong> is often preferred: compute the interquartile range (Q3 − Q1); flag points below Q1 − 1.5×IQR or above Q3 + 1.5×IQR. This is what box plots show as individual dots — a quick visual outlier check.</p>
+<p><strong>2. Visual inspection.</strong> Box plots per group, scatter plots, and histograms reveal outliers instantly. A single point floating far from the cloud in a scatter plot deserves investigation before any modeling.</p>
+<p><strong>3. Model-based detection.</strong> For multivariate outliers (a point normal in each dimension but strange in combination — e.g., a 25-year-old with 30 years of work experience), use methods like Isolation Forest or Local Outlier Factor, available in scikit-learn [6]. These find points that are isolated or in low-density regions of the feature space.</p>
+<p><strong>4. Domain rules.</strong> The most powerful detector is domain knowledge: a doctor knows which lab values are physiologically impossible; an agronomist knows plausible yield ranges. Encode these as validation rules during EDA.</p>
+<h3 id="treatment-options">Treatment options</h3>
+<p>Once found, you have four choices — and you must be able to defend the one you pick:</p>
+<ol>
+<li><strong>Correct</strong> — if you can verify the true value (e.g., a misplaced decimal: 850 kg instead of 85.0 kg), fix it. Best option when possible.</li>
+<li><strong>Remove</strong> — justified for clear errors you cannot correct, but document how many rows were removed and why. Removing genuine rare events to "improve" accuracy is data manipulation.</li>
+<li><strong>Cap (winsorize)</strong> — clip extreme values to a percentile (e.g., the 1st/99th). Keeps the row, limits the damage. Common in finance and economics.</li>
+<li><strong>Transform</strong> — apply log or square-root transforms to skewed data so extreme values matter less (more in Chapter 7). Keeps all data while taming influence.</li>
+</ol>
+<p>A warning: <strong>never remove outliers based on the target variable</strong> in a way that makes the prediction task artificially easy. And like imputation, outlier statistics (means, IQR bounds, caps) must be computed on training data only.</p>
+<p><strong>Worked example.</strong> An e-commerce dataset had a "purchase_amount" column with mean $45 and max $98,000. IQR analysis flagged 212 transactions above the upper bound. Investigation: 3 were data-entry errors (extra zeros — corrected to $98.00 etc.), 40 were genuine corporate bulk orders (kept, but the researcher added a "is_bulk_order" indicator feature — genuine signal preserved), and the rest were mid-range values the IQR rule flagged only because the distribution was heavily right-skewed — a log transform handled those. The paper reported each category and its treatment in a small table. Result: the model stopped chasing the $98,000 error, kept the real bulk-order signal, and the methodology section looked rigorous.</p>
+<blockquote>
+<p><strong>For your research:</strong> Create an "outlier log": every flagged value, your investigation, and your decision (correct / remove / cap / transform / keep). Put the summary in your paper's appendix or methodology. Reviewers rarely ask for it — but when they do, having it ready marks you as a serious researcher. And it protects you: undocumented outlier removal is indistinguishable from cherry-picking.</p>
+</blockquote>
+<h3 id="multivariate-outliers-strange-combinations">Multivariate outliers: strange combinations</h3>
+<p>The hardest outliers to find are normal in every single column but impossible in combination. A person who is 25 years old with 30 years of work experience passes every univariate check. A transaction of $50 at 3 a.m. is unremarkable — unless the account holder is 82 and has never transacted after 6 p.m. These are <strong>multivariate outliers</strong>, and they matter because real fraud, real faults, and real discoveries live in combinations.</p>
+<p>Detection tools: <strong>Isolation Forest</strong> (points that are easy to isolate with random splits are outliers), <strong>Local Outlier Factor</strong> (points in unusually low-density neighborhoods), and Mahalanobis distance for roughly Gaussian data — all available in scikit-learn [6]. In practice, run one of these on your feature matrix after basic cleaning, inspect the top-ranked points by hand, and decide case by case. The algorithm proposes; you dispose.</p>
+<h3 id="outliers-in-the-target-variable">Outliers in the target variable</h3>
+<p>Everything above concerned features, but outliers in the <strong>target</strong> deserve special care. In regression, a single extreme target value can drag a least-squares fit dramatically (least squares penalizes large errors quadratically [1]). Options: verify and correct it; use robust loss functions (Huber loss, which behaves like squared error for small residuals and like absolute error for large ones); or use models inherently robust to target outliers (tree ensembles, quantile regression). If you remove target outliers, your paper must say so — you are redefining the prediction task, and readers deserve to know the task's boundaries.</p>
+<h3 id="a-sane-outlier-policy">A sane outlier policy</h3>
+<p>Write this down for your project and follow it:</p>
+<ol>
+<li>Define impossible-value rules from domain knowledge; apply automatically; log corrections.</li>
+<li>Run IQR/z-score checks per feature; inspect flagged points; never bulk-delete.</li>
+<li>Run one multivariate detector; hand-inspect the top candidates.</li>
+<li>Choose per-case treatment; record everything in the outlier log.</li>
+<li>Re-run your model with and without the removals as a sensitivity check — if conclusions flip, say so.</li>
+</ol>
+<p>Step 5 is the mark of maturity: it converts outlier handling from a suspicious judgment call into a reported robustness check.</p>
+<h3 id="mini-case-the-full-outlier-workflow-on-paper">Mini-case: the full outlier workflow on paper</h3>
+<p>Imagine a "delivery_time_minutes" column, n = 5,000: median 35, mean 42, max 1,440. Step 1 — domain rules: anything above 480 minutes (8 hours) is impossible for this city's deliveries; 11 records exceed it. The operations log shows 9 were timestamp typos (AM/PM swap) — corrected via the log; 2 unverifiable — removed, logged. Step 2 — IQR check on the rest: Q1 = 25, Q3 = 50, IQR = 25, upper bound = 87.5; 63 records above it. Step 3 — inspect: these are real long deliveries during a flood week — genuine rare events, kept, and a "flood_week" indicator feature added (signal preserved, Chapter 7). Step 4 — sensitivity: model trained with and without the 63 extremes; error changes 2%, conclusions unchanged — reported in one sentence. Total rows removed: 2 of 5,000 (0.04%), each documented. That is what a defensible outlier policy looks like in practice: mostly investigation, minimal deletion, everything logged.</p>
+<h3 id="visual-habits-that-catch-outliers-early">Visual habits that catch outliers early</h3>
+<p>Build two plots into every EDA: box plots of each numeric feature grouped by the target class (outliers often cluster in one class — informative), and a scatter plot matrix of your top correlated feature pairs (multivariate weirdness shows as lonely points). When a plot looks wrong, trust the plot over the summary statistics — means and standard deviations are themselves corrupted by the outliers they are supposed to help you find.</p>
+<h3 id="when-the-outlier-is-the-discovery">When the outlier is the discovery</h3>
+<p>Not every outlier is a nuisance — some are the whole point. The ozone hole was initially dismissed as instrument error because the values were "impossible"; pulsars were first labeled "LGM" (Little Green Men) as a joke about an anomalous signal. In your own work, before deleting an extreme point, ask: "if this is real, what would it mean?" A sensor spike might be the fault signature your model needs; a bizarre transaction might be the fraud pattern. The discipline is symmetric: investigate errors before keeping them, and investigate anomalies before deleting them. Your outlier log should record both kinds of decisions — "removed as error" and "kept as genuine signal" — because both are scientific judgments a reviewer may question.</p>
+<h3 id="outliers-and-cross-validation-folds">Outliers and cross-validation folds</h3>
+<p>A subtle point: when you compute outlier bounds (IQR, z-score thresholds) inside cross-validation, each fold gets slightly different bounds — that is correct and desirable, since each fold's training data is a different sample. What you must not do is compute bounds once on all the data and reuse them across folds. And when reporting, describe the <em>rule</em> ("values beyond 1.5×IQR were capped per training fold"), not the specific numbers, since the numbers vary by fold. Rules are reproducible; one-off numbers are not.</p>
+<p><strong>Key takeaways</strong>
+- Distinguish errors (fix or remove) from genuine rare events (often the signal — keep).
+- Detect with z-scores, the IQR rule, box plots, Isolation Forest, and domain rules.
+- Treat by correcting, removing, capping (winsorizing), or transforming — and document the choice.
+- Never remove outliers to inflate accuracy; that is cherry-picking.
+- Compute outlier thresholds on training data only.</p>
+<hr />
+<h2 id="chapter-5-encoding-categorical-variables">Chapter 5: Encoding Categorical Variables</h2>
+<p>Most machine learning models work with numbers, not words. Encoding is the translation of categories like "Lahore", "male", or "high" into numeric form. The choice of encoding changes what the model can learn — and the wrong choice silently injects false assumptions.</p>
+<h3 id="one-hot-encoding">One-hot encoding</h3>
+<p>One-hot encoding creates one binary column per category: a "city" column with values Lahore, Karachi, Islamabad becomes three columns (city_Lahore, city_Karachi, city_Islamabad), with a 1 in the matching column and 0 elsewhere [4], [6]. It makes no assumption about relationships between categories — Lahore is not "more than" Karachi. This is the default, safe choice for nominal categories (categories with no natural order).</p>
+<p>The pitfall is <strong>high cardinality</strong>: a "user_id" column with 50,000 unique values becomes 50,000 columns — sparse, memory-hungry, and useless for learning. For high-cardinality features, consider grouping rare categories into "other", hashing, or target encoding.</p>
+<h3 id="ordinal-encoding">Ordinal encoding</h3>
+<p>When categories have a natural order — low &lt; medium &lt; high, or "strongly disagree" to "strongly agree" — ordinal encoding maps them to integers that preserve the rank (1, 2, 3). This is correct and compact. The danger is using it for <em>unordered</em> categories: encoding Lahore=1, Karachi=2, Islamabad=3 tells the model that Islamabad is "three times" Lahore and that Karachi is halfway between — pure fiction the model will happily learn from.</p>
+<h3 id="target-encoding">Target encoding</h3>
+<p>Target encoding replaces each category with the average target value for that category — e.g., each district encoded by its historical average house price. It handles high cardinality elegantly and often boosts performance. But it has a notorious trap: <strong>target leakage</strong>. If you compute the averages on the full dataset, information about the target leaks into the features, and your validation scores will be inflated. The safe practice: compute target encodings <em>inside each cross-validation fold</em> using only the fold's training data, with smoothing toward the global mean for rare categories.</p>
+<h3 id="practical-rules">Practical rules</h3>
+<ul>
+<li>Handle unseen categories: the test set may contain a category never seen in training (a new city). Decide the policy in advance — map to "other" or to the most frequent category — and implement it in your pipeline (Chapter 12) so it happens identically every run.</li>
+<li>Watch the dummy variable trap: for linear models, one-hot encoding all categories plus an intercept creates perfect multicollinearity; drop one column (or let regularization handle it) [1].</li>
+<li>Document every encoding choice. "Categorical variables were one-hot encoded; the district feature (312 levels) used target encoding with 5-fold in-fold computation and smoothing" is one sentence that answers three reviewer questions.</li>
+</ul>
+<p><strong>Worked example.</strong> A student predicting crop disease from farm records had three categorical columns: "crop_type" (8 values, no order), "soil_quality" (poor/fair/good/excellent — ordered), and "village" (214 villages). First attempt: ordinal encoding for all three. The model learned that village #214 was "worse" than village #1 — nonsense, and validation was poor. Fixed version: one-hot for crop_type (8 columns, fine), ordinal 1–4 for soil_quality (order is real), and target encoding for village computed inside cross-validation folds with smoothing (rare villages shrank toward the global disease rate). Accuracy rose 6 percentage points, and — more importantly — the encoding section of the paper became a crisp paragraph reviewers could verify.</p>
+<blockquote>
+<p><strong>For your research:</strong> Encoding choices are easy to describe and easy to get wrong, which makes them perfect reviewer bait. Write one paragraph naming each categorical feature, its cardinality, the encoding you chose, and why. If you used target encoding, state explicitly that it was computed within folds — reviewers check for this leakage, and stating it preempts the question.</p>
+</blockquote>
+<h3 id="taming-high-cardinality">Taming high cardinality</h3>
+<p>When a categorical feature has hundreds or thousands of levels, one-hot encoding explodes and target encoding risks leakage. Additional tools:</p>
+<ul>
+<li><strong>Rare-category grouping.</strong> Lump all categories below a frequency threshold into "other". A village with 3 records cannot support its own parameter anyway; grouping is honest about that.</li>
+<li><strong>Feature hashing.</strong> Hash categories into a fixed number of columns. Collisions (two categories sharing a column) sound alarming but work fine in practice for linear models, and memory stays bounded. Useful when cardinality is in the millions (e.g., URLs, device IDs).</li>
+<li><strong>Embeddings for categories.</strong> Neural networks can learn a dense vector per category (entity embeddings) — the categorical analogue of word embeddings (Chapter 9). Powerful, but needs enough data per category and adds model complexity [7].</li>
+<li><strong>Domain aggregation.</strong> The best option when available: replace fine-grained categories with meaningful coarser ones — individual products → product category, village → district. You lose detail but gain statistical support per level, and the result is interpretable.</li>
+</ul>
+<h3 id="encoding-and-the-traintest-contract">Encoding and the train/test contract</h3>
+<p>Whatever you choose, the encoding must be a deterministic function learned from training data and applied blindly to new data. Concretely: the set of one-hot columns, the ordinal mapping, the target-encoding lookup table, the hash function — all fixed at training time. New categories at prediction time map to your pre-decided fallback ("other" or most-frequent). If your pipeline rebuilds the encoding on each new batch of data, columns shift meaning between runs and your model silently breaks. This is another reason Chapter 12's pipeline discipline matters: the encoder is fitted once, stored, and reused.</p>
+<h3 id="ordinal-encoding-a-subtlety">Ordinal encoding: a subtlety</h3>
+<p>When you assign low=1, medium=2, high=3, you assert not just order but <em>equal spacing</em> — that the jump from low to medium equals the jump from medium to high. Sometimes that is wrong (the jump from "poor" to "fair" may matter more than "fair" to "good"). If spacing matters and you have enough data, one-hot encoding the ordered categories lets the model learn its own spacing. If data is scarce, ordinal encoding with a frank acknowledgment of the equal-spacing assumption is the pragmatic choice.</p>
+<h3 id="worked-mini-example-target-encoding-with-smoothing">Worked mini-example: target encoding with smoothing</h3>
+<p>Suppose you encode "district" for house-price prediction. District A has 200 sales averaging 8.0M; district B has 3 sales averaging 15.0M (one mansion). Raw averages would encode B as 15.0M — absurdly confident from 3 sales. <strong>Smoothing</strong> blends each category's average with the global average, weighted by evidence:</p>
+<p>encoded = (n × category_avg + m × global_avg) / (n + m)</p>
+<p>With global average 7.0M and smoothing strength m = 10: district A → (200×8.0 + 10×7.0)/210 ≈ 7.95M (barely moves — lots of evidence); district B → (3×15.0 + 10×7.0)/13 ≈ 8.85M (pulled hard toward global — little evidence). Rare categories automatically become conservative. Larger m means more skepticism; tune it or use a rule of thumb like m = 10–100.</p>
+<p>And the leakage-safe procedure, step by step: split into 5 folds; for each fold, compute the smoothed averages on the other 4 folds and encode the held-out fold; the test set is encoded with averages from the full training data. Libraries can automate this, but understanding the manual version means you will never silently leak — and you can explain it in a viva without hand-waving.</p>
+<h3 id="categorical-features-in-neural-networks-entity-embeddings">Categorical features in neural networks: entity embeddings</h3>
+<p>Neural networks offer a fourth option beyond one-hot, ordinal, and target encoding: <strong>entity embeddings</strong>. Each category gets a dense vector (say, 10–50 dimensions) that the network learns during training — similar categories end up with similar vectors, just like word embeddings (Chapter 9) [7]. A network predicting house prices learns that two similar districts have similar vectors, capturing relationships one-hot encoding cannot express and target encoding only approximates. The cost: more parameters to learn, so you need enough examples per category, and the vectors are model-specific (not reusable features). For small tabular datasets, stick with the classical encodings; for large ones with rich categorical structure, embeddings are worth an experiment — and worth a paragraph in the paper.</p>
+<h3 id="quick-reference-which-encoding-when">Quick reference: which encoding when</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Few categories, no order (gender, city)</td>
+<td>One-hot</td>
+</tr>
+<tr>
+<td>Ordered categories (low/medium/high)</td>
+<td>Ordinal (or one-hot if spacing matters)</td>
+</tr>
+<tr>
+<td>Hundreds+ categories, enough data per level</td>
+<td>Target encoding (in-fold, smoothed) or embeddings</td>
+</tr>
+<tr>
+<td>Millions

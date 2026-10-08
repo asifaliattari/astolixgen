@@ -1,0 +1,610 @@
+, measured deployment.</p>
+<hr />
+<h2 id="chapter-12-from-cnn-experiments-to-a-paper">Chapter 12 — From CNN Experiments to a Paper</h2>
+<h3 id="what-reviewers-actually-check">What reviewers actually check</h3>
+<p>A vision paper's credibility rests on a short list: <strong>(1)</strong> baselines that were actually tuned, <strong>(2)</strong> ablations showing each component earns its place, <strong>(3)</strong> statistics (seeds, variance), <strong>(4)</strong> a methods section detailed enough to reproduce, and <strong>(5)</strong> honest limitations. Everything in this chapter serves that list.</p>
+<h3 id="ablations-proving-each-piece-matters">Ablations: proving each piece matters</h3>
+<p>An <strong>ablation study</strong> removes (or swaps) one component at a time and measures the damage. It's how you answer "was it the architecture, the augmentation, or the pretraining?" Design ablations <em>before</em> running them — decide the question each row answers:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>Accuracy (%)</th>
+<th>Δ vs full</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full model (EfficientNet-B0, fine-tuned, aug)</td>
+<td>87.3 ± 0.4</td>
+<td>—</td>
+</tr>
+<tr>
+<td>− pretraining (from scratch)</td>
+<td>81.1 ± 0.7</td>
+<td>−6.2</td>
+</tr>
+<tr>
+<td>− augmentation (no aug)</td>
+<td>84.0 ± 0.5</td>
+<td>−3.3</td>
+</tr>
+<tr>
+<td>− fine-tuning (frozen backbone)</td>
+<td>85.6 ± 0.3</td>
+<td>−1.7</td>
+</tr>
+<tr>
+<td>Backbone → ResNet-50</td>
+<td>86.9 ± 0.5</td>
+<td>−0.4</td>
+</tr>
+</tbody>
+</table>
+<p>Each row isolates one decision. The Δ column is the story: pretraining mattered most, augmentation second. Rules: change exactly one thing per row; keep everything else (seeds, schedule, epochs) fixed; run 3+ seeds per row. Yes, ablations multiply compute — budget for them from the start. A paper with no ablations reads as "we tried things until a number went up," which is exactly what reviewers suspect.</p>
+<h3 id="tables-the-results-sections-backbone">Tables: the results section's backbone</h3>
+<p>Main results table conventions:</p>
+<ul>
+<li><strong>Rows</strong>: methods (yours + baselines), grouped logically. Baselines first, yours last (or bolded).</li>
+<li><strong>Columns</strong>: metrics appropriate to the task (accuracy, F1, AUC — never accuracy alone under imbalance), plus params and FLOPs when efficiency is claimed.</li>
+<li><strong>Every number</strong>: mean ± std over ≥3 seeds. A bare "87.3" with no variance is an anecdote.</li>
+<li><strong>Bold</strong> the best per column; underline second-best (common convention).</li>
+<li><strong>Footnotes</strong>: mark TTA, ensembling, or any inference-time trickery. "† uses 5-crop TTA."</li>
+</ul>
+<pre><code class="language-markdown">| Method | Backbone | Params | F1 (%) | AUC |
+|---|---|---|---|---|
+| Baseline (frozen) | ResNet-50 | 23.5M | 78.2 ± 0.6 | 0.891 ± 0.004 |
+| Fine-tuned | ResNet-50 | 23.5M | 83.4 ± 0.4 | 0.923 ± 0.003 |
+| Ours | EfficientNet-B3 | 12.2M | **85.1 ± 0.3** | **0.936 ± 0.002** |
+</code></pre>
+<h3 id="reporting-checklist-methods-section">Reporting checklist (methods section)</h3>
+<p>A reproducible methods section states: dataset (source, size, split ratios, split <em>unit</em> — patient/field/region), preprocessing (resize, normalization values), architecture (backbone, weight source + version, head design), training (optimizer, LR, schedule, epochs, batch size, augmentation policy with parameters, regularization, seeds, hardware, training time), evaluation (metrics, TTA if used, statistical treatment). If any item is missing, a reviewer can't reproduce your work — and will say so.</p>
+<h3 id="figures-that-strengthen-the-paper">Figures that strengthen the paper</h3>
+<ol>
+<li><strong>Architecture diagram</strong>: one clean figure of your model (boxes + tensor shapes at each stage). Readers decide whether to keep reading based on this figure.</li>
+<li><strong>Training curves</strong>: train/val loss + metric, showing convergence and the absence of overfitting drama.</li>
+<li><strong>Qualitative results</strong>: best/worst Grad-CAM or segmentation overlays — including a failure case with a one-sentence hypothesis ("fails on low-contrast lesions; future work: contrast-aware augmentation").</li>
+<li><strong>Ablation/confusion visuals</strong>: confusion matrix for classification; it shows <em>which</em> classes confuse the model, which is often the most interesting result.</li>
+</ol>
+<h3 id="limitations-and-ethics-write-them-before-the-camera-ready">Limitations and ethics (write them before the camera-ready)</h3>
+<p>Every paper needs an honest limitations paragraph: dataset biases (single hospital, single season, single geography), failure modes you observed, compute constraints that limited ablations, and the gap between benchmark and deployment. For human-impact domains (medical, agriculture-as-livelihood), add the ethical note: intended use, who could be harmed by errors, and why the system is assistive rather than autonomous. Reviewers — and increasingly, conferences — expect this. It also happens to be good science.</p>
+<h3 id="the-one-week-paper-sprint-a-realistic-plan">The one-week paper sprint (a realistic plan)</h3>
+<ul>
+<li><strong>Days 1–2</strong>: final baselines + ablations (seeds running in parallel).</li>
+<li><strong>Day 3</strong>: figures (architecture, curves, Grad-CAM, confusion matrix).</li>
+<li><strong>Day 4</strong>: results + methods draft (tables first, prose follows the tables).</li>
+<li><strong>Day 5</strong>: intro + related work (related work is easier once you know exactly what your contribution is).</li>
+<li><strong>Day 6</strong>: limitations, abstract, full read-through; check every number against logs.</li>
+<li><strong>Day 7</strong>: co-author review buffer.</li>
+</ul>
+<p>The golden rule: <strong>tables before prose</strong>. Write the results tables first; the story they tell <em>is</em> your paper. Prose written before the numbers exist always needs rewriting.</p>
+<blockquote>
+<p><strong>For your research.</strong> Start a "paper ledger" text file on day one of any project: every experiment gets one line (date, config, seed, result, one-line interpretation). When it's time to write, the ledger becomes your ablations and tables with zero archaeology. And version your datasets — a results table is meaningless if you can't say exactly which images were in the test split six months later. These two habits (ledger + dataset versioning) separate researchers whose work reproduces from those whose work doesn't.</p>
+</blockquote>
+<h3 id="statistics-code-release-and-surviving-peer-review">Statistics, code release, and surviving peer review</h3>
+<p><strong>Beyond mean ± std: is the difference real?</strong> With three seeds each, "85.1 ± 0.3 vs 84.6 ± 0.4" might be noise. The cheap rigorous options: (a) <strong>paired bootstrap</strong> — resample the test set 1,000 times, compute the metric difference each time, and report the 95% confidence interval of the difference; if it excludes zero, claim the win; (b) more seeds (5–10) when compute allows — variance shrinks as 1/√n.</p>
+<pre><code class="language-python">import numpy as np
+rng = np.random.default_rng(0)
+diffs = []
+for _ in range(1000):
+    idx = rng.integers(0, len(y_true), len(y_true))
+    diffs.append(metric(y_true[idx], pred_a[idx]) - metric(y_true[idx], pred_b[idx]))
+lo, hi = np.percentile(diffs, [2.5, 97.5])
+print(f&quot;Δ = {np.mean(diffs):.3f}, 95% CI [{lo:.3f}, {hi:.3f}]&quot;)
+</code></pre>
+<p>If the interval includes zero, write "no significant difference" — honesty here is what separates research from marketing, and reviewers can tell which one they're reading.</p>
+<p><strong>Code and weight release checklist.</strong> "Code will be released" with no link increasingly irritates reviewers. Release at submission (anonymized) or at camera-ready at the latest: the training script, exact configs and hyperparameters, the environment file, pretrained weights, the figure-generation notebook, and a README that reproduces the main table in the stated hardware and time. Scrub hardcoded paths and credentials first. Your future self — reproducing this work for the journal extension — will thank you even more than the reviewers will.</p>
+<p><strong>Responding to reviewers.</strong> The response letter is a genre with conventions: numbered responses mirroring the reviewers, each opening with what you <em>did</em> ("We added the requested ResNet-101 baseline; see Table 3, row 4"), quoting changed text where relevant, and conceding gracefully where the reviewer is right ("We agree the claim was overstated; we softened it on p. 4"). Never try to argue a reviewer into submission — persuade with new experiments instead. The most common revision requests for CNN papers are stronger baselines, ablations, variance reporting, and dataset details — exactly what this chapter told you to prepare <em>before</em> submission. A paper written to this chapter's checklist tends to get "accept with minor revisions" instead of "reject: insufficient evaluation."</p>
+<p><strong>Venue strategy, in one paragraph.</strong> Workshops (fast, short papers) are for early results and feedback; conferences (CVPR/ICCV/ECCV, MICCAI for medical, or top domain venues) are for archival impact — note that the rebuttal phase rewards precisely the extra experiments this book teaches you to run; journals (TPAMI, Medical Image Analysis) are for extended, mature work with full ablations. Match the venue to the result's maturity, not to your impatience: a premature conference submission that gets rejected costs more time than a workshop paper that earns useful feedback.</p>
+<h3 id="writing-related-work-the-abstract-and-a-reproducibility-checklist">Writing related work, the abstract, and a reproducibility checklist</h3>
+<p><strong>Related work as positioning, not listing.</strong> The failure mode: a chronological dump of every CNN paper since 2012. The fix: organize by <em>the question your paper answers</em>. "Prior work improves accuracy via (a) architectures, (b) pretraining, (c) augmentation. We show that on [domain], (b) dominates and (a) is saturated — contrary to [cite], who found...". Each paragraph ends with the gap your work fills. Cite the originals (this book's references give you the canonical twelve), not the survey that cited them — reviewers check. And cite competitors fairly: the paper you're beating is doing you the favor of existing; misrepresenting it is the fastest way to get a hostile review from its authors.</p>
+<p><strong>The abstract formula.</strong> Five sentences: (1) the problem and why it matters (one clause of domain motivation); (2) what prior work misses; (3) what you did (method, one sentence); (4) the key result with numbers ("92.1 ± 0.3% F1, +3.4 over the strongest baseline"); (5) the implication or released artifact. Write it last, even though it appears first — it's a summary of the tables, and the tables come first (Chapter 12's golden rule).</p>
+<p><strong>Reproducibility checklist (paste into your repo's README).</strong>
+- [ ] Dataset: source, version/hash, exact split files or split code with seed
+- [ ] Preprocessing: resize, normalization values, channel handling
+- [ ] Architecture: backbone name, weight source + version, head definition
+- [ ] Training: optimizer, LR, schedule, epochs, batch size (effective, incl. accumulation), augmentation policy with parameters, regularization, seeds
+- [ ] Hardware + software: GPU type, CUDA/PyTorch/timm versions, training time per run
+- [ ] Evaluation: metrics, TTA policy if used, statistical treatment (seeds, CI)
+- [ ] Checkpoints: final weights + best-validation weights, with config to reload them
+- [ ] Figures: script/notebook regenerating every figure from logged outputs</p>
+<p>If a stranger with your repo and a GPU can't reproduce your main table in the stated time, the checklist found the gap before the reviewers did. This is the unglamorous work that separates papers people build on from papers people cite and ignore.</p>
+<h3 id="reviewer-comments-youll-get-and-the-fixes">Reviewer comments you'll get (and the fixes)</h3>
+<table>
+<thead>
+<tr>
+<th>Comment</th>
+<th>What they mean</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Baselines are weak"</td>
+<td>Your method beats an untuned strawman</td>
+<td>Tune baseline LR/schedule; add a standard strong baseline (ResNet-50/EfficientNet)</td>
+</tr>
+<tr>
+<td>"No ablation"</td>
+<td>Can't tell what causes the gain</td>
+<td>One-variable-per-row table (this chapter); budget compute upfront</td>
+</tr>
+<tr>
+<td>"Single seed"</td>
+<td>Result might be luck</td>
+<td>3+ seeds, mean ± std; bootstrap CI for close calls</td>
+</tr>
+<tr>
+<td>"Dataset details missing"</td>
+<td>Can't judge or reproduce</td>
+<td>Split unit, sizes, annotator agreement, preprocessing — full checklist</td>
+</tr>
+<tr>
+<td>"Incremental"</td>
+<td>Contribution unclear</td>
+<td>Sharpen the claim: one sentence on what we now know; lead with the ablation that proves it</td>
+</tr>
+<tr>
+<td>"Why this architecture?"</td>
+<td>Choice unjustified</td>
+<td>RF/param/FLOP reasoning (Chapters 1–3) or a 2-rung comparison</td>
+</tr>
+<tr>
+<td>"Overclaims"</td>
+<td>Text exceeds evidence</td>
+<td>Soften verbs (suggests→demonstrates only with stats); add limitations paragraph</td>
+</tr>
+<tr>
+<td>"No failure analysis"</td>
+<td>Only successes shown</td>
+<td>Confusion matrix + Grad-CAM failure case + one-sentence hypothesis each</td>
+</tr>
+<tr>
+<td>"Code?"</td>
+<td>Reproducibility doubt</td>
+<td>Release repo + weights + figure scripts at submission</td>
+</tr>
+<tr>
+<td>"Related work incomplete"</td>
+<td>Missed key prior art</td>
+<td>Position by idea-lineage (Chapter 4's timeline); cite originals, not surveys</td>
+</tr>
+</tbody>
+</table>
+<p>Keep this table next to the manuscript while drafting. Every row is a rejection reason you can eliminate <em>before</em> submission — which is the entire thesis of this chapter: papers are accepted in the months before writing, through the experiments you chose to run.</p>
+<h3 id="failure-mode-gallery-start-yours-on-day-one">Failure-mode gallery (start yours on day one)</h3>
+<p>Keep a running document of every informative failure with the image, prediction, Grad-CAM, and your hypothesis: (a) low-contrast lesions missed — hypothesis: augmentation never simulated them; fix: contrast jitter; (b) distant-field wheat classified as barley — hypothesis: texture-only decision (receptive field too small for head morphology); fix: larger input resolution; (c) night-time satellite tiles misclassified — hypothesis: no night examples in training; fix: collect or synthesize. Three columns — observation, hypothesis, fix — reviewed weekly. Half of these become ablation rows; one or two become the paper's limitations section; the gallery itself becomes your expertise. Researchers who keep failure galleries debug in days what takes others weeks.</p>
+<p><strong>Key takeaways</strong>
+- Reviewers check: tuned baselines, ablations, seed statistics, reproducible methods, honest limitations.
+- Ablations change one thing per row, fixed everything else, 3+ seeds. Budget compute for them upfront.
+- Tables: baselines then yours, mean ± std always, params/FLOPs when relevant, footnotes for TTA/ensembles.
+- Methods must state: data, splits, preprocessing, architecture + weights, training recipe, evaluation, hardware.
+- Tables before prose. Keep a paper ledger from day one. Write limitations honestly — it's good science and good strategy.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="architecture-comparison">Architecture comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Architecture</th>
+<th>Year</th>
+<th>Params</th>
+<th>FLOPs (224px)</th>
+<th>ImageNet top-1*</th>
+<th>Best use-case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LeNet-5</td>
+<td>1998</td>
+<td>60K</td>
+<td>~0.4M</td>
+<td>n/a</td>
+<td>Teaching; tiny grayscale tasks</td>
+</tr>
+<tr>
+<td>AlexNet</td>
+<td>2012</td>
+<td>60M</td>
+<td>0.7G</td>
+<td>63.3%</td>
+<td>Historical baseline; teaching</td>
+</tr>
+<tr>
+<td>VGG-16</td>
+<td>2014</td>
+<td>138M</td>
+<td>15.5G</td>
+<td>71.6%</td>
+<td>Feature extractor; style transfer</td>
+</tr>
+<tr>
+<td>ResNet-18</td>
+<td>2015</td>
+<td>11.7M</td>
+<td>1.8G</td>
+<td>69.8%</td>
+<td>Fast baseline; small data</td>
+</tr>
+<tr>
+<td>ResNet-50</td>
+<td>2015</td>
+<td>25.6M</td>
+<td>4.1G</td>
+<td>76.1–80.2%</td>
+<td>Default research backbone</td>
+</tr>
+<tr>
+<td>ResNet-152</td>
+<td>2015</td>
+<td>60M</td>
+<td>11.6G</td>
+<td>77.3–81.3%</td>
+<td>Max-accuracy ResNet</td>
+</tr>
+<tr>
+<td>MobileNetV3-Small</td>
+<td>2019</td>
+<td>2.5M</td>
+<td>0.06G</td>
+<td>67.4%</td>
+<td>Phones; real-time edge</td>
+</tr>
+<tr>
+<td>MobileNetV3-Large</td>
+<td>2019</td>
+<td>5.4M</td>
+<td>0.22G</td>
+<td>75.2%</td>
+<td>Edge with headroom</td>
+</tr>
+<tr>
+<td>EfficientNet-B0</td>
+<td>2019</td>
+<td>5.3M</td>
+<td>0.39G</td>
+<td>77.1%</td>
+<td>Strong tiny baseline</td>
+</tr>
+<tr>
+<td>EfficientNet-B4</td>
+<td>2019</td>
+<td>19M</td>
+<td>4.2G</td>
+<td>82.9%</td>
+<td>1-GPU accuracy work</td>
+</tr>
+<tr>
+<td>EfficientNet-B7</td>
+<td>2019</td>
+<td>66M</td>
+<td>37G</td>
+<td>84.3%</td>
+<td>Max accuracy, big compute</td>
+</tr>
+</tbody>
+</table>
+<p>*Top-1 varies by weight version; torchvision v2 weights are higher than v1. Always report the weight version you used.</p>
+<h3 id="augmentation-decision-table">Augmentation decision table</h3>
+<table>
+<thead>
+<tr>
+<th>Data property</th>
+<th>Safe augmentations</th>
+<th>Avoid</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Natural photos, symmetric-ish classes</td>
+<td>H-flip, crops, color jitter, ±15° rot</td>
+<td>V-flip</td>
+<td>Vertical flips unnatural for most scenes</td>
+</tr>
+<tr>
+<td>Text / digits</td>
+<td>Tiny shifts, mild blur</td>
+<td>Any flip/rotation</td>
+<td>Flips change the label ("3" vs "Ɛ")</td>
+</tr>
+<tr>
+<td>Chest X-ray / asymmetric anatomy</td>
+<td>Small crops, intensity jitter</td>
+<td>H-flip, elastic</td>
+<td>Heart position is diagnostic</td>
+</tr>
+<tr>
+<td>Histopathology</td>
+<td>H/V flip, 90° rotations, stain jitter</td>
+<td>Heavy color jitter</td>
+<td>Stain color carries signal</td>
+</tr>
+<tr>
+<td>Satellite tiles</td>
+<td>360° rotation, flips, scale jitter</td>
+<td>Perspective warp</td>
+<td>No canonical orientation; warp unphysical</td>
+</tr>
+<tr>
+<td>Small objects / detection</td>
+<td>Constrained crops (≥0.5 scale)</td>
+<td>Aggressive RandomResizedCrop</td>
+<td>Object can be cropped out entirely</td>
+</tr>
+<tr>
+<td>Color-critical (ripeness, staining)</td>
+<td>Geometric only</td>
+<td>Hue jitter</td>
+<td>Hue <em>is</em> the label signal</td>
+</tr>
+<tr>
+<td>Rare classes, imbalanced</td>
+<td>Oversample + mild aug</td>
+<td>MixUp/CutMix (careful)</td>
+<td>Blending drowns rare-class signal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hyperparameter-cheat-sheet">Hyperparameter cheat sheet</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>From scratch</th>
+<th>Fine-tuning (backbone)</th>
+<th>New head</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Optimizer</td>
+<td>AdamW</td>
+<td>AdamW or SGD+mom</td>
+<td>AdamW</td>
+</tr>
+<tr>
+<td>Learning rate</td>
+<td>1e-3 – 3e-3</td>
+<td>1e-5 – 1e-4</td>
+<td>1e-3</td>
+</tr>
+<tr>
+<td>Weight decay</td>
+<td>0.05</td>
+<td>1e-4 (SGD) / 0.01 (AdamW)</td>
+<td>0.01</td>
+</tr>
+<tr>
+<td>Schedule</td>
+<td>Cosine, T_max=epochs</td>
+<td>Cosine or OneCycle</td>
+<td>Cosine</td>
+</tr>
+<tr>
+<td>Warmup</td>
+<td>5–10% of steps</td>
+<td>Always (esp. fresh head)</td>
+<td>5% of steps</td>
+</tr>
+<tr>
+<td>Batch size</td>
+<td>As large as fits</td>
+<td>≥16 for BatchNorm</td>
+<td>As large as fits</td>
+</tr>
+<tr>
+<td>Epochs</td>
+<td>100–300</td>
+<td>20–50</td>
+<td>5–10 (head-only stage)</td>
+</tr>
+<tr>
+<td>Label smoothing</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>0.1</td>
+</tr>
+<tr>
+<td>Dropout (head)</td>
+<td>0.2–0.5</td>
+<td>0.2–0.5</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Early stopping patience</td>
+<td>15–20 epochs</td>
+<td>10 epochs</td>
+<td>5 epochs</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="one-page-training-recipe-tear-out-and-keep">One-page training recipe (tear out and keep)</h3>
+<p><strong>Setup.</strong> Backbone: ResNet-50 (default) or EfficientNet-B0 (limited compute); weights: torchvision IMAGENET1K_V2 / timm pretrained — record exact version. Input: resize per backbone (224 / 380), normalize with ImageNet mean/std when using ImageNet weights. Split by the right unit (patient / site / region), stratified, seed fixed.</p>
+<p><strong>Augmentation.</strong> Train: RandomResizedCrop + horizontal flip (p=0.5, unless domain forbids) + mild color/intensity jitter + one advanced method (RandAugment or CutMix). Validate: deterministic resize + center crop. Inspect 64 augmented samples before training.</p>
+<p><strong>Optimization.</strong> AdamW, lr 3e-4 (from scratch) / 1e-4 backbone + 1e-3 head (fine-tune); weight decay 0.05 / 0.01; cosine schedule with 5–10% warmup; mixed precision on; label smoothing 0.1; early stopping patience 10–20 on validation loss.</p>
+<p><strong>Protocol.</strong> Stage 1: train head only (5–10 epochs). Stage 2: unfreeze, discriminative LRs, 20–50 epochs. 3+ seeds, mean ± std. Ablate: pretraining, augmentation, backbone — one row per decision.</p>
+<p><strong>Evaluation.</strong> Metrics for the domain (F1/AUC/Dice, not just accuracy); confusion matrix; Grad-CAM on 20+ samples incl. failures; bootstrap CI for close comparisons; report params, FLOPs, and measured latency.</p>
+<p><strong>Before submitting.</strong> Paper ledger complete; dataset versioned; code + weights + figure scripts released; limitations paragraph written; every number in the paper traced to a log line.</p>
+<h2 id="appendix-a-complete-training-loop-template">Appendix A — Complete Training Loop Template</h2>
+<p>The following is a minimal but complete training script incorporating this book's recommendations. Adapt it; don't rewrite from memory each time.</p>
+<pre><code class="language-python">import torch, torch.nn as nn
+from torch.utils.data import DataLoader
+from torch.amp import GradScaler, autocast
+from torchvision import models, transforms
+
+# ---------- config (log all of these) ----------
+NUM_CLASSES, EPOCHS, BATCH, SEED = 10, 50, 32, 0
+torch.manual_seed(SEED)
+
+train_tf = transforms.Compose([
+    transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(0.2, 0.2, 0.2, 0.05),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+val_tf = transforms.Compose([
+    transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+])
+# train_ds / val_ds built with the right split unit (patient/site/region)
+
+# ---------- model ----------
+model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
+model.cuda()
+
+# Stage 1: head only
+for p in model.parameters(): p.requires_grad = False
+for p in model.fc.parameters(): p.requires_grad = True
+opt = torch.optim.AdamW(model.fc.parameters(), lr=1e-3, weight_decay=0.01)
+
+def run_epoch(loader, train):
+    model.train(train)
+    tot_loss, correct, n = 0.0, 0, 0
+    for x, y in loader:
+        x, y = x.cuda(), y.cuda()
+        with autocast(device_type='cuda'), torch.set_grad_enabled(train):
+            out = model(x)
+            loss = nn.CrossEntropyLoss(label_smoothing=0.1)(out, y)
+        if train:
+            opt.zero_grad(); scaler.scale(loss).backward()
+            scaler.step(opt); scaler.update()
+        tot_loss += loss.item() * len(x); correct += (out.argmax(1) == y).sum().item(); n += len(x)
+    return tot_loss / n, correct / n
+
+scaler = GradScaler()
+train_loader = DataLoader(train_ds, batch_size=BATCH, shuffle=True, num_workers=4)
+val_loader = DataLoader(val_ds, batch_size=BATCH, num_workers=4)
+for ep in range(5):
+    tr_loss, tr_acc = run_epoch(train_loader, True)
+    va_loss, va_acc = run_epoch(val_loader, False)
+    print(f&quot;[head] ep{ep} train {tr_loss:.3f}/{tr_acc:.3f} val {va_loss:.3f}/{va_acc:.3f}&quot;)
+
+# Stage 2: fine-tune all with discriminative LRs
+for p in model.parameters(): p.requires_grad = True
+opt = torch.optim.AdamW([
+    {'params': model.layer4.parameters(), 'lr': 1e-4},
+    {'params': model.fc.parameters(), 'lr': 1e-3},
+], lr=1e-5, weight_decay=0.01)
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=EPOCHS)
+
+best, patience, wait = float('inf'), 10, 0
+for ep in range(EPOCHS):
+    tr_loss, tr_acc = run_epoch(train_loader, True)
+    va_loss, va_acc = run_epoch(val_loader, False)
+    sched.step()
+    print(f&quot;ep{ep} train {tr_loss:.3f}/{tr_acc:.3f} val {va_loss:.3f}/{va_acc:.3f}&quot;)
+    if va_loss &lt; best:
+        best, wait = va_loss, 0
+        torch.save({'model': model.state_dict(), 'epoch': ep}, 'best.pt')
+    else:
+        wait += 1
+        if wait &gt;= patience:
+            print(&quot;early stopping&quot;); break
+</code></pre>
+<p>Deliberate choices encoded above: staged fine-tuning, discriminative LRs, AMP, label smoothing, cosine schedule, early stopping on validation loss with best-checkpoint saving. The main things it omits (add as needed): weighted sampling for imbalance, gradient accumulation for small GPUs, LR warmup (add a linear warmup scheduler for the first epochs), and multi-seed looping (wrap in a <code>for seed in [0,1,2]</code> shell loop).</p>
+<h2 id="appendix-b-notation-and-shape-conventions">Appendix B — Notation and Shape Conventions</h2>
+<ul>
+<li>Tensors: <strong>NCHW</strong> — (batch, channels, height, width). A "224px RGB batch of 32" is (32, 3, 224, 224).</li>
+<li>Conv2d weight shape: (C_out, C_in, K_h, K_w). The i-th output channel's kernel is <code>weight[i]</code>.</li>
+<li>"3×3 conv, 64→128" means kernel 3×3, 64 input channels, 128 output channels: params = 128 × (9×64 + 1).</li>
+<li>RF: receptive field; s: stride; P: padding. Output size: floor((W − K + 2P)/S) + 1.</li>
+<li>lr: learning rate; wd: weight decay; TTA: test-time augmentation; GAP: global average pooling.</li>
+<li>"Frozen" = <code>requires_grad=False</code>; "eval mode" = <code>model.eval()</code> (affects BN/dropout, independent of freezing).</li>
+<li>Seeds: report data seed and init seed separately when diagnosing variance.</li>
+</ul>
+<h2 id="further-reading">Further Reading</h2>
+<ul>
+<li>I. Goodfellow, Y. Bengio, and A. Courville, <em>Deep Learning</em>, MIT Press, 2016 — Chapters 9 (CNNs) and 7–8 (regularization/optimization). The free online version remains the best single reference.</li>
+<li>C. Zhang, S. Bengio, M. Hardt, B. Recht, and O. Vinyals, "Understanding deep learning requires rethinking generalization," in <em>Proc. ICLR</em>, 2017 — the memorization paper cited in Chapter 1; short and mind-changing.</li>
+<li>S. Ioffe and C. Szegedy, "Batch normalization: Accelerating deep network training by reducing internal covariate shift," in <em>Proc. ICML</em>, 2015 — the other half of why deep nets train.</li>
+<li>J. Johnson, "CNN lecture notes," Stanford CS231n — the clearest free course notes on CNN mechanics; work its assignments if you want implementation fluency.</li>
+<li>O. Russakovsky et al., "ImageNet large scale visual recognition challenge," <em>Int. J. Comput. Vis.</em>, vol. 115, pp. 211–252, 2015 — the dataset paper behind everything in Chapters 4–6; read it to understand what ImageNet pretraining actually transfers.</li>
+<li>M. Gebru et al., "Datasheets for datasets," <em>Commun. ACM</em>, vol. 64, no. 12, pp. 86–92, 2021 — the dataset-documentation proposal from Chapter 11.</li>
+<li>K. He, X. Zhang, S. Ren, and J. Sun, "Delving deep into rectifiers: Surpassing human-level performance on ImageNet classification," in <em>Proc. ICCV</em>, 2015 — He initialization, cited in Chapter 1's expansion.</li>
+</ul>
+<h2 id="references">References</h2>
+<p>[1] Y. LeCun, L. Bottou, Y. Bengio, and P. Haffner, "Gradient-based learning applied to document recognition," <em>Proc. IEEE</em>, vol. 86, no. 11, pp. 2278–2324, Nov. 1998.</p>
+<p>[2] A. Krizhevsky, I. Sutskever, and G. E. Hinton, "ImageNet classification with deep convolutional neural networks," in <em>Adv. Neural Inf. Process. Syst. 25</em>, Lake Tahoe, NV, USA, 2012, pp. 1097–1105.</p>
+<p>[3] K. Simonyan and A. Zisserman, "Very deep convolutional networks for large-scale image recognition," in <em>Proc. Int. Conf. Learn. Represent. (ICLR)</em>, San Diego, CA, USA, 2015.</p>
+<p>[4] K. He, X. Zhang, S. Ren, and J. Sun, "Deep residual learning for image recognition," in <em>Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)</em>, Las Vegas, NV, USA, 2016, pp. 770–778.</p>
+<p>[5] K. He, X. Zhang, S. Ren, and J. Sun, "Identity mappings in deep residual networks," in <em>Proc. Eur. Conf. Comput. Vis. (ECCV)</em>, Amsterdam, Netherlands, 2016, pp. 630–645.</p>
+<p>[6] A. G. Howard et al., "MobileNets: Efficient convolutional neural networks for mobile vision applications," <em>arXiv:1704.04861</em>, 2017.</p>
+<p>[7] M. Sandler, A. Howard, M. Zhu, A. Zhmoginov, and L.-C. Chen, "MobileNetV2: Inverted residuals and linear bottlenecks," in <em>Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)</em>, Salt Lake City, UT, USA, 2018, pp. 4510–4520.</p>
+<p>[8] M. Tan and Q. V. Le, "EfficientNet: Rethinking model scaling for convolutional neural networks," in <em>Proc. Int. Conf. Mach. Learn. (ICML)</em>, Long Beach, CA, USA, 2019, pp. 6105–6114.</p>
+<p>[9] M. Lin, Q. Chen, and S. Yan, "Network in network," in <em>Proc. Int. Conf. Learn. Represent. (ICLR)</em>, Banff, Canada, 2014.</p>
+<p>[10] R. R. Selvaraju et al., "Grad-CAM: Visual explanations from deep networks via gradient-based localization," in <em>Proc. IEEE Int. Conf. Comput. Vis. (ICCV)</em>, Venice, Italy, 2017, pp. 618–626.</p>
+<p>[11] O. Ronneberger, P. Fischer, and T. Brox, "U-Net: Convolutional networks for biomedical image segmentation," in <em>Proc. Med. Image Comput. Comput.-Assist. Interv. (MICCAI)</em>, Munich, Germany, 2015, pp. 234–241.</p>
+<p>[12] M. D. Zeiler and R. Fergus, "Visualizing and understanding convolutional networks," in <em>Proc. Eur. Conf. Comput. Vis. (ECCV)</em>, Zurich, Switzerland, 2014, pp. 818–833.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Activation map / feature map</strong>: The 2-D output grid produced by applying one kernel across the input; a layer's output volume stacks one map per kernel.</li>
+<li><strong>Batch normalization</strong>: Layer that normalizes each channel to zero mean/unit variance per mini-batch (with learned scale/shift); stabilizes and accelerates training.</li>
+<li><strong>Bottleneck block</strong>: Residual block using 1×1 → 3×3 → 1×1 convolutions to cut computation in deep ResNets.</li>
+<li><strong>Channel</strong>: One 2-D slice of an image or feature volume (e.g., R/G/B); convolutions mix information across channels.</li>
+<li><strong>Compound scaling</strong>: EfficientNet's rule for jointly scaling network depth, width, and input resolution.</li>
+<li><strong>Convolution (deep learning)</strong>: Cross-correlation of a learned kernel over the input — sliding element-wise multiply-and-sum; the name "convolution" is conventional.</li>
+<li><strong>Cross-correlation</strong>: The unflipped sliding-dot-product operation that deep learning libraries compute and call convolution.</li>
+<li><strong>Data augmentation</strong>: Random transformations of training images (flips, crops, color shifts) that synthesize dataset variation.</li>
+<li><strong>Depthwise separable convolution</strong>: Factorized convolution — a per-channel spatial filter followed by a 1×1 channel mixer; ~8–9× cheaper than standard convolution.</li>
+<li><strong>Discriminative learning rates</strong>: Using smaller learning rates for early (pretrained) layers and larger ones for late layers/head during fine-tuning.</li>
+<li><strong>Dropout</strong>: Regularization that randomly zeroes activations during training to prevent co-adaptation.</li>
+<li><strong>Effective receptive field</strong>: The input region that actually influences a neuron — smaller and Gaussian-shaped compared to the theoretical receptive field.</li>
+<li><strong>Feature extraction (transfer)</strong>: Freezing a pretrained backbone and training only a new classifier head.</li>
+<li><strong>Fine-tuning</strong>: Training some or all of a pretrained network's weights on a new task, usually with small learning rates.</li>
+<li><strong>FLOPs</strong>: Floating-point operations; a hardware-independent measure of a model's computational cost.</li>
+<li><strong>Global average pooling (GAP)</strong>: Averaging each feature map to a single value; the standard parameter-free bridge to the classifier.</li>
+<li><strong>Grad-CAM</strong>: Visualization weighting a layer's feature maps by their gradient-derived importance for a class, showing influential image regions.</li>
+<li><strong>Inductive bias</strong>: Assumptions built into an architecture (e.g., locality and weight sharing in CNNs) that guide learning.</li>
+<li><strong>Kernel / filter</strong>: The small learned weight matrix slid across the input in a convolution.</li>
+<li><strong>Label smoothing</strong>: Regularization that softens one-hot targets, discouraging overconfident predictions.</li>
+<li><strong>Negative transfer</strong>: When pretraining on a source domain hurts (rather than helps) performance on the target domain.</li>
+<li><strong>Padding</strong>: Border pixels added around an input so convolution preserves spatial size ("same" padding) or controls shrinkage.</li>
+<li><strong>Pooling</strong>: Fixed downsampling operation (max/average) over windows; gives approximate translation invariance, no learned parameters.</li>
+<li><strong>Receptive field</strong>: The input-image region that can affect a given neuron's value; grows with depth and stride.</li>
+<li><strong>Residual / skip connection</strong>: An identity shortcut adding a block's input to its output (y = F(x) + x); enables very deep networks by preserving gradient flow.</li>
+<li><strong>Stride</strong>: The step size of the sliding kernel; stride &gt; 1 downsamples the output.</li>
+<li><strong>Test-time augmentation (TTA)</strong>: Averaging predictions over augmented versions of each test image for free accuracy gains.</li>
+<li><strong>Translation equivariance</strong>: A shift of the input shifts the feature map equally (property of convolution).</li>
+<li><strong>Translation invariance</strong>: A shift of the input leaves the output (approximately) unchanged (property of pooling).</li>
+<li><strong>Warmup</strong>: Gradually ramping the learning rate from 0 at the start of training to avoid early instability.</li>
+<li><strong>Weight decay</strong>: L2 penalty on weights; the baseline regularizer, decoupled from gradients in AdamW.</li>
+</ul>
+<hr />
+<ul>
+<li><strong>Atrous/dilated convolution</strong>: Convolution with gaps inserted in the kernel, enlarging the receptive field without extra parameters or resolution loss.</li>
+<li><strong>Backbone</strong>: The pretrained convolutional feature extractor (e.g., ResNet-50) to which a task-specific head is attached.</li>
+<li><strong>Catastrophic forgetting</strong>: Loss of pretrained features during aggressive fine-tuning on a small dataset.</li>
+<li><strong>Checkpoint</strong>: Saved model weights (and optimizer state) during/after training; best-validation checkpointing is standard.</li>
+<li><strong>Concept activation vector (TCAV)</strong>: Direction in activation space representing a human-defined concept, used to quantify a model's reliance on it.</li>
+<li><strong>Confusion matrix</strong>: Table of predicted vs. true classes showing exactly which classes a classifier confuses.</li>
+<li><strong>CutMix</strong>: Augmentation pasting a patch from one image onto another, mixing labels by area proportion.</li>
+<li><strong>Effective batch size</strong>: Batch size × gradient-accumulation steps; the batch size the optimizer effectively sees.</li>
+<li><strong>Head</strong>: Task-specific layers (usually classifier) attached to a pretrained backbone.</li>
+<li><strong>Learning-rate finder</strong>: Single-run exponential LR sweep used to pick a training LR (Smith, 2017).</li>
+<li><strong>Linear probing</strong>: Training only the classifier head on frozen backbone features; first stage of LP-FT.</li>
+<li><strong>MixUp</strong>: Augmentation blending two images and their labels with a random mixing coefficient.</li>
+<li><strong>Quantization</strong>: Reducing weight/activation precision (e.g., FP32→INT8) to shrink models and speed inference.</li>
+<li><strong>SyncBatchNorm</strong>: Batch normalization with statistics synchronized across GPUs in distributed training.</li>
+<li><strong>Weight tying</strong>: Sharing the same parameters across positions or layers (convolution's core mechanism).</li>
+</ul>
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Hand convolution.</strong> Using the 5×5 input and 3×3 vertical-edge kernel from Chapter 2, compute the output at position (1, 1) by hand, then verify with the PyTorch snippet. Then recompute with stride 2 and padding 1, predicting the output shape first with the sizing formula.</li>
+<li><strong>Parameter audit.</strong> For a network with: conv1 (3→64, 7×7, stride 2), maxpool, conv2 (64→128, 3×3), conv3 (128→256, 3×3), GAP, FC (256→10) — compute total parameters by hand using the per-layer formula, then verify in PyTorch. Which layer dominates the parameter count?</li>
+<li><strong>Receptive field mapping.</strong> Compute the theoretical receptive field at each stage of the network in Exercise 2 (input 224×224). Is the final RF large enough to cover a 100-pixel object? What would you change if it weren't?</li>
+<li><strong>Build a residual block from scratch.</strong> Implement <code>BasicBlock</code> (Chapter 5) without looking, then stack 8 of them into a tiny ResNet for CIFAR-10. Train it for 20 epochs. Then remove the skip connections and retrain — compare training loss curves and explain the difference.</li>
+<li><strong>Research: ablation design.</strong> Pick a published CNN paper in your domain. List every design decision the authors made (backbone, augmentation, pretraining, loss). Design a 5-row ablation table that isolates the paper's central claim. Which row would falsify the claim if it showed no drop?</li>
+<li><strong>Transfer learning shootout.</strong> Take a small public dataset in your domain (or CIFAR-10 as proxy). Compare three protocols with identical budgets: (a) from-scratch training, (b) frozen-backbone feature extraction, (c) staged fine-tuning with discriminative LRs. Report mean ± std over 3 seeds. Which wins, and by how much per protocol?</li>
+<li><strong>Augmentation forensics.</strong> Build the training augmentation pipeline from Chapter 8, save a 64-image grid of augmented samples from <em>your</em> dataset, and inspect every image. Find one augmentation that violates label preservation for your data and justify its removal in two sentences (methods-section style).</li>
+<li><strong>Research: spurious correlation hunt.</strong> Train a classifier, then run Grad-CAM on 50 test images. Find at least one case where the heatmap focuses outside the object of interest. Hypothesize the spurious cue, propose a data or augmentation fix, and re-run. Did the heatmap move?</li>
+<li><strong>Efficiency under constraint.</strong> You have one GPU and 12 hours. Compare EfficientNet-B0, MobileNetV3-Large, and ResNet-18 (all pretrained, fine-tuned) on your task: report accuracy, params, FLOPs, and measured inference latency on your target device. Write the one-paragraph "model selection" justification for your paper.</li>
+<li><strong>Research: from ledger to paper.</strong> Run a 4-experiment mini-project (baseline + 3 ablations, 3 seeds each) on any image task, keeping a paper ledger (date, config, seed, result, interpretation — Chapter 12). Produce: one results table with mean ± std, one training-curve figure, one Grad-CAM figure with an honest caption, and a limitations paragraph. This is a complete paper skeleton — keep the habit.</li>
+</ol>
+<hr />
+<p><em>End of Book 12 — Convolutional Neural Networks for Images · AstolixGen Learning Series</em></p>

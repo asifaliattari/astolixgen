@@ -1,0 +1,361 @@
+<h1 id="storytelling-with-data">Storytelling with Data</h1>
+<p><strong>Book 26 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Cover: data points flowing into an open storybook, a line chart rising like a path to the sunrise" src="/learn/images/media-generation-book-26-cover-0-bafc4501-87cc-496a-883c-cf7e45935933.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>You can run the analysis, train the model, and compute the p-value — but none of it matters if your audience cannot see what you see. Research lives or dies in communication. A brilliant result buried in a cluttered figure, a conference talk that loses the room on slide three, a thesis whose graphs confuse the examiner: these are not writing problems, they are storytelling problems.</p>
+<p>This book teaches you the craft of turning data into stories: how the human brain reads charts, how to choose the right visual for your message, how to strip away clutter, how to use color deliberately, how to annotate so a figure teaches on its own, and how to carry the same narrative skill into dashboards, live talks, reports, papers, and theses. It is written for MS and PhD students and early researchers who want their work not just published, but understood, remembered, and used.</p>
+<p>By the end of this book you will be able to take any result — a table of numbers, a model comparison, a field survey — and shape it into a clear, honest, persuasive visual story.</p>
+<p><strong>Learning objectives:</strong></p>
+<p>By the end of this book, you will be able to:</p>
+<ol>
+<li>Explain why narrative structures persuade more effectively than raw tables, using ideas from cognitive science (preattentive processing, working memory limits, narrative transportation).</li>
+<li>Profile an audience (stakeholders, peer reviewers, or the public) and adapt the same finding to each audience's goals, expertise, and attention budget.</li>
+<li>Apply the setup–conflict–resolution narrative arc to data presentations, talks, and paper results sections.</li>
+<li>Select the right chart for any message using the comparison, composition, distribution, and relationship framework, and avoid the most common chart misuses.</li>
+<li>Declutter any chart systematically — removing chartjunk and raising the data-ink ratio — with a repeatable before-and-after process.</li>
+<li>Use color, contrast, and other preattentive attributes deliberately to guide the eye, while designing for colorblind-safe, accessible palettes.</li>
+<li>Write action titles, subtitles, and annotations that make each figure self-explanatory.</li>
+<li>Design dashboards that tell a story with a clear hierarchy instead of collections of unrelated widgets.</li>
+<li>Present data live using assertion–evidence slides and guided chart narration.</li>
+<li>Write the data story in reports, research papers, and theses so that figures reviewers love carry the argument.</li>
+</ol>
+<hr />
+<h2 id="how-to-use-this-book">How to Use This Book</h2>
+<p>This is a working book, not a reading book. Each chapter follows the same rhythm: a concept explained in plain language, a detailed before-and-after example you can picture, a practical walkthrough, a <strong>For your research</strong> box that applies the idea to your thesis or paper <em>today</em>, and key takeaways. Read the chapters in order the first time — each builds on the last (color assumes decluttering, dashboards assume both). Then keep the <strong>Learning Dashboard</strong> section open beside you while you work: the chart chooser matrix, declutter checklist, and color rules are designed as at-desk references.</p>
+<p>Two ways to work through it:</p>
+<ul>
+<li><strong>The four-week path</strong> (alongside your research): one part per week — Chapters 1–3 (thinking), 4–6 (charts and design), 7–9 (titles, dashboards, talks), 10–12 (writing and capstone). Each week, apply that part's exercises to your actual draft. By week four you will have redesigned your own figures twice.</li>
+<li><strong>The deadline path</strong> (a submission in days): read Chapters 4, 5, and 7, run the 20-point audit in Chapter 12 on your manuscript, and fix what fails. Even this compressed pass transforms most drafts.</li>
+</ul>
+<p>Keep a "redesign folder" as you go: before/after pairs of every figure you fix. It becomes your portfolio, your defense evidence, and — when you teach a junior colleague the declutter pass — your lesson plan.</p>
+<h1 id="chapter-1-why-stories-beat-tables-cognition-and-persuasion">Chapter 1: Why Stories Beat Tables — Cognition and Persuasion</h1>
+<p>Imagine two ways of receiving the same research result. In the first, you open a table of 60 numbers: monthly rainfall figures for five years, no summary, no highlight. In the second, someone shows you one line chart and says, "Look — every dry season since 2022 has arrived a month earlier, and last year it arrived six weeks early. That is why the reservoirs were empty in March." Which version would you remember next week? Which would you act on?</p>
+<p>Almost everyone picks the second. This chapter explains why, in terms of how human brains actually process information — and what that means for how you, as a researcher, communicate your work.</p>
+<h2 id="11-the-table-problem-numbers-without-a-path">1.1 The Table Problem: Numbers Without a Path</h2>
+<p>Tables are precise, but precision is not the same as clarity. A table gives the reader no guidance about where to look first, what matters most, or what conclusion to draw. The reader must do all the cognitive work: scan rows, hold values in memory, compare mentally, and construct the pattern themselves.</p>
+<p>Consider this described "before" example. A researcher studying urban air quality collects PM2.5 readings (fine particulate matter, in µg/m³) across six Karachi neighborhoods, morning and evening, for one week. The "before" version is a table: 12 rows × 7 columns of numbers between 28 and 186. Everything the finding contains is technically present. Yet after two minutes of staring, a reader can tell you only vague impressions: "evenings seem higher," "Gulshan seems bad." They cannot state the finding, because the table never stated one.</p>
+<p>Now the "after" version. Same data, one grouped bar chart with 12 bars, evenings shaded darker. A single bar — Gulshan, Friday evening, 186 µg/m³ — is colored in alarming coral red while the rest are gray. The title reads: "Friday-evening traffic pushes Gulshan's PM2.5 to 6× the WHO limit — the worst in the city." An annotation points at the red bar: "Congestion after Friday prayers." One glance, and the reader knows the problem, its size, and its likely cause. Nothing was hidden; the chart simply did the cognitive work the table refused to do.</p>
+<p>This is the first principle of data storytelling: <strong>your job is not to display data, it is to transfer understanding.</strong> Tables display; stories transfer.</p>
+<h2 id="12-how-the-brain-reads-pictures-preattentive-processing">1.2 How the Brain Reads Pictures: Preattentive Processing</h2>
+<p>Human vision processes some visual attributes in under 250 milliseconds, before conscious thought begins. Researchers call these <strong>preattentive attributes</strong>: color, size, position, orientation, length, and a few others. When one bar in a chart is bright red among gray bars, your eye jumps to it without deciding to — the way a red apple catches your eye in a pile of green ones.</p>
+<p>This matters because conscious thought is slow and expensive. Working memory — the mental scratchpad where we compare and reason — holds only about four items at once (modern estimates have revised the old "seven" downward; the exact number is debated, but the point stands: it is tiny). A table of 84 numbers overflows it instantly. A well-designed chart does not, because the visual system handles the pattern-finding preattentively and hands consciousness a finished conclusion: "that one is much bigger."</p>
+<p>Two landmark findings from visualization science anchor this idea. First, Cleveland and McGill (1984) showed experimentally that people judge values encoded as <strong>position along a common scale</strong> (bar heights, points on an axis) far more accurately than values encoded as <strong>angle</strong> (pie slices) or <strong>area</strong> (bubble sizes). This is why this book will repeatedly steer you away from pie charts and 3D effects: they fight your visual hardware. Second, Bertin's (1983) theory of visual variables mapped which visual channels carry which kinds of information — position for quantity, hue for category, size for emphasis — and misusing them (for example, encoding a quantity as a rainbow of colors) creates confusion the viewer cannot explain but will feel.</p>
+<p>The practical lesson: <strong>encoding choice is a cognitive contract with your reader.</strong> Honor it, and the chart reads itself. Break it, and the reader works hard for nothing.</p>
+<h2 id="13-why-narrative-persuades-transportation-memory-and-affect">1.3 Why Narrative Persuades: Transportation, Memory, and Affect</h2>
+<p>Cognition explains why charts beat tables. Persuasion explains why <em>stories</em> beat bare charts. Three well-studied mechanisms matter for researchers.</p>
+<p><strong>Narrative transportation.</strong> When people follow a story — a setup, a complication, a resolution — they become mentally "transported" into it, and transported audiences counter-argue less. A skeptic who would pick apart a bare claim ("your sample is small") gets absorbed instead by the arc: the mystery of the missing fish, the hunt through the data, the reveal. This does not mean manipulation; it means that a finding embedded in a genuine intellectual journey is evaluated in context rather than attacked in isolation. For researchers defending novel or counterintuitive results, that context is everything.</p>
+<p><strong>Memory: stories stick, statistics slide.</strong> People forget isolated facts within days but remember stories for years — this is why every culture encodes its most important knowledge (origins, dangers, morals) as narrative. As a researcher, your goal is not just that reviewers <em>accept</em> your paper but that readers <em>remember and cite</em> it. A paper whose core finding can be retold as a one-paragraph story ("they expected X, but found Y, and here is why") gets retold. A paper whose finding is a table gets buried.</p>
+<p><strong>Affect: emotion tags importance.</strong> The brain marks what to remember partly by how it feels. A pure statistic ("a 12% decline") carries little emotional weight; the story behind it ("twelve percent of the surveyed households lost their primary income source") carries a lot. Data storytelling is not about making research emotional in a sentimental sense — it is about honestly connecting numbers to their human consequences, which is what makes the number <em>matter</em>.</p>
+<h2 id="14-the-identification-effect-one-story-vs-one-thousand-numbers">1.4 The Identification Effect: One Story vs. One Thousand Numbers</h2>
+<p>There is a classic tension in persuasion research: statistics show scale, but a single vivid case moves people. Large numbers can even numb ("psychic numbing"): 10,000 affected people can feel less urgent than one well-described person. The wise storyteller uses both — the statistic for credibility, the case for meaning.</p>
+<p>For researchers, the equivalent is the pairing of <strong>the chart and the exemplar</strong>. A public-health paper might show the distribution of clinic wait times (the pattern, honest and complete) and then trace one anonymized patient's journey through that distribution (the story, concrete and human). The chart proves; the exemplar makes it felt. Use this pairing whenever your audience includes anyone who must act on the data — policymakers, practitioners, the public.</p>
+<h2 id="15-what-this-means-for-your-research-career">1.5 What This Means for Your Research Career</h2>
+<p>Three concrete implications:</p>
+<ol>
+<li><strong>Reviewers are human readers first.</strong> A reviewer deciding between "accept" and "major revision" is influenced by how effortlessly they grasp your contribution. Clear figures and a narrative results section do not replace rigor, but they let your rigor be seen. Many "unclear contribution" rejections are really "unclear communication" rejections.</li>
+<li><strong>Citations reward memorability.</strong> Papers get cited when other researchers remember the finding and can describe it in one sentence. The narrative framing of your paper — the story the abstract tells — is your citation engine.</li>
+<li><strong>Impact requires persuasion.</strong> If your research could change practice or policy, the analysis is only half the work. The other half is a story that survives the journey from your desk to a decision-maker's mind. Nobody funded a program because of a table.</li>
+</ol>
+<h2 id="16-the-persuaders-toolkit-ethos-pathos-logos-and-the-biases-in-the-room">1.6 The Persuader's Toolkit: Ethos, Pathos, Logos — and the Biases in the Room</h2>
+<p>Aristotle, writing about rhetoric more than two thousand years ago, divided persuasion into three appeals. They map onto data storytelling so precisely that they work as a diagnostic for any weak figure or talk.</p>
+<p><strong>Ethos — credibility.</strong> Before your chart can persuade, <em>you</em> must be believed. In research, ethos is built from transparency: methods described, uncertainty shown, limitations admitted, sources cited. A beautiful chart from a source that hides its methods persuades nobody — and a modest chart from a transparent source carries weight far beyond its polish. Every honesty practice in this book (error bars in Chapter 4, the limitations layer in Chapter 10, the grayscale test in Chapter 6) is ethos-building. Reviewers are professional ethos-assessors; stakeholders assess it intuitively within minutes.</p>
+<p><strong>Logos — the logical case.</strong> This is the chart itself: the comparison, the control group, the trend that survives scrutiny. Logos is where most researchers over-invest, polishing the analysis while neglecting the other two appeals — and then wondering why a weaker analysis, better told, won the funding.</p>
+<p><strong>Pathos — the human stakes.</strong> The exemplar, the consequence, the reason the number matters. Pathos is not decoration and not manipulation; it is the honest connection between the statistic and the world it describes. "A 12% decline in clinic attendance" is logos. "One in eight patients stopped coming — mostly mothers who could not afford the bus fare after the route changed" is logos <em>plus</em> pathos, and it is the version that gets the route restored.</p>
+<p>A complete data story carries all three. Check any important figure or talk against them: <em>Would a skeptic trust me here? Does the evidence actually support the claim? Does anyone feel why it matters?</em> A "no" anywhere is a repair task.</p>
+<p><strong>The biases in the room.</strong> Your audience does not process your story as a neutral computer. Four cognitive biases shape every data presentation:</p>
+<ul>
+<li><strong>Anchoring.</strong> The first number the audience hears frames everything after it. Open with "the program costs $180,000" and the audience evaluates every benefit against that anchor; open with "the program returns $900,000 in yield gains" and the cost feels small. Neither framing is dishonest — but <em>choose</em> your anchor deliberately, because one will be chosen for you otherwise. In papers, the abstract's first quantitative claim is the anchor for the whole manuscript.</li>
+<li><strong>Confirmation bias.</strong> People accept congenial findings easily and scrutinize uncongenial ones fiercely. When your data <em>contradicts</em> what the audience believes, expect the scrutiny and pre-disarm it: acknowledge the prior belief explicitly, show the robustness checks before the skeptic asks, and frame the finding as an extension of existing knowledge rather than an attack on it ("building on X's framework, we found the effect reverses when…").</li>
+<li><strong>The availability heuristic.</strong> Vivid, recent, or emotional examples overweight in judgment. Your single compelling case study (Chapter 1's exemplar) will loom larger in the audience's mind than the base rate deserves — which is exactly why you must always pair the exemplar with the statistic. The story makes them care; the number keeps them honest.</li>
+<li><strong>The curse of knowledge.</strong> You know your data so well that you cannot imagine not seeing the pattern. This is why your charts look obvious to you and opaque to everyone else — and why the stranger test (Chapter 2) is non-negotiable. Every default assumption you leave unexplained ("everyone knows what a z-score is") is a small exclusion of part of your audience.</li>
+</ul>
+<p><strong>The line between persuasion and manipulation.</strong> It is simple to state and demanding to honor: <em>your story must survive the audience seeing the full data.</em> If showing the complete dataset, the uncertainty, and the alternative explanations would collapse your narrative, the narrative was manipulation. If the full picture strengthens it — as it does for genuinely solid work — the narrative was honest persuasion. Every technique in this book passes this test, because every technique is about <em>revealing</em> structure, not hiding it. The moment you catch yourself choosing a chart to make an effect look bigger, you have crossed the line — go back to Chapter 4's honesty checks.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take the central result of your current project — the one finding you most want people to know. Write it as a three-sentence story: (1) the setup — what you expected or what the situation was; (2) the conflict — what the data actually showed, especially anything surprising; (3) the resolution — what it means and what should happen next. If you cannot write these three sentences, you do not yet understand your own result well enough to visualize it. ## 1.7 The Skeptic's Corner: How Stories Can Mislead</p>
+</blockquote>
+<p>Storytelling is powerful enough to mislead, and intellectual honesty requires naming the failure modes — so you can avoid them and spot them in others' work.</p>
+<ul>
+<li><strong>The cherry-picked anecdote.</strong> A vivid case presented as typical when it is an outlier. Guardrail: always pair the exemplar with the base rate (Section 1.4), and say explicitly whether the case is typical or extreme.</li>
+<li><strong>The truncated timeline.</strong> Starting a trend line at the dip to manufacture a rise. Guardrail: show the full relevant history; if you zoom, show the zoom <em>within</em> the full context (an inset or a "you are here" marker).</li>
+<li><strong>Survivorship framing.</strong> Telling the story of the successes while the failures vanish from the data ("our incubator's startups averaged 40% growth" — excluding the ones that died). Guardrail: ask what is missing from the denominator and show it.</li>
+<li><strong>Causal language for correlational charts.</strong> A slope invites the reader to infer cause; the honest storyteller adds the caveat in the annotation or caption ("associated with," not "caused by," unless the design supports causation).</li>
+<li><strong>The persuasive palette.</strong> Using alarming red for a modest change, or calming blue for a crisis. Color carries pathos (Section 1.6) — which means it can be abused. Guardrail: the grayscale test plus the question "would this color choice survive a skeptic's scrutiny?"</li>
+</ul>
+<p>The common thread: every misleading technique works by <em>hiding</em> something — context, uncertainty, the denominator, the alternative. The honest storyteller's rule from Section 1.6 covers them all: your story must survive the audience seeing the full data. When you review others' charts, run the same audit in reverse: what am I not being shown?</p>
+<p>That gap is your first research task, not a graphics task.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Tables display data; stories transfer understanding. Your job is the transfer.</li>
+<li>Preattentive attributes (color, size, position) let the visual system do pattern-finding before conscious thought — design with them, not against them.</li>
+<li>Position along a common scale is the most accurately judged visual encoding (Cleveland &amp; McGill, 1984); prefer bars and aligned dot plots over pies and bubbles.</li>
+<li>Narrative transportation reduces counter-arguing, stories are remembered longer than statistics, and concrete cases carry emotional weight that marks a finding as important.</li>
+<li>Pair the pattern (the chart) with the exemplar (the case) whenever your audience must act.</li>
+<li>Reviewers, citations, and real-world impact all reward the researcher who can tell the story of the data, not just compute it.</li>
+</ul>
+<hr />
+<h1 id="chapter-2-know-your-audience-stakeholders-reviewers-and-the-public">Chapter 2: Know Your Audience — Stakeholders, Reviewers, and the Public</h1>
+<p>The single most common data-storytelling failure is not a bad chart. It is a chart built for the wrong reader. A figure that delights your supervisor can baffle a policymaker; a slide that persuades a funding panel can embarrass you in front of peer reviewers. Before you choose a chart, choose your reader. This chapter gives you a systematic way to do that.</p>
+<h2 id="21-the-three-core-audiences-of-research-data">2.1 The Three Core Audiences of Research Data</h2>
+<p>Nearly every data story a researcher tells is aimed at one of three audiences:</p>
+<p><strong>1. Stakeholders and decision-makers</strong> — funders, policymakers, industry partners, hospital administrators, NGO program officers. They have limited time, strong domain context but possibly weak statistical training, and one defining trait: <strong>they need to decide something.</strong> Their question is always some version of "so what do we do?" They tolerate very little method detail and reward crisp recommendations.</p>
+<p><strong>2. Peer reviewers and fellow researchers</strong> — examiners, journal referees, conference audiences, your supervisor. They have deep statistical training, long attention spans for method, and one defining trait: <strong>they need to verify something.</strong> Their question is "is this true, and is it new?" They reward rigor, caveats, complete reporting, and reproducibility — and they punish overclaiming and hidden uncertainty.</p>
+<p><strong>3. The public and students</strong> — media readers, undergraduates, community members, social media audiences. They have minimal background, short attention, and one defining trait: <strong>they need to understand something quickly.</strong> Their question is "why should I care?" They reward simplicity, concrete examples, and human relevance — and they punish jargon instantly.</p>
+<p>These audiences are not intelligence levels; they are <strong>different jobs.</strong> A hospital CEO is not a dumber version of a biostatistician; she is a person with a different task. Respecting the task is the whole game.</p>
+<h2 id="22-the-wiifm-filter-what-does-the-reader-need-to-do">2.2 The WIIFM Filter: What Does the Reader Need to Do?</h2>
+<p>Before designing anything, answer one question in writing: <strong>What do I want this audience to think, feel, or do after seeing this?</strong> "What's in it for me" (WIIFM) is the filter every reader unconsciously applies. A stakeholder filters for decisions; a reviewer filters for validity; the public filters for relevance.</p>
+<p>A practical tool is the audience brief — five lines you write before touching any software:</p>
+<ul>
+<li><strong>Who</strong> exactly? (Name the person or panel, not "the public.")</li>
+<li><strong>What decision or judgment</strong> will they make with this?</li>
+<li><strong>What do they already know?</strong> (Assumed background, vocabulary.)</li>
+<li><strong>What do they fear?</strong> (Looking foolish, wasting money, being misled.)</li>
+<li><strong>What is the one message?</strong> (A single sentence — the takeaway you need them to carry out of the room.)</li>
+</ul>
+<p>Example. You have studied dropout rates in rural schools. Your audience brief for a meeting with a provincial education secretary reads: <em>Who: the Secretary and her two advisors. Decision: whether to fund a pilot mentoring program in 50 schools. They know: budgets, politics, school names — not statistics. They fear: funding a program that fails publicly. One message: "Dropout spikes in grade 8, and mentoring halves it — a pilot in the 50 worst schools costs less than the current repeat-grade spending."</em> That brief now dictates everything: one chart (the grade-8 spike), one comparison (mentored vs. not), one cost figure, and a recommendation. No p-values, no model diagnostics — those belong to the reviewer version.</p>
+<h2 id="23-attention-budgets-and-expertise-a-practical-map">2.3 Attention Budgets and Expertise: A Practical Map</h2>
+<p>Two dimensions locate your audience: <strong>expertise</strong> (how much technical background they bring) and <strong>attention budget</strong> (how much time and mental effort they will spend). The combinations demand different designs:</p>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Expertise</th>
+<th>Attention budget</th>
+<th>Design demands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stakeholder/decision-maker</td>
+<td>Domain-high, stats-low</td>
+<td>Minutes</td>
+<td>One message per visual, plain words, recommendations, no method</td>
+</tr>
+<tr>
+<td>Peer reviewer</td>
+<td>Stats-high</td>
+<td>Hours</td>
+<td>Full method, uncertainty shown, caveats, reproducibility</td>
+</tr>
+<tr>
+<td>Conference peers</td>
+<td>Stats-medium/high</td>
+<td>Seconds per slide</td>
+<td>Takeaway titles, big type, one idea per slide</td>
+</tr>
+<tr>
+<td>Public/students</td>
+<td>Low</td>
+<td>Seconds</td>
+<td>Analogy, one vivid example, human scale, no jargon</td>
+</tr>
+</tbody>
+</table>
+<p>Notice the trap: researchers default to the reviewer row for everyone, because that is the version they built first. The stakeholder version and the public version are <em>separate designs</em>, not simplified accidents. Plan the time for them.</p>
+<h2 id="24-same-finding-three-deliveries-a-worked-example">2.4 Same Finding, Three Deliveries — A Worked Example</h2>
+<p>Suppose your finding is: <em>A low-cost drip-irrigation kit raised smallholder tomato yields by 34% in a field trial across 120 farms in Sindh, with the largest gains on the smallest farms.</em></p>
+<p><strong>For stakeholders</strong> (an agricultural development fund): a one-page brief. Headline: "A $40 kit raised tomato yields by one-third — biggest gains on the smallest farms." One bar chart: yield with kit vs. without, split by farm size, the small-farm bars highlighted. One line: cost per kit and payback within one season. One ask: fund scale-up to 5,000 farms. No mention of the mixed-effects model — it is in the appendix nobody will open, and that is fine.</p>
+<p><strong>For reviewers</strong> (a journal paper): the full figure set. A CONSORT-style flow of farm enrollment, a table of baseline characteristics, the main results figure with 95% confidence intervals, a robustness panel (alternative specifications), and an honest limitations paragraph. The narrative arc is present (the problem of water scarcity, the surprise that small farms gained most, the mechanism you propose) but the <em>evidence burden</em> is carried by complete, checkable reporting.</p>
+<p><strong>For the public</strong> (a newspaper op-ed or university social post): one human story. "Ahmed, who farms two acres outside Hyderabad, used to lose a third of his crop to uneven watering. This season, with a kit that costs less than a bag of fertilizer, his harvest filled eleven extra crates." One simple chart: his yield before and after, in crates, not tonnes per hectare. The statistic (34% across 120 farms) appears as one sentence of credibility, not as the lead.</p>
+<p>Same truth, three shapes. None is a "dumbed-down" version of the others; each is optimized for a different reader's job.</p>
+<h2 id="25-the-message-first-rule">2.5 The Message-First Rule</h2>
+<p>The discipline that prevents audience drift is simple: <strong>write the message sentence before you make the chart.</strong> Not the topic ("irrigation results") — the message ("the kit raised yields by one-third, most on small farms"). Then design the chart to make that sentence obvious, and check afterward that a stranger reading only the figure would arrive at your sentence.</p>
+<p>A useful test is the "squint test for strangers": show the figure to someone outside your project for ten seconds, then ask what it says. If they cannot reproduce your message sentence, the figure is not yet finished — no matter how beautiful it is. Researchers resist this test because it feels like an insult to their work. It is the opposite: it is the first time you are treating communication as a testable claim.</p>
+<h2 id="26-reading-the-room-adapting-mid-stream-and-designing-for-access">2.6 Reading the Room: Adapting Mid-Stream and Designing for Access</h2>
+<p>No audience brief survives first contact unchanged. A stakeholder asks a methods question; a reviewer asks for the practical implication; half the conference audience turns out to be undergraduates. The skill is adapting without losing the story.</p>
+<p><strong>Signals and pivots.</strong> Treat audience questions as data about their real job. A stakeholder who asks "how was this measured?" is doing a credibility check — answer briefly and return to the decision ("we surveyed 4,000 households; the key point for the funding decision is…"). A reviewer who asks "so what should be done?" wants the implication you buried — promote it. Prepare every important talk at three depths: the <strong>headline</strong> (the one sentence, ten seconds), the <strong>standard version</strong> (your planned talk), and the <strong>deep dive</strong> (backup slides with methods, robustness, and detail). Questions tell you which depth the room needs; the deep-dive slides let you go there without derailing the narrative.</p>
+<p><strong>Designing for access</strong> is audience analysis at its most literal — some of your audience cannot see your chart at all, or cannot read your language easily:</p>
+<ul>
+<li><strong>Alt text for figures.</strong> Papers, theses, and web reports increasingly require alternative text for images. Write a real description, not "chart showing results": "Bar chart: drip-irrigation adopters averaged 4.1 tonnes per hectare versus 3.0 for non-adopters, a 34% gap; the gap is widest on farms under 2 acres." A blind reader using a screen reader should get the finding, not just the chart type.</li>
+<li><strong>Verbalize charts in talks.</strong> Never say "as you can see." Describe the pattern aloud: "the teal line — the mentored schools — holds steady through grade 8, while the gray lines spike." This serves blind attendees, people at the back, and everyone whose attention lapsed for five seconds.</li>
+<li><strong>Language and literacy.</strong> For public and cross-cultural audiences, audit jargon ruthlessly ("heteroskedasticity" becomes "uneven spread"), avoid idioms and culture-specific references, and prefer concrete units (crates, rupees, minutes) over abstractions.</li>
+<li><strong>Visual legibility.</strong> Minimum 24pt type on slides, high-contrast text, and colorblind-safe palettes (Chapter 6) are accessibility measures, not style preferences.</li>
+<li><strong>Cognitive load.</strong> For audiences reading in a second language or with limited statistical training, reduce each visual to one message and state it explicitly. What feels like hand-holding to you feels like clarity to them.</li>
+</ul>
+<p>Accessibility is not a separate chapter of design; it is what audience-centered design looks like when taken seriously. The same practices that include a blind reader — clear language, explicit messages, redundant encoding — make your work clearer for everyone.</p>
+<blockquote>
+<p><strong>For your research:</strong> Pick your most important current figure. Write the audience brief (the five lines from Section 2.2) for three audiences: your thesis examiner, a funding body in your field, and an educated non-specialist friend. Then write the one message sentence for each. You will likely discover that you have been showing all three audiences the examiner version. Redesign one figure for the non-examiner audience this week — it is excellent practice and ## 2.7 The One-Page Audience Planner (Template)</p>
+</blockquote>
+<p>Copy this template for every important communication. Filling it takes ten minutes and saves hours of misdirected design.</p>
+<blockquote>
+<p><strong>Audience:</strong> <em>[name the person, panel, or group — never "the public"]</em>
+<strong>Decision or judgment they will make:</strong> <em>[what changes because of your work?]</em>
+<strong>What they already know:</strong> <em>[background, vocabulary, prior beliefs]</em>
+<strong>What they fear:</strong> <em>[looking foolish, wasting money, being misled, missing a flaw]</em>
+<strong>Attention budget:</strong> <em>[minutes / one meeting / full reading]</em>
+<strong>The one message:</strong> <em>[single sentence they must carry away]</em>
+<strong>Format:</strong> <em>[talk / paper figure / brief / dashboard]</em>
+<strong>What I will NOT show them:</strong> <em>[detail that belongs to another audience — naming it prevents scope creep]</em></p>
+</blockquote>
+<p><strong>Filled example</strong> (the irrigation study, funder meeting): Audience — program director + two advisors at the Agri Development Fund. Decision — fund a $180,000 pilot or not. Know — budgets, districts, politics; not statistics. Fear — funding a visible failure. Attention — 15 minutes. One message — "A $40 kit raised small-farm yields by a third; a targeted subsidy pays for itself in one season." Format — 5-slide brief + one-page handout. Will NOT show — the mixed-effects model specification, the 40-coefficient table, district-level nulls (available in appendix if asked).</p>
+<p>The last line is the template's secret weapon: explicitly listing what you will <em>omit</em> stops the reviewer-version from creeping back in. Keep completed planners in your project folder; after the meeting, note what worked and what the audience actually asked — the next planner gets sharper.</p>
+<p>often becomes the figure you use in your defense presentation.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Design for the reader's job: stakeholders decide, reviewers verify, the public needs to care quickly.</li>
+<li>Write a five-line audience brief before designing anything: who, what decision, what they know, what they fear, the one message.</li>
+<li>Map expertise against attention budget; the reviewer version of a figure is not a universal version.</li>
+<li>The same finding deserves three different deliveries; each is a full design, not a dumbed-down accident.</li>
+<li>Write the message sentence first, then build the chart to prove it — and test it on a stranger for ten seconds.</li>
+</ul>
+<hr />
+<h1 id="chapter-3-the-narrative-arc-for-data-setup-conflict-resolution">Chapter 3: The Narrative Arc for Data — Setup, Conflict, Resolution</h1>
+<p>Every story ever told runs on tension and release: something is established, something disrupts it, something resolves it. Data has the same raw material — expectations, surprises, explanations — and a data story that uses the arc feels inevitable, while one that skips it feels like a random walk through slides. This chapter shows you how to build the arc honestly, without inventing drama your data does not contain.</p>
+<h2 id="31-setup-conflict-resolution-in-data-terms">3.1 Setup, Conflict, Resolution — in Data Terms</h2>
+<p>Translate the classic three-act structure into research terms:</p>
+<ul>
+<li><strong>Setup (context):</strong> the world as we believed it was. The background, the baseline, the expectation. "For decades, literacy programs assumed the bottleneck was enrollment — get children into school and reading follows."</li>
+<li><strong>Conflict (tension):</strong> the moment the data disagrees with the setup. The anomaly, the gap, the unexpected result. "But in our survey of 4,000 households, enrolled children in two districts read <em>worse</em> than unenrolled children in a third."</li>
+<li><strong>Resolution (action):</strong> the explanation and what follows. The mechanism, the implication, the recommendation. "The difference was teacher attendance, not enrollment. The policy implication: monitor presence before building classrooms."</li>
+</ul>
+<p>Notice what the arc does: it converts a finding ("a difference in reading scores") into a <em>question the audience wants answered</em> ("why would enrolled children read worse?"). Curiosity is the engine of attention. A list of results never creates curiosity; a violated expectation always does.</p>
+<p><strong>The honest constraint:</strong> the conflict must be real. You may not manufacture surprise by hiding context, cherry-picking comparisons, or staging a straw-man expectation nobody held. The arc is a way of <em>revealing</em> the genuine intellectual tension in your work — the gap between what was known and what you found — not a trick for manufacturing it. Reviewers, especially, can smell invented drama, and it destroys trust.</p>
+<h2 id="32-the-arc-drawn-rising-tension-across-a-talk-or-paper">3.2 The Arc, Drawn: Rising Tension Across a Talk or Paper</h2>
+<p>Picture the classic tension curve: it rises through the setup as stakes are established, spikes at the conflict, and falls through the resolution. Map it onto a 15-minute conference talk:</p>
+<ul>
+<li><strong>Minutes 0–3 (setup):</strong> the problem and why it matters, ending with the prevailing belief. Tension: low but rising — the audience learns the stakes.</li>
+<li><strong>Minutes 3–6 (setup continues):</strong> your approach, briefly. The audience now holds a question: "will this method crack it?"</li>
+<li><strong>Minutes 6–10 (conflict):</strong> the results, ordered for maximum honest tension — expected findings first, then the anomaly. End on the surprise. Tension peaks here. A well-placed pause after revealing the key chart does more than any animation.</li>
+<li><strong>Minutes 10–13 (resolution):</strong> the explanation, the mechanism, the robustness checks that rule out boring explanations. Tension falls as understanding rises.</li>
+<li><strong>Minutes 13–15 (resolution/coda):</strong> the implication — what changes, what is next. The audience leaves with the message sentence.</li>
+</ul>
+<p>The same curve fits a paper's results section and a thesis chapter. Most student writing fails the arc in one specific way: it presents results in <em>analysis order</em> (the order the work was done) instead of <em>narrative order</em> (the order that builds understanding). Analysis order buries the surprise in the middle of routine findings. Narrative order earns it.</p>
+<h2 id="33-building-tension-ethically-three-honest-techniques">3.3 Building Tension Ethically: Three Honest Techniques</h2>
+<p><strong>1. The curiosity gap.</strong> State what is known, then name the specific thing that is not known — and that your work addresses. "We know mentoring reduces dropout (many studies). We do not know <em>which students</em> it helps most — and that decides where the money goes." The gap must be genuine and specific; vague gaps ("little is known about...") create no tension.</p>
+<p><strong>2. Expectation vs. reality.</strong> Show the audience the prediction first, then the data. In a talk, this can be literal: display the expected pattern (from theory or prior studies), ask the audience to hold it in mind, then reveal your result beside it. The visual contrast <em>is</em> the conflict, and the audience experiences the surprise rather than being told about it. In a paper, the same move appears in text: "Contrary to the pattern reported by X, we observed..."</p>
+<p><strong>3. The zoom.</strong> Start wide (the population, the trend, the big picture), then zoom to the revealing detail. A national trend line that looks flat becomes, district by district, a story of two opposite movements cancelling out. The zoom creates tension through <em>scale change</em>: what looked settled at one resolution dissolves at another. This technique is especially powerful with maps and small multiples.</p>
+<h2 id="34-the-arc-inside-imrad-where-each-act-lives">3.4 The Arc Inside IMRaD: Where Each Act Lives</h2>
+<p>The standard paper structure (Introduction, Methods, Results, Discussion) already contains the arc — students just rarely exploit it:</p>
+<ul>
+<li><strong>Introduction = setup + promised conflict.</strong> The literature review establishes the world; the research gap names the tension; the objectives promise the resolution. A strong introduction ends with the reader <em>wanting</em> the results.</li>
+<li><strong>Methods = the credibility of the coming resolution.</strong> Brief in a talk, complete in a paper. Its narrative job is to assure the reader that the conflict, when it arrives, will be trustworthy.</li>
+<li><strong>Results = the conflict, staged.</strong> Order findings for understanding, not chronology. Lead the reader from the familiar to the surprising. Each figure should be a scene: a setup (what am I looking at), a conflict (what is unexpected here), resolved by the caption and text.</li>
+<li><strong>Discussion = the resolution.</strong> Explain the mechanism, reconcile with prior work ("our conflict with X is explained by..."), state limitations honestly (unresolved tension is fine — it becomes someone's future setup), and land the implication.</li>
+</ul>
+<p>When a thesis examiner says "the thesis lacks a thread," they usually mean the arc is missing: chapters read as disconnected analyses because no one built the tension that connects them. Your literature review's gap is the setup for the whole thesis; each empirical chapter should open by restating which part of the tension it addresses.</p>
+<h2 id="35-hooks-opening-lines-that-earn-attention">3.5 Hooks: Opening Lines That Earn Attention</h2>
+<p>The first 60 seconds of a talk — or the first paragraph of a paper — decide whether the audience leans in. Four hook types work reliably for research:</p>
+<ul>
+<li><strong>The startling number:</strong> "Every year, this city loses more water to leaking pipes than it delivers to homes." (Then: how you measured it.)</li>
+<li><strong>The violated expectation:</strong> "Everything we thought about reading instruction in these schools turned out to be wrong."</li>
+<li><strong>The concrete scene:</strong> "At 6 a.m. in the Gulshan market, the air already smells of diesel. By 8, the monitors read six times the safe limit." (Then: the study.)</li>
+<li><strong>The unanswered question:</strong> "Why do the smallest farms gain the most from new technology? Nobody had measured it — until now."</li>
+</ul>
+<p>Each hook is a promise the rest of the talk must keep. Never open with background ("I would like to thank..."; "Data science is the study of..."). Background is setup; the hook comes first, and the setup follows.</p>
+<p><strong>Worked mini-example: the arc in one figure.</strong> Imagine a study of exam scores after a school introduced tablets. The <em>analysis-order</em> figure is a single bar chart of average scores, 2023 vs. 2024, with a small increase. The <em>narrative-order</em> version is two panels. Panel A (setup): scores by subject in 2023, before tablets — mathematics lowest. Panel B (conflict → resolution): the change in each subject after tablets — mathematics jumped, languages barely moved — with an annotation: "Gains concentrated where interactive practice replaced rote work." The title teaches: "Tablets lifted math scores most — the subject with the most practice-based learning." Same data; the second version has an arc, and the reader experiences the discovery.</p>
+<h2 id="36-arc-failures-diagnosis-and-repair">3.6 Arc Failures: Diagnosis and Repair</h2>
+<p>Stories fail in recognizable ways. Diagnose yours:</p>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Symptom</th>
+<th>Repair</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>False suspense</strong></td>
+<td>Hype with no payoff; "shocking results!" that turn out to be a 2% change</td>
+<td>Calibrate the tension to the real surprise; let modest findings be modest</td>
+</tr>
+<tr>
+<td><strong>The buried lede</strong></td>
+<td>The key finding appears on page 9 or slide 14</td>
+<td>Move the conflict forward; open findings with the most important message</td>
+</tr>
+<tr>
+<td><strong>Analysis-order narration</strong></td>
+<td>"First we cleaned the data, then we ran…" — the reader wades through process</td>
+<td>Reorder by message; move process to methods or appendix</td>
+</tr>
+<tr>
+<td><strong>The missing resolution</strong></td>
+<td>Report ends with results; no implication, no recommendation</td>
+<td>Add the resolution: what changes, who acts, what is next</td>
+</tr>
+<tr>
+<td><strong>Manufactured drama</strong></td>
+<td>A straw-man expectation nobody held, set up to be knocked down</td>
+<td>Replace with the genuine tension — the real gap between known and found</td>
+</tr>
+<tr>
+<td><strong>The rushed conflict</strong></td>
+<td>Surprise stated but never explained; audience left hanging</td>
+<td>Slow down at the peak: mechanism, robustness, then implication</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Repair in practice.</strong> Take a draft and highlight each paragraph (or slide) in one of three colors: setup, conflict, resolution. A healthy draft shows all three with the conflict given real space. The most common pattern in student work is 80% setup (long literature review, long methods), 15% conflict (results rushed through), 5% resolution (one vague "future work" line). The fix is rebalancing, not rewriting: trim the setup, expand the conflict's explanation, and write a resolution that names actions. Color-highlighting makes the imbalance impossible to ignore — which is why it works.</p>
+<p><strong>When not to use the arc.</strong> The narrative arc suits talks, papers, and reports — formats where you hold attention over time. For memos, executive emails, and policy briefs, use the <strong>inverted pyramid</strong> instead: lead with the conclusion and recommendation, then supporting evidence in decreasing order of importance. The busy reader who stops after paragraph one still gets the message. (Chapter 10's policy brief follows this structure.) Knowing which structure the format demands — arc for sustained attention, pyramid for skimming — is itself an audience skill.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take the results section of your current paper or thesis chapter. List your findings in the order presented. Now reorder them by narrative logic: which finding is the setup (confirms expectations, builds context)? Which is the conflict (the surprise, the gap, the key contribution)? Which findings resolve it (mechanism, robustness)? Rewrite the section's opening paragraph as a three-sentence arc — setup, conflict, resolution — and check that every figure appears in the order its scene requires. ## 3.7 Micro-Arcs: Stories Inside Single Figures</p>
+</blockquote>
+<p>The arc scales down: every important figure should itself be a three-act scene. Readers encounter figures one at a time, often out of order — so each needs its own miniature setup, conflict, and resolution, carried by the teaching layer (Chapter 7).</p>
+<ul>
+<li><strong>Setup in a figure:</strong> the subtitle and the context series. "Monthly dropout rates, 50 schools, 2022–2024" plus the gray baseline lines establish the world.</li>
+<li><strong>Conflict in a figure:</strong> the highlighted anomaly and its annotation. The teal line diverging in grade 8, marked "mentoring began," is the disruption made visible.</li>
+<li><strong>Resolution in a figure:</strong> the action title and the interpretive annotation. "Mentored schools avoided the grade-8 spike" tells the reader what the disruption means.</li>
+</ul>
+<p>Test any figure by covering its surrounding text: can a reader still identify the setup (what am I looking at?), the conflict (what is surprising?), and the resolution (what does it mean?) from the title, subtitle, and annotations alone? If yes, the figure is a complete scene; if the reader must consult your paragraphs to find the point, the micro-arc is missing and the figure is leaking its storytelling job onto the text.</p>
+<p>This is why the teaching layer matters so much: titles, subtitles, and annotations are not decoration — they are the figure's narrative structure. A well-built figure tells its scene; the surrounding text then connects scenes into the chapter's arc, the chapter into the paper's, the paper into the field's. Stories nest, and the researcher who builds them at every level is the one whose work gets remembered.</p>
+<p>This single revision often transforms a "list of analyses" into a readable story.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Map your material onto setup (the world as believed), conflict (what the data disrupted), resolution (explanation and implication).</li>
+<li>Curiosity comes from violated expectations — stage the expectation before revealing the result.</li>
+<li>Present results in narrative order, not the order you ran the analyses.</li>
+<li>Use the three honest tension techniques: the curiosity gap, expectation vs. reality, and the zoom.</li>
+<li>IMRaD already contains the arc; make the introduction promise tension and the results deliver it in scenes.</li>
+<li>Open talks and papers with a hook — a number, a violated expectation, a scene, or a question — never with background.</li>
+</ul>
+<hr />
+<h1 id="chapter-4-choosing-the-right-chart-a-complete-chart-chooser-guide">Chapter 4: Choosing the Right Chart — A Complete Chart Chooser Guide</h1>
+<p>Most bad charts are not ugly; they are miscast. A pie chart with fourteen slices, a line chart of categories, a bar chart whose axis starts at 800 — each is the right actor in the wrong role. This chapter gives you a complete, question-driven system for casting the right chart every time.</p>
+<p><img alt="A researcher choosing between chart types displayed as tools on a workbench: bar, line, pie, and scatter charts" src="/learn/images/media-generation-book-26-ch4-charts-0-fd2085cc-0f9a-4f98-88ff-1cf9dfa698e9.webp" /></p>
+<h2 id="41-start-with-the-question-not-the-chart">4.1 Start with the Question, Not the Chart</h2>
+<p>Beginners open their software and browse chart types; professionals start from the question the chart must answer. Every data message falls into one of four relationship families, a framework popularized by analysts like Andrew Abela and Stephen Few:</p>
+<ol>
+<li><strong>Comparison</strong> — how do things rank against each other? (Which district has the worst air? Which model is most accurate?)</li>
+<li><strong>Composition</strong> — what are the parts of a whole? (Where does the budget go? What share of energy comes from solar?)</li>
+<li><strong>Distribution</strong> — how are values spread? (Are incomes clustered or skewed? Where do most scores fall?)</li>
+<li><strong>Relationship</strong> — how do two variables move together? (Does study time predict scores? Does rainfall correlate with yield?)</li>
+</ol>
+<p>Identify the family first. Roughly half of all chart mistakes are family errors — answering a comparison question with a composition chart, or showing a trend with bars when a line would reveal the shape.</p>
+<h2 id="42-the-core-cast-what-each-chart-does-best">4.2 The Core Cast: What Each Chart Does Best</h2>
+<p><strong>Bar chart (horizontal or vertical) — comparison.</strong> The workhorse of data communication. Bars encode value as length along a common scale — the most accurately perceived encoding (Cleveland &amp; McGill, 1984). Use vertical bars for a few categories or time periods, horizontal bars for many categories or long labels (readers read horizontal labels effortlessly; rotated 45° labels are a readability tax). Always start the value axis at zero — truncating it exaggerates differences and is one of the classic honesty violations. Sort bars by value (descending) unless a natural order exists (time, age groups). A sorted bar chart <em>is</em> a story: the ranking is the message.</p>
+<p><strong>Line chart — change over time (a special comparison).</strong> Lines reveal trends, slopes, and turning points that bars chop into disconnected blocks. Use when the x-axis is continuous time or another ordered continuum. Multiple lines invite comparison of trajectories — but keep them to four or fewer; beyond that, use small multiples or highlight one line in color and gray out the rest. Never use a line chart for unordered categories (connecting "Karachi–Lahore–Islamabad" with a line implies a continuity that does not exist).</p>
+<p><strong>Dot plot — precise comparison.</strong> A dot on a common scale, often with a thin line to the axis. More space-efficient than bars when you have many items or multiple series, and preferred by visualization experts for clean comparisons. Excellent for before/after comparisons (two dots per item joined by a line: the slope <em>is</em> the story).</p>
+<p><strong>Pie/donut chart — composition, only in strict conditions.</strong> The pie is the most misused chart in existence. Human angle judgment is poor, so pies fail at precise comparison. Use a pie only when: there are 2–5 slices, one slice is the story (the dominant share), and approximate proportions suffice. Otherwise use a stacked bar (better for comparing across groups) or a simple bar chart of the shares (better for ranking parts). A donut adds nothing analytically — it is a pie with the middle removed — but is fine aesthetically if you must show one composition. Never use 3D pies: the perspective distorts slice sizes and is chartjunk at its worst.</p>
+<p><strong>Histogram — distribution of one variable.</strong> Shows the shape: normal, skewed, bimodal, with outliers. Choosing bin width is a judgment call — too few bins hides structure, too many shows noise. For a general audience, label the bins in plain ranges ("20–29 years") and annotate the shape ("most students cluster here").</p>
+<p><strong>Box plot — distribution comparison across groups.</strong> Shows median, quartiles, and outliers compactly. Powerful for comparing distributions across categories (test scores by school), but requires the audience to know how to read a box — fine for reviewers, risky for the public.</p>
+<p><strong>Scatter plot — relationship between two continuous variables.</strong> Each point is an observation; the cloud reveals correlation, clusters, and outliers. Add a trend line only if a real model backs it (never a decorative line), and label interesting outliers directly — an unexplained far-flung point distracts, an annotated one teaches. Bubble charts (scatter with a third variable as size) are rarely worth it: area is poorly judged, and the chart quickly becomes unreadable.</p>
+<p><strong>Heatmap/table — precise lookup.</strong> When exact values matter more than patterns — a confusion matrix, a correlation table — a well-formatted table with subtle shading <em>is</em> a visualization. Use color sparingly to encode magnitude (light-to-dark single hue), keep numbers aligned, and round aggressively: nobody needs six decimals.</p>
+<p><strong>Map — geographic patterns.</strong> Use only when location is the message. Choropleth maps (regions shaded by value) are the common choice, but beware: large regions dominate visually regardless of population. Consider cartograms or dot-density alternatives when population matters more than land area.</p>
+<h2 id="43-the-misuse-gallery-seven-classic-errors">4.3 The Misuse Gallery: Seven Classic Errors</h2>
+<ol>
+<li><strong>The 14-slice pie.</strong> Composition with too many parts — slices become slivers, labels collide. <em>Fix:</em> show the top 4–5 categories and group the rest as "Other," or switch to a sorted bar chart.</li>
+<li><strong>The truncated bar axis.</strong> Bars starting at 800 instead of 0 make a 5% difference look like a landslide. <em>Fix:</em> always start bars at zero; if small differences matter, use a dot plot with a zoomed axis and say so.</li>
+<li><strong>The dual-axis deception.</strong> Two different scales on one chart let the designer tune the visual relationship arbitrarily. <em>Fix:</em> index both series to a common baseline (e.g., 100 at the start) or use two aligned panels.</li>
+<li><strong>The rainbow categorical palette.</strong> Twelve categories in twelve bright colors, none meaningful. <em>Fix:</em> gray for all, color only the category that carries the message.</li>
+<li><strong>The line chart of categories.</strong> A jagged line connecting unrelated categories implies trend where none exists. <em>Fix:</em> bars for categories, lines for time.</li>
+<li><strong>The 3D bar chart.</strong> Perspective distorts heights; the front bar always looks bigger. <em>Fix:</em> flat 2D, always. There is no analytical case for 3D in standard charts.</li>
+<li><strong>The spaghetti plot.</strong> Eight overlapping time series in similar colors, no legend discipline. <em>Fix:</em> highlight the one story line in color, gray the rest, label directly.</li>
+</ol>
+<h2 id="44-the-chart-chooser-step-by-step">4.4 The Chart Chooser, Step by Step</h2>
+<p>Work this decision tree for every figure:</p>
+<ol>
+<li><strong>Write the message sentence</strong> (Chapter 2's rule). Example: "Model B beats the baseline on every dataset, and the gap is largest on noisy data."</li>
+<li><strong>Name the relationship family.</strong> "Beats on every dataset" = comparison. "Gap largest on noisy data" = relationship between noise level and gap.</li>
+<li><strong>Check the data shape.</strong> How many categories? Ordered or not? Time involved? Uncertainty to show?</li>
+<li><strong>Pick the simplest chart that answers the question.</strong> Simplicity is a feature: the reader's effort should go into the insight, not the decoding.</li>
+<li><strong>Apply the honesty checks:</strong> axis at zero for bars; no dual axes; uncertainty shown where claims depend on it (error bars, confidence bands); no cherry-picked time windows.</li>
+<li><strong>Run the stranger test</strong> (ten seconds, what does it say?).</li>
+</ol>
+<p><strong>Worked example — before and after.</strong> A student compares five classification models on accuracy across three datasets. The <em>before</em> version: a grouped 3D bar chart, rainbow colors, legend at the bottom, y-axis from 0.80 to 0.95, title "Model Comparison." It takes a minute to decode and the truncated axis exaggerates tiny gaps. The <em>after</em> version: a dot plot, one row per dataset, dots for each model on an axis from 0.80 to 1.00 (labeled honestly, no bars to truncate), Model B's dots in bold teal and the rest gray, direct labels, title "Model B leads on all three datasets — widest margin on the noisy sensor data." Ten seconds, and the message is unmistakable. Nothing was hidden; the encoding simply stopped lying about the differences.</p>
+<h2 id="45-beyond-the-basics-small-multiples-slopes-waterfalls-flows-and-showing-uncertainty">4.5 Beyond the Basics: Small Multiples, Slopes, Waterfalls, Flows — and Showing Uncertainty</h2>
+<p>Once the core cast is comfortable, five more chart types solve recurring research problems:</p>
+<p><strong>Small multiples.</strong> When the spaghetti plot threatens (Section 4.3's error #7), small multiples — a grid of small charts sharing the same scale — let each series breathe. Twelve districts' trends become twelve small line charts in a 3×4 grid, instantly comparable, each with a direct label. The shared scale is non-negotiable: different scales across panels are a classic deception. Small multiples also rescue the "too many categories" bar chart: one small bar chart per group, same axis, arranged for comparison.</p>
+<p><strong>Slope charts and dumbbell charts.</strong> A slope chart shows before/after for many items: two vertical axes (before, after), one line per item. Upward slopes versus downward slopes read instantly — the <em>direction of the slopes</em> is the story. A dumbbell chart is the dot-plot cousin: two dots per item (before/after) joined by a line, excellent when precise values should stay visible. Both beat grouped bars for change measured at two points.</p>
+<p><strong>Waterfall charts.</strong> For composition <em>change</em> — how a total moved from one value to another through additions and subtractions — the waterfall is unmatched: start bar, floating step bars for each component, end ba

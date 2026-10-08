@@ -1,0 +1,317 @@
+ of categories (IDs, URLs)</td>
+<td>Hashing or domain aggregation</td>
+</tr>
+<tr>
+<td>Test set may bring new categories</td>
+<td>Any of the above + a fixed "other"/fallback rule</td>
+</tr>
+</tbody>
+</table>
+<p>When in doubt, one-hot with rare-grouping is the safe default a reviewer will never question. Reach for the exotic options only with evidence they help — an ablation table, as always.</p>
+<p><strong>Key takeaways</strong>
+- One-hot encoding: safe default for unordered categories; breaks down at high cardinality.
+- Ordinal encoding: only when order is genuinely meaningful; never for nominal categories.
+- Target encoding: powerful for high-cardinality features but leaks the target unless computed inside CV folds with smoothing.
+- Plan for unseen categories in test data; handle them in the pipeline.
+- Document every encoding decision — it is cheap to write and expensive to be asked about.</p>
+<hr />
+<h2 id="chapter-6-scaling-and-normalization">Chapter 6: Scaling and Normalization</h2>
+<p>Features live on different scales: age in years (0–100), income in rupees (0–10,000,000), a ratio (0–1). Many models are sensitive to these scales, and feeding them raw features is like asking someone to compare distances measured in millimeters and kilometers without converting. Scaling puts features on comparable footing.</p>
+<h3 id="the-two-main-methods">The two main methods</h3>
+<p><strong>Standardization</strong> transforms each feature to have zero mean and unit variance: z = (x − μ) / σ. Values become "how many standard deviations from the mean." It does not bound the range, and it is the standard choice when data is roughly symmetric [4], [6].</p>
+<p><strong>Min-max normalization</strong> rescales to a fixed range, usually [0, 1]: x' = (x − min) / (max − min). It bounds every feature identically, which neural networks and image data typically want. Its weakness: a single extreme outlier stretches the whole range and squashes everything else into a sliver — another reason to handle outliers first (Chapter 4).</p>
+<p>(There is also <strong>robust scaling</strong>, using median and IQR instead of mean and standard deviation — worth knowing when outliers remain.)</p>
+<h3 id="when-scaling-matters-and-when-it-does-not">When scaling matters — and when it does not</h3>
+<p>Scaling is <strong>essential</strong> for:
+- <strong>Distance-based models</strong> — k-NN, k-means, SVMs: a feature in millions dominates Euclidean distance completely.
+- <strong>Gradient-based models</strong> — neural networks, and linear/logistic regression trained with gradient descent: wildly different scales make optimization slow and unstable [7].
+- <strong>Regularized models</strong> — ridge/lasso penalize large coefficients; without scaling, the penalty hits features unevenly [1].</p>
+<p>Scaling is <strong>irrelevant</strong> for tree-based models (decision trees, random forests, gradient boosting): trees split on thresholds ("income &gt; 500,000"), and rescaling does not change the order of values, so the splits are identical. This is a favorite interview and viva question — know it.</p>
+<h3 id="the-golden-rule-fit-on-train-apply-everywhere">The golden rule: fit on train, apply everywhere</h3>
+<p>Compute μ, σ, min, max on the <strong>training set only</strong>, then apply the same transformation to validation and test sets. Fitting the scaler on the full dataset before splitting is one of the most common forms of data leakage in student papers — the test set's distribution quietly shapes the training features. In scikit-learn, <code>fit</code> on train and <code>transform</code> on test; better yet, put the scaler inside a Pipeline (Chapter 12) so you cannot get it wrong [6].</p>
+<p><strong>Worked example.</strong> A researcher built an SVM to classify loan default using "monthly_income" (20,000–500,000) and "credit_score" (300–850). Without scaling: 61% accuracy — the income feature dominated every distance computation, and credit_score might as well not have existed. With standardization (fit on train only): 79% accuracy. The paper's ablation table showed "no scaling / with scaling" side by side — a two-row table that demonstrated the author understood the model. A second model, a random forest on the same data, scored identically with and without scaling, which the author noted in one sentence — showing they knew <em>why</em>.</p>
+<blockquote>
+<p><strong>For your research:</strong> If your model is distance- or gradient-based, scaling is not optional — report which method you used and that parameters came from the training set only. If you use tree models, you may skip scaling, but say so explicitly ("no scaling applied; tree-based models are scale-invariant") so the reviewer knows it was a decision, not an oversight.</p>
+</blockquote>
+<h3 id="scaling-regularization-and-the-penalty-trap">Scaling, regularization, and the penalty trap</h3>
+<p>Here is a subtle interaction worth understanding. Regularized models (ridge, lasso) add a penalty on the size of coefficients [1]. Without scaling, a feature measured in millions needs a tiny coefficient to have any effect — and the penalty then punishes that feature's coefficient <em>less</em> than a feature measured in units, distorting which features the model keeps. Standardization before regularization is not a nicety; it is required for the penalty to treat features fairly. The same logic applies to lasso-based feature selection (Chapter 8): unscaled features get selected or dropped for the wrong reasons.</p>
+<h3 id="robust-scaling-and-skewed-data">Robust scaling and skewed data</h3>
+<p>When outliers remain (or are genuine and must stay), standard scaling's mean and standard deviation are distorted by them. <strong>Robust scaling</strong> uses the median and IQR instead: x' = (x − median) / IQR. Outliers barely move the median, so the bulk of your data gets a sensible scaling while extremes remain extreme but bounded in influence. It is a good default when you chose to keep genuine outliers (Chapter 4) and still need scaling.</p>
+<h3 id="should-you-scale-one-hot-columns">Should you scale one-hot columns?</h3>
+<p>A common confusion: after one-hot encoding, you have binary 0/1 columns alongside standardized continuous features. Scaling the binary columns is usually unnecessary and can even hurt interpretability — but some practitioners standardize everything for uniformity, especially for neural networks. Either choice is defensible; what is not defensible is doing it accidentally. Decide, document, and be consistent. (Tree models, as noted, do not care either way.)</p>
+<h3 id="a-scaling-checklist">A scaling checklist</h3>
+<ul>
+<li>[ ] Scaler fitted on training data only — inside the pipeline, inside CV folds.</li>
+<li>[ ] Method chosen with a reason: standardization (default), min-max (bounded range needed), robust (outliers kept).</li>
+<li>[ ] Outliers handled <em>before</em> scaling (or robust scaling chosen deliberately).</li>
+<li>[ ] Same transformation applied to validation, test, and deployment data via the saved pipeline.</li>
+</ul>
+<h3 id="worked-mini-example-why-k-nn-needs-scaling">Worked mini-example: why k-NN needs scaling</h3>
+<p>Two houses: A = (income 300,000, credit_score 700), B = (income 320,000, credit_score 500). Euclidean distance: income contributes (20,000)² = 400,000,000; credit score contributes (200)² = 40,000. Income outweighs credit score by a factor of 10,000 — the credit score might as well not exist, even though lenders consider it crucial. After standardization (say income σ = 100,000, score σ = 100): income contributes (0.2)² = 0.04, score contributes (2.0)² = 4.0. Now the two features compete fairly, and the distance reflects both. This two-line arithmetic is worth keeping in your back pocket: it ends every "do I really need to scale?" debate for distance-based models, and it makes an excellent viva answer.</p>
+<h3 id="scaling-for-neural-networks-a-practical-note">Scaling for neural networks: a practical note</h3>
+<p>Neural networks are happiest with inputs roughly in [−1, 1] or [0, 1]: large inputs saturate activation functions and destabilize gradients [7]. Standardization or min-max both work; what matters most is consistency between training and inference. One real-world failure mode: a model trained on standardized inputs deployed with raw inputs because the preprocessing step was "just a notebook cell" that never made it into the serving code. Chapter 12's saved-pipeline discipline exists precisely to prevent this class of silent failure.</p>
+<h3 id="scaling-beyond-tabular-data">Scaling beyond tabular data</h3>
+<p>Scaling is not only a tabular concern. <strong>Image pixels</strong> are min-max normalized ([0,255] → [0,1]) or standardized per channel as a matter of routine (Chapter 10). <strong>TF-IDF vectors</strong> are often L2-normalized per document so long documents do not dominate (many libraries do this by default — know whether yours does). <strong>Embeddings</strong> from pretrained models usually arrive already well-scaled, but if you concatenate embeddings with raw tabular features, scale the tabular side to match. The general principle: whenever features from different origins meet in one model, check their scales. A 768-dimensional embedding with values around ±0.1 next to an unscaled "income" feature in the millions is the k-NN disaster from the mini-example, wearing a fancier costume.</p>
+<h3 id="what-about-scaling-the-target">What about scaling the target?</h3>
+<p>In regression, the features get all the attention, but the <em>target</em> can need scaling too. If you predict house prices in the millions with a neural network, the large target values produce large gradients and unstable training — standardizing the target (then converting predictions back) often helps [7]. Tree-based regressors do not care. And if you log-transformed a skewed target, remember to transform predictions back (exponentiate) before computing error metrics — reporting error in log-space without saying so is a classic way to confuse readers. State the target transformation wherever you state the feature scaling.</p>
+<p><strong>Key takeaways</strong>
+- Standardization (zero mean, unit variance) vs. min-max normalization ([0, 1] range) — know both formulas.
+- Scaling is essential for k-NN, SVMs, neural networks, and regularized linear models; irrelevant for tree-based models.
+- Min-max is sensitive to outliers — handle outliers before scaling.
+- Always fit scalers on training data only; transform test data with the same parameters.
+- Report your scaling choice; for tree models, state explicitly that scaling was unnecessary.</p>
+<hr />
+<h2 id="chapter-7-feature-engineering-creating-signal-from-raw-data">Chapter 7: Feature Engineering — Creating Signal from Raw Data</h2>
+<p>If data cleaning is defense, feature engineering is offense. It is the creative act of constructing new features from raw data that make patterns visible to the model. Time and again, in Kaggle competitions and in published research, the winning edge came not from a novel architecture but from a feature someone thought to build. A model can only learn from what you show it; feature engineering decides what it gets to see.</p>
+<h3 id="the-main-families-of-engineered-features">The main families of engineered features</h3>
+<p><strong>1. From dates and times.</strong> Raw timestamps are nearly useless to models, but their components are gold: hour of day, day of week, month, is_weekend, days_since_last_event, time_since_start. For a hospital readmission model, "days since discharge" built from two date columns can be the single most predictive feature.</p>
+<p><strong>2. Aggregations.</strong> Group raw records and summarize: per customer — total spent, average order value, number of orders, days since last order; per sensor — hourly mean, max, standard deviation. Aggregation turns event-level data into entity-level features, which is usually the right grain for prediction.</p>
+<p><strong>3. Interactions and ratios.</strong> Combine features: BMI from weight and height; debt-to-income ratio; price per square foot. Ratios often capture the <em>relationship</em> the model needs but cannot easily construct itself (linear models especially benefit).</p>
+<p><strong>4. Binning and discretization.</strong> Convert continuous values into bands: age → age_group (0–18, 19–35, 36–60, 60+). Useful when the relationship is non-linear and stepwise (risk jumps at thresholds), or when you want robustness to small measurement noise. Do not bin blindly — you throw away information.</p>
+<p><strong>5. Mathematical transforms.</strong> Log transforms tame right-skewed data (income, prices); square roots help counts. These make distributions more symmetric, which linear models and many statistical tests assume [1].</p>
+<p><strong>6. Missingness and count features.</strong> As Chapter 3 noted, "was this missing?" is itself a feature. Similarly, "how many records contributed to this aggregate?" guards against aggregates built on thin data.</p>
+<h3 id="domain-knowledge-is-the-unfair-advantage">Domain knowledge is the unfair advantage</h3>
+<p>The best features come from understanding the problem, not from generic tricks. An agronomist knows that "rainfall in the 30 days before flowering" matters more than "annual rainfall" — that single domain-informed feature can beat a dozen generic ones. Talk to domain experts; read the applied literature in your field; the features are hiding in how experts already think.</p>
+<h3 id="the-discipline-validate-dont-decorate">The discipline: validate, don't decorate</h3>
+<p>Every new feature must earn its place: does it improve cross-validated performance, or at least improve interpretability? Features built by peeking at the test set, or that use information unavailable at prediction time (Chapter 1's leakage example), are worse than useless. Keep a feature list with a one-line justification for each — it becomes a table in your paper.</p>
+<p><strong>Worked example.</strong> Predicting taxi demand per city zone per hour. Raw data: pickup timestamps and GPS points. Engineered features: hour_of_day, day_of_week, is_public_holiday (from a calendar — external data is legitimate engineering), pickups in the same zone in the previous hour (lag feature), average pickups in that zone at that hour over the past 4 weeks (historical baseline), and is_raining (joined from weather data). The lag and baseline features alone cut the error by 30% versus raw timestamp features. The paper listed each feature with its rationale in a table — reviewers could see the domain thinking, and the feature set itself was cited by later work as a contribution.</p>
+<blockquote>
+<p><strong>For your research:</strong> Feature engineering is the most citable part of applied ML work. Document each feature's definition, rationale, and data source in a table. If a feature uses external data (calendars, weather, maps), name the source — reproducibility demands it. And always ask the leakage question: "Would I know this value at the moment I must make the prediction?" If not, the feature is forbidden.</p>
+</blockquote>
+<h3 id="automated-feature-engineering-useful-but-not-magic">Automated feature engineering — useful, but not magic</h3>
+<p>Libraries exist that generate hundreds of candidate features automatically (deep feature synthesis, polynomial expansions, automated interaction builders). They can help, but they come with three costs: an explosion of features that invites overfitting (see Chapter 8 — you will need aggressive selection afterward), features nobody can interpret or explain to a reviewer, and a higher risk of accidental leakage (an auto-generated "mean of target per group" is target encoding without the safety rails). Use automation as a brainstorming partner: generate candidates, keep the ones that are interpretable and survive selection, and discard the rest. The features you can explain in one sentence are the ones that belong in a paper.</p>
+<h3 id="the-feature-store-idea">The feature store idea</h3>
+<p>In production systems, teams keep engineered features in a <strong>feature store</strong> — a central place where feature definitions, their code, and their computed values live, shared between training and serving. You do not need this infrastructure for a thesis, but adopt its spirit: keep every feature's definition as code in one file, with a comment stating its rationale. When your examiner asks "how exactly was 'days_since_last_purchase' computed?", you point to one function, not a scattered notebook.</p>
+<h3 id="feature-engineering-for-different-model-families">Feature engineering for different model families</h3>
+<p>Not all models need the same help:</p>
+<ul>
+<li><strong>Linear models</strong> cannot create interactions or curves by themselves — they need you to build ratios, interactions, and transforms explicitly. Feature engineering matters most here [1].</li>
+<li><strong>Tree ensembles</strong> find interactions and non-linearities on their own, but they cannot look across rows (no lags, no aggregations) or parse dates. Give them the cross-row and time-based features; let them handle the rest.</li>
+<li><strong>Neural networks</strong> learn representations from raw inputs, but they are data-hungry. With small datasets, hand-built features still help enormously; with massive datasets, the network earns its keep.</li>
+</ul>
+<p>Knowing this saves effort: do not hand-craft polynomial interactions for a gradient boosting model that finds them itself — spend that time on the temporal aggregations it cannot build.</p>
+<h3 id="worked-mini-example-engineering-from-timestamps">Worked mini-example: engineering from timestamps</h3>
+<p>Raw data: a "signup_date" and "last_purchase_date" per customer, task: predict churn. Raw dates are useless to the model, so build: (1) <code>tenure_days</code> = today − signup_date (loyalty signal); (2) <code>days_since_last_purchase</code> = today − last_purchase_date (recency — usually the strongest churn predictor); (3) <code>purchase_frequency</code> = total_orders / tenure_days (habit strength); (4) <code>is_weekend_signup</code> (behavioral segment). Four features from two date columns plus an order count — and in most churn datasets, <code>days_since_last_purchase</code> alone beats every demographic feature combined. The pattern generalizes: whenever you see a timestamp, ask "what durations, recencies, frequencies, and calendar properties does it imply?" Each answer is a candidate feature; validate each with cross-validation and the leakage question ("is this knowable at prediction time?").</p>
+<h3 id="naming-and-documenting-features">Naming and documenting features</h3>
+<p>Give features boring, explicit names: <code>days_since_last_purchase</code>, not <code>feat_7</code>. Future you — and your co-authors — will thank you. In the feature table for your paper, each row needs: name, definition (exact formula), rationale (one line), and data source. A reviewer who can recompute your features from this table trusts your results; one who cannot, does not.</p>
+<h3 id="leakage-case-studies-learn-from-others-mistakes">Leakage case studies: learn from others' mistakes</h3>
+<p>Two cautionary tales worth remembering. <strong>Tale 1:</strong> A team predicting hospital readmission included a feature "discharge_disposition" — which recorded where the patient went <em>after</em> discharge, including "expired" (died). The model achieved near-perfect accuracy by learning that dead patients are not readmitted. The feature was unknowable at prediction time. <strong>Tale 2:</strong> A churn model used "cancellation_date is not null" as a feature — a direct encoding of the target. Both papers/models looked brilliant until someone asked the leakage question. The defense is procedural, not cleverness: for every feature, write down <em>when</em> its value becomes known relative to the prediction moment. Features known after the moment are forbidden. Make this timestamp audit part of your feature table (Chapter 7), and leakage becomes a checkable property rather than a lurking risk.</p>
+<h3 id="domain-formulas-the-richest-source-of-features">Domain formulas: the richest source of features</h3>
+<p>Experts in every field already combine raw measurements into meaningful quantities — steal those formulas. Medicine: BMI, dosage per kg, heart-rate variability indices. Finance: debt-to-income, current ratio, moving averages. Agriculture: growing degree days (heat accumulation for crops), rainfall deficit vs. historical average. E-commerce: recency, frequency, monetary (RFM) scores. These are not arbitrary combinations; each encodes decades of domain knowledge in one number. When you read papers in your application field, collect their feature definitions — that list is a starter feature set for your own work, and citing the sources grounds your engineering in literature rather than whim.</p>
+<p><strong>Key takeaways</strong>
+- Feature engineering creates new predictive signals: date parts, aggregations, ratios, bins, transforms, missingness indicators.
+- Domain knowledge beats generic tricks — learn how experts in your field think.
+- Every feature must be validated; decorative features add noise and overfitting risk.
+- The leakage test: only use information available at prediction time.
+- A feature table (definition + rationale + source) is a publishable contribution.</p>
+<hr />
+<h2 id="chapter-8-feature-selection">Chapter 8: Feature Selection</h2>
+<p>More features are not always better. Irrelevant or redundant features add noise, slow training, increase overfitting risk, and make models harder to interpret — a real problem when a reviewer asks <em>why</em> your model works. Feature selection is the disciplined removal of features that do not help. It has three classical families [1], [4].</p>
+<h3 id="filter-methods">Filter methods</h3>
+<p>Filters score each feature independently of any model, using statistics: correlation with the target, chi-squared tests, mutual information, or variance thresholds (drop near-constant features). They are fast and model-agnostic — a good first pass. Their weakness: they evaluate features one at a time, so they miss interactions (two features useless alone but powerful together) and they do not remove redundancy between correlated features.</p>
+<h3 id="wrapper-methods">Wrapper methods</h3>
+<p>Wrappers treat the model as a black box and search over feature subsets: <strong>forward selection</strong> (start empty, add the best feature repeatedly), <strong>backward elimination</strong> (start full, remove the worst), or <strong>recursive feature elimination (RFE)</strong> (train, drop the least important, repeat). They find good subsets but are expensive — each candidate subset means retraining — and they can overfit the selection to the validation data if you are not careful. Use cross-validation inside the wrapper.</p>
+<h3 id="embedded-methods">Embedded methods</h3>
+<p>Embedded methods select features <em>during</em> training. <strong>L1 regularization (lasso)</strong> shrinks some coefficients exactly to zero, performing selection automatically [1]. Tree-based models provide <strong>feature importance</strong> scores; features with near-zero importance are candidates for removal. These are efficient and widely used — lasso-based selection plus a short justification is a solid, reviewer-friendly choice.</p>
+<h3 id="practical-workflow">Practical workflow</h3>
+<p>A sensible sequence: (1) drop zero-variance and near-duplicate features (filters, cheap); (2) drop one of each highly correlated pair (correlation heatmap from EDA); (3) apply an embedded method (lasso or tree importance) or RFE with cross-validation; (4) report the final feature count and, ideally, a figure showing performance vs. number of features. Always perform selection <strong>inside</strong> cross-validation folds — selecting on the full dataset before splitting leaks information and inflates scores.</p>
+<p><strong>Worked example.</strong> A researcher had 120 sensor features to predict equipment failure. Filter pass: dropped 18 zero-variance channels and, from correlated pairs (|r| &gt; 0.95), kept one of each — down to 74. Lasso (embedded) with cross-validated penalty shrank 41 more to zero — down to 33. A final RFE pass with the actual classifier settled on 22 features with no performance loss (F1 0.83 before and after). The paper included a curve of F1 vs. feature count, plateauing at 22 — one figure that told the whole story: simpler, faster, equally accurate, and interpretable enough to name the 22 surviving sensors in a table.</p>
+<blockquote>
+<p><strong>For your research:</strong> Reviewers love parsimony. A plot of performance versus number of features, plateauing at a small set, is one of the most persuasive figures you can include — it says your model is not memorizing noise. Report which method you used and confirm selection happened inside CV folds; selection-before-splitting is a quiet form of leakage that experienced reviewers look for.</p>
+</blockquote>
+<h3 id="selection-vs-extraction-a-note-on-pca">Selection vs. extraction: a note on PCA</h3>
+<p>Feature <em>selection</em> keeps a subset of your original features. Feature <em>extraction</em> builds new ones — the classic method being <strong>PCA (Principal Component Analysis)</strong>, which compresses your features into a smaller set of uncorrelated components capturing the most variance [1], [2]. PCA is excellent for visualization, denoising, and speeding up models, but the components are linear combinations of everything — "component 3" means nothing to a domain expert. Rule of thumb: use selection when interpretability matters (most papers), extraction when pure performance or compression matters. You can also do both: select, then extract.</p>
+<h3 id="stability-would-you-select-the-same-features-tomorrow">Stability: would you select the same features tomorrow?</h3>
+<p>A selection result you cannot reproduce is not a finding. <strong>Stability</strong> asks: if I re-ran selection on a slightly different sample, would I get the same features? Unstable selection (common with wrappers on small data) means your "important features" are an accident of the sample. Check stability by bootstrapping: repeat selection on resampled data and count how often each feature survives. Features selected 95 times out of 100 are trustworthy; features selected 40 times are not. Reporting stability — even in one sentence — elevates your feature analysis from anecdote to evidence, and it is exactly the kind of rigor that distinguishes a thesis from a coursework report.</p>
+<h3 id="the-interpretation-trap">The interpretation trap</h3>
+<p>A final caution: "selected by the model" does not mean "causally important." Lasso drops one of two correlated features arbitrarily — the survivor is not necessarily the true driver, just the one the algorithm kept. Feature importance from trees is biased toward high-cardinality features. When you write about selected features, use the language of <em>predictive utility</em>, not causation: "these 22 sensors were sufficient for 0.83 F1" — not "these 22 sensors cause failure." Reviewers in applied fields notice the difference.</p>
+<h3 id="reporting-selection-what-the-paper-shows">Reporting selection: what the paper shows</h3>
+<p>Do not just write "we selected 22 features." Show: (1) the method and its settings ("lasso with penalty chosen by 5-fold CV, then RFE with the final classifier"); (2) the performance-vs-feature-count curve (the plateau is the argument); (3) the final feature list with a one-line interpretation each, ideally grouped by theme (sensor type, time window); and (4) the stability note ("19 of 22 features were selected in ≥90 of 100 bootstrap runs"). This is one figure plus one table — compact, and it answers every question a reviewer could ask about your selection before they ask it.</p>
+<h3 id="a-word-on-automated-selection-pipelines">A word on automated selection pipelines</h3>
+<p>It is tempting to chain everything — imputation, encoding, scaling, selection, model — into one giant automated search over all combinations. Resist the urge to automate blindly: with small datasets, searching hundreds of pipeline configurations overfits the validation set (you end up selecting the luckiest configuration, not the best method). Automate the <em>mechanics</em> (the pipeline object), but keep the <em>decisions</em> deliberate and few. In a paper, three well-justified configurations beat thirty searched ones — and "we tried everything and report the best" is a sentence reviewers read as a warning.</p>
+<h3 id="filter-methods-in-detail">Filter methods in detail</h3>
+<p>Filters deserve a closer look because they are your cheap first pass. <strong>Variance threshold</strong>: drop features that barely vary (a column that is 0 in 99.9% of rows carries almost no information). <strong>Correlation with the target</strong>: fast for numeric features, but only captures linear relationships — a U-shaped relationship scores near zero. <strong>Mutual information</strong>: captures any statistical dependence, linear or not, and works for categorical targets; slightly more expensive but the best single filter for mixed data. <strong>Chi-squared</strong>: for categorical features vs. categorical targets. Practical recipe: variance threshold → mutual information ranking → keep the top K as candidates for the embedded/wrapper stage. Filters will not find your final set, but they cheaply shrink 10,000 features to a manageable few hundred.</p>
+<h3 id="budgeting-compute-for-selection">Budgeting compute for selection</h3>
+<p>Wrappers are expensive: forward selection over 100 features trains ~5,000 models (100 + 99 + …); with 5-fold CV inside, that is 25,000 fits. On a student laptop, that can mean days. Budget accordingly: use filters to cut to a few hundred, embedded methods (lasso, tree importance — essentially free, since you train the model anyway) to cut to dozens, and reserve wrappers for the final refinement among tens of features. Report runtimes honestly; "RFE completed in 40 minutes on a laptop" tells a reviewer your method is practical, not just accurate.</p>
+<p><strong>Key takeaways</strong>
+- Filters (fast, per-feature statistics), wrappers (search with the model, expensive), embedded (selection during training, e.g., lasso).
+- Practical order: drop constant/duplicated features → handle correlated pairs → lasso/tree importance or RFE with CV.
+- Fewer features mean less overfitting, faster training, and better interpretability.
+- Perform selection inside cross-validation folds, never on the full dataset before splitting.
+- A performance-vs-feature-count plot is a persuasive, reviewer-friendly figure.</p>
+<hr />
+<h2 id="chapter-9-text-data-preprocessing">Chapter 9: Text Data Preprocessing</h2>
+<p>Text is the messiest common data type: misspellings, slang, emojis, mixed languages, inconsistent punctuation. Before any model can use text, it must be converted into numbers — and the choices you make in that conversion shape everything downstream. This chapter covers the classical pipeline and the modern embedding view.</p>
+<h3 id="cleaning">Cleaning</h3>
+<p>Standard steps: lowercase everything (so "Good" and "good" match), remove or normalize URLs, mentions, and HTML tags, handle punctuation (keep it or drop it depending on the task — for sentiment, "!!!" carries signal), normalize whitespace, and fix encoding issues. For social media text, decide a policy for emojis and hashtags: deleting them loses sentiment; converting them to words ("😊" → "smiley") preserves it. Whatever you choose, apply it identically to all data via your pipeline.</p>
+<h3 id="tokenization">Tokenization</h3>
+<p><strong>Tokenization</strong> splits text into units the model processes: words, subwords, or characters. Word tokenization is intuitive but breaks on typos and rare words (out-of-vocabulary problem). Modern systems use <strong>subword tokenization</strong> (e.g., Byte-Pair Encoding): common words stay whole, rare words split into pieces ("unhappiness" → "un" + "happiness"), so nothing is ever truly unknown [7]. Character-level tokenization is the fallback for noisy text. Choose the tokenizer that matches your model — and for pretrained models, <em>always use the model's own tokenizer</em>.</p>
+<h3 id="stop-words-stemming-lemmatization">Stop words, stemming, lemmatization</h3>
+<p><strong>Stop words</strong> (the, is, and) are often removed for classical bag-of-words models to reduce noise — but keep them for modern neural models, which use context. <strong>Stemming</strong> chops words to roots ("running" → "run") crudely and fast; <strong>lemmatization</strong> reduces to dictionary forms ("better" → "good") correctly but slower. For deep learning with embeddings, both are usually skipped — the model learns the morphology itself.</p>
+<h3 id="from-tokens-to-numbers-the-two-eras">From tokens to numbers: the two eras</h3>
+<p><strong>Classical: bag-of-words and TF-IDF.</strong> Represent each document by word counts (bag-of-words) or by TF-IDF weights, which upweight words that are frequent in the document but rare across documents. Simple, interpretable, and still a strong baseline for classification [4].</p>
+<p><strong>Modern: embeddings.</strong> Words become dense vectors where similar meanings sit close together — the famous "king − man + woman ≈ queen" arithmetic. You can use <strong>pretrained embeddings</strong> (trained on massive corpora; just look up each word) or <strong>contextual embeddings</strong> from transformer models, where a word's vector depends on its sentence ("bank" as river vs. money). For a student paper, fine-tuning a small pretrained transformer usually beats anything built from scratch — and "we fine-tuned a pretrained model" is a completely legitimate methodology.</p>
+<h3 id="the-researchers-checklist-for-text">The researcher's checklist for text</h3>
+<p>Report: the cleaning steps, the tokenizer (exact name/version), vocabulary size, maximum sequence length and how longer texts were handled (truncated? split?), and whether embeddings were pretrained or trained. Text preprocessing decisions change results substantially — an undocumented pipeline is an irreproducible paper.</p>
+<p><strong>Worked example.</strong> A student classified Urdu-English code-mixed tweets by sentiment. First attempt: standard English pipeline — lowercasing, English stop-word removal, stemming. Result: 58% accuracy, barely above chance; the stemmer mangled Urdu words and stop-word removal deleted meaningful particles. Revised pipeline: kept original casing mix, built a custom cleaning step for Roman Urdu normalizations (e.g., unifying "acha"/"achha"), used subword tokenization, removed no stop words, and fine-tuned a multilingual pretrained transformer with its own tokenizer. Accuracy: 81%. The paper's preprocessing subsection — half a page describing exactly these decisions — was what made the work credible and reusable for other code-mixed language researchers.</p>
+<blockquote>
+<p><strong>For your research:</strong> Text preprocessing is where "I used the default settings" goes to die. Your language, your domain, and your noise type are specific — document the exact cleaning steps and tokenizer, and include an ablation showing that your choices matter (e.g., with vs. without your normalization step). For low-resource languages, a careful preprocessing description is itself a contribution other researchers will cite.</p>
+</blockquote>
+<h3 id="noisy-multilingual-and-code-mixed-text">Noisy, multilingual, and code-mixed text</h3>
+<p>Real-world text — especially in regions like South Asia — is messy in specific ways your pipeline must handle deliberately:</p>
+<ul>
+<li><strong>Code-mixing</strong> (e.g., Roman Urdu + English in one sentence) breaks language-specific tools. Prefer multilingual tokenizers and models; test your cleaning steps on actual samples rather than assuming English behavior.</li>
+<li><strong>Spelling variation</strong> ("acha", "achha", "achaa") fragments your vocabulary. A normalization dictionary for common variants, built from your data's most frequent forms, measurably helps classical models; subword tokenizers partially handle it for neural models.</li>
+<li><strong>Transliteration.</strong> If your corpus mixes scripts (Urdu script + Roman Urdu), decide whether to transliterate to one script or model both. Either is defensible; mixing them silently is not.</li>
+<li><strong>Noise.</strong> Tweets and chat logs contain typos, abbreviations, and creative punctuation. Character-aware or subword models degrade more gracefully than word-level ones here.</li>
+</ul>
+<p>The meta-lesson: never trust a text pipeline you have not tested on 100 random samples from <em>your</em> data. The defaults were designed for clean English news text, which your data probably is not.</p>
+<h3 id="sequence-length-truncate-split-or-summarize">Sequence length: truncate, split, or summarize?</h3>
+<p>Models accept limited input lengths. For long documents you must choose: <strong>truncate</strong> (keep the first N tokens — fine when the key information is front-loaded, as in news), <strong>split</strong> (chunk the document, classify each chunk, aggregate — good for long reports), or <strong>hierarchical</strong> approaches (encode chunks, then combine). Report your choice and the length limit: changing it changes results, so it is part of the method, not a footnote.</p>
+<h3 id="worked-mini-example-tf-idf-by-hand">Worked mini-example: TF-IDF by hand</h3>
+<p>Three tiny documents: D1 = "the cat sat", D2 = "the dog sat", D3 = "the cat ate the fish". Term frequency (TF) of "cat" in D1: 1/3. Document frequency: "cat" appears in 2 of 3 docs; "fish" in 1 of 3. IDF = log(total_docs / docs_containing_term): IDF("cat") = log(3/2) ≈ 0.18; IDF("fish") = log(3/1) ≈ 0.48. TF-IDF("cat", D1) ≈ 0.33 × 0.18 ≈ 0.06; TF-IDF("fish", D3) ≈ 0.20 × 0.48 ≈ 0.10. Notice: "the" appears everywhere, so its IDF is log(3/3) = 0 — it contributes nothing, which is exactly why TF-IDF downweights stop words automatically. "fish", rare across documents, gets the highest weight — it is the most <em>discriminative</em> word. This five-line calculation is the entire intuition behind classical text features: frequent locally, rare globally = informative.</p>
+<h3 id="choosing-your-text-approach-a-decision-guide">Choosing your text approach: a decision guide</h3>
+<ul>
+<li><strong>Small data, simple task</strong> (a few thousand labeled examples, topic classification): TF-IDF + logistic regression. Fast, interpretable, hard to beat.</li>
+<li><strong>Medium data or nuanced language</strong> (sentiment, code-mixed text): fine-tune a small pretrained transformer. The pretraining supplies the language knowledge your data cannot.</li>
+<li><strong>No labels</strong>: unsupervised embeddings + clustering, or zero-shot classification with a pretrained model.</li>
+<li><strong>Always</strong>: start with the simple baseline first. If TF-IDF gets 82% and the transformer gets 84% at 50× the compute, the paper should say so — honest baselines are a strength, not an embarrassment.</li>
+</ul>
+<h3 id="using-pretrained-embeddings-the-practical-path">Using pretrained embeddings: the practical path</h3>
+<p>You rarely train embeddings from scratch. The practical path: (1) pick a pretrained set (general-purpose like GloVe/fastText, or domain-specific such as BioWordVec for biomedical text); (2) build your vocabulary from <em>your</em> data and look up each word's vector, assigning a random or zero vector to out-of-vocabulary words — and report your OOV rate, since a 40% OOV rate means the embeddings barely cover your domain; (3) decide whether to <strong>freeze</strong> the embeddings (faster, safer for small data) or <strong>fine-tune</strong> them (better if you have enough data); (4) for sentence or document representations, average the word vectors (simple baseline) or use a transformer that produces contextual vectors. Document the embedding source, dimension, OOV handling, and freeze/fine-tune choice — four facts that determine whether anyone can reproduce your text pipeline.</p>
+<h3 id="language-detection-as-a-preprocessing-step">Language detection as a preprocessing step</h3>
+<p>For web-scraped or social-media corpora, run language identification <em>before</em> anything else. A surprising share of "English" datasets contains other languages, and every downstream choice — stop-word lists, stemmers, pretrained models — assumes a language. Detect per document, report the language distribution (it belongs in your dataset table), and either filter to your target language or route documents to language-specific pipelines. This single step, rarely reported, prevents a whole class of silent degradation — an English stemmer applied to Urdu text does not fail loudly; it just quietly destroys your features.</p>
+<p><strong>Key takeaways</strong>
+- Clean consistently: casing, URLs, punctuation, emojis — one policy, applied via pipeline.
+- Tokenize appropriately: subword tokenization is the modern default; always use a pretrained model's own tokenizer.
+- Classical path: bag-of-words/TF-IDF baselines; modern path: pretrained or contextual embeddings.
+- Stemming/lemmatization help classical models; skip them for neural models.
+- Document every text decision (cleaning, tokenizer, vocab size, sequence handling) — text pipelines are a top source of irreproducibility.</p>
+<hr />
+<p><img alt="Figure 2: From messy data to structured features" src="/learn/images/media-generation-book-04-fig2-0-9270e7b4-74a4-4e7b-9cd1-d3e5a8351418.webp" /></p>
+<h2 id="chapter-10-image-data-preprocessing">Chapter 10: Image Data Preprocessing</h2>
+<p>Images look ready-made for models, but raw image collections are rarely uniform: different sizes, different formats, inconsistent lighting, wrong orientations. Preprocessing standardizes them so the model sees a consistent input — and, through augmentation, sees <em>more</em> of the world than your dataset literally contains.</p>
+<h3 id="the-standard-pipeline">The standard pipeline</h3>
+<p><strong>1. Resizing.</strong> Neural networks need fixed input dimensions (e.g., 224×224). Resize every image to the target size, preserving aspect ratio when distortion would destroy information (pad instead of stretch for objects where shape matters) [7].</p>
+<p><strong>2. Format and channel consistency.</strong> Convert everything to the same mode (RGB), handle grayscale images (replicate to 3 channels or adapt the model), and strip alpha channels. A single RGBA image in a batch of RGB will crash training at 2 a.m. — standardize early.</p>
+<p><strong>3. Normalization.</strong> Scale pixel values from [0, 255] to [0, 1] (divide by 255) or standardize per channel using dataset or ImageNet mean/std. When using a pretrained model, <strong>use that model's expected normalization</strong> — it was trained on those statistics, and mismatching them silently degrades performance [4], [7].</p>
+<p><strong>4. Train/test transforms discipline.</strong> Preprocessing has two modes: training transforms (include random augmentation) and evaluation transforms (deterministic only — resize, center crop, normalize). Never augment validation or test images; you would be measuring a moving target.</p>
+<h3 id="data-augmentation-basics">Data augmentation basics</h3>
+<p><strong>Augmentation</strong> creates new training examples by transforming existing ones: random horizontal flips, small rotations, crops, brightness/contrast jitter, zoom. The label stays valid (a flipped cat is still a cat), but the model learns invariance — it stops memorizing exact pixel arrangements [7]. For small datasets, augmentation is often the difference between overfitting and generalizing. Rules: keep transformations <em>label-preserving</em> (don't vertically flip X-rays where orientation is anatomical; don't rotate digits 6 and 9 into each other), and keep them realistic for your domain.</p>
+<h3 id="domain-caution">Domain caution</h3>
+<p>In medical, satellite, or scientific imaging, "standard" augmentations can be invalid or even unethical to apply naively — a rotated tumor scan is fine, but color jitter on stained pathology slides may destroy diagnostic information. Consult domain literature; augmentation policies are part of your methodology, not an afterthought.</p>
+<p><strong>Worked example.</strong> A student classified mango leaf diseases with only 900 field photos — far too few for a CNN from scratch. Pipeline: resize to 224×224, RGB consistency check (37 phone photos were grayscale — converted), per-channel normalization with ImageNet statistics (using a pretrained ResNet), training augmentation of random horizontal flip, ±15° rotation, and brightness jitter. Validation used only resize + center crop + normalize. Result: 88% accuracy vs. 71% without augmentation and 64% training from scratch. The paper reported the exact augmentation parameters and the train/eval split of transforms — two sentences that let anyone reproduce the result.</p>
+<blockquote>
+<p><strong>For your research:</strong> With small image datasets — the norm in student research — your preprocessing and augmentation choices matter more than your architecture choice. Report input size, normalization statistics, and the full augmentation list with parameters. If you use a pretrained model, name it and its expected preprocessing. Reviewers in applied vision check these details first.</p>
+</blockquote>
+<h3 id="augmentation-how-much-and-which">Augmentation: how much, and which?</h3>
+<p>There is no universal augmentation recipe — only principles. Start with the mildest transforms that plausibly occur in your deployment setting: if your model will see phone photos, brightness jitter and small rotations mirror reality; if it will see scanned documents, perspective warps do. Increase strength gradually and watch validation performance: augmentation that is too aggressive creates unrealistic images and <em>hurts</em> performance, a fact you can demonstrate in an ablation (no / mild / strong augmentation). Report the winning configuration with parameters — "random horizontal flip (p=0.5), rotation ±15°, brightness ±20%" — because these numbers are part of your method.</p>
+<p>One more technique worth knowing: <strong>test-time augmentation (TTA)</strong>. At prediction time, create several augmented versions of each test image, predict all of them, and average. It is a cheap accuracy boost with no retraining — but it multiplies inference cost, so mention the trade-off if you use it.</p>
+<h3 id="beyond-augmentation-when-data-is-truly-scarce">Beyond augmentation: when data is truly scarce</h3>
+<p>If augmentation is not enough, consider: <strong>transfer learning</strong> (fine-tune a pretrained model — almost always the right first move for small datasets [7]), <strong>synthetic data</strong> (rendered or GAN-generated images — useful but validate that synthetic artifacts do not become shortcuts), and <strong>collecting more of the right data</strong> (often, 200 more hard examples beat 2,000 easy ones). For a student paper, the honest ranking is usually: pretrained model + good augmentation first, exotic solutions only if those fail.</p>
+<h3 id="worked-mini-example-the-augmentation-ablation">Worked mini-example: the augmentation ablation</h3>
+<p>On the mango-leaf task from this chapter's worked example, the researcher ran a clean ablation — same model, same splits, only the training augmentation changed:</p>
+<table>
+<thead>
+<tr>
+<th>Augmentation</th>
+<th>Val. accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>None</td>
+<td>71%</td>
+</tr>
+<tr>
+<td>Horizontal flip only</td>
+<td>78%</td>
+</tr>
+<tr>
+<td>Flip + rotation ±15°</td>
+<td>84%</td>
+</tr>
+<tr>
+<td>Flip + rotation + brightness jitter</td>
+<td>88%</td>
+</tr>
+<tr>
+<td>Flip + rotation + brightness + vertical flip</td>
+<td>83%</td>
+</tr>
+</tbody>
+</table>
+<p>The vertical flip <em>hurt</em> — leaves photographed from above do not appear upside down in the field, so the model wasted capacity on an impossible variation. This table did double duty in the paper: it justified the final augmentation recipe and demonstrated domain awareness. The lesson: ablate your augmentations, keep what helps, and let the table tell the story.</p>
+<h3 id="pretrained-model-preprocessing-checklist">Pretrained-model preprocessing checklist</h3>
+<ul>
+<li>[ ] Input size matches the model's expected size (resize + crop accordingly).</li>
+<li>[ ] Channel order and count match (RGB, 3 channels — convert grayscale).</li>
+<li>[ ] Normalization uses the model's expected mean/std (e.g., ImageNet stats for ImageNet-pretrained models).</li>
+<li>[ ] Training transforms include augmentation; validation/test transforms are deterministic.</li>
+<li>[ ] A single corrupted or oddly-shaped image cannot crash a whole training run (validate the dataset once, up front).</li>
+</ul>
+<h3 id="imbalance-in-image-data">Imbalance in image data</h3>
+<p>Class imbalance hits vision tasks too — and resampling images needs care. Oversampling by duplicating images invites memorization; the fix is <strong>oversampling with augmentation</strong>: sample minority-class images more often, but apply different random augmentations each time, so the model never sees the exact same pixels twice. Most deep learning frameworks support class-weighted sampling in the data loader, which achieves this elegantly. And the train/test discipline from Chapter 11 applies unchanged: the test set keeps its natural class distribution (it must reflect reality), while only the training stream is rebalanced. Report both the natural ratio and your sampling strategy.</p>
+<h3 id="dataset-vs-imagenet-normalization-statistics">Dataset vs. ImageNet normalization statistics</h3>
+<p>When fine-tuning an ImageNet-pretrained model, the default is ImageNet's mean/std — the model's weights expect them. But if your images look nothing like ImageNet (grayscale X-rays, satellite imagery, microscopy), computing normalization statistics from <em>your own</em> training set can help, since it centers your actual data distribution. Either choice is legitimate; the mistake is mixing them unknowingly (normalizing with ImageNet stats while believing you used dataset stats). State which you used in one clause: "images were standardized with ImageNet mean/std" — six words that close a reproducibility gap.</p>
+<p><strong>Key takeaways</strong>
+- Standardize size, format/channels, and pixel value ranges before training.
+- Match normalization to your pretrained model's expectations.
+- Augmentation (flips, rotations, crops, jitter) teaches invariance and fights overfitting on small datasets.
+- Keep augmentations label-preserving and domain-realistic; never augment validation/test data.
+- Report input size, normalization stats, and augmentation parameters exactly.</p>
+<hr />
+<h2 id="chapter-11-dealing-with-imbalanced-data">Chapter 11: Dealing with Imbalanced Data</h2>
+<p>Many important problems are imbalanced: 1% of transactions are fraud, 2% of scans show a rare disease, 5% of customers churn. Train naively on such data and the model learns a cynical strategy: always predict the majority class, achieving 99% "accuracy" while catching zero frauds. Imbalance is where accuracy lies to you — which is why Book 5 covers proper metrics, and this chapter covers fixing the data side.</p>
+<h3 id="first-reframe-the-problem">First: reframe the problem</h3>
+<p>Before any technique, confirm the imbalance is real and not a sampling artifact, and decide what matters: in fraud and medicine, <strong>missing a positive (recall)</strong> is usually far costlier than a false alarm. Your preprocessing should serve that goal, and your evaluation must use metrics beyond accuracy (precision, recall, F1, PR-AUC — see Book 5).</p>
+<h3 id="resampling-strategies">Resampling strategies</h3>
+<ul>
+<li><strong>Random undersampling</strong> — drop majority-class examples. Fast, but throws away data; risky when data is already scarce.</li>
+<li><strong>Random oversampling</strong> — duplicate minority examples. Keeps all data but the model may memorize the duplicates (overfitting).</li>
+<li><strong>SMOTE (Synthetic Minority Over-sampling Technique)</strong> — the smarter middle path: for each minority example, pick one of its k nearest minority neighbors and create a synthetic point on the line between them. New, plausible minority examples without exact duplicates. Conceptually simple and widely used — but it can blur class boundaries if the minority class overlaps the majority, and there are variants (Borderline-SMOTE, ADASYN) for harder cases.</li>
+</ul>
+<h3 id="class-weights">Class weights</h3>
+<p>Instead of changing the data, change the loss: tell the model that misclassifying a minority example costs more (e.g., <code>class_weight='balanced'</code> in scikit-learn [6]). Clean, no synthetic data, no information loss. Often the first thing to try — and trivially easy to report.</p>
+<h3 id="the-critical-rule-resample-only-the-training-data">The critical rule: resample only the training data</h3>
+<p>Apply SMOTE or oversampling <strong>after</strong> splitting, to the training folds only — inside cross-validation. Resampling before splitting leaks information: synthetic points derived from test examples end up in training, and your scores become fiction. This is the same leakage principle as Chapters 3, 6, and 8, and reviewers check it.</p>
+<h3 id="a-practical-sequence">A practical sequence</h3>
+<ol>
+<li>Try class weights first (simplest, no data fabrication).</li>
+<li>If insufficient, add SMOTE on training folds; compare against weights in an ablation.</li>
+<li>Consider threshold tuning (covered in Book 5): with imbalance, the default 0.5 decision threshold is rarely optimal.</li>
+<li>Report per-class metrics, never accuracy alone.</li>
+</ol>
+<p><strong>Worked example.</strong> Credit-card fraud data: 284,000 transactions, 0.17% fraud. Baseline logistic regression: 99.8% accuracy, fraud recall 0.12 — useless. Experiment table (5-fold CV, PR-AUC as metric): class weights alone → PR-AUC 0.71; SMOTE on training folds → 0.76; SMOTE + threshold tuned to 0.3 → 0.81 with fraud recall 0.83 at precision 0.74. The paper's key table compared all four configurations with per-class precision/recall — and explicitly stated SMOTE was applied within folds after splitting. That sentence preempted the reviewer's first objection.</p>
+<blockquote>
+<p><strong>For your research:</strong> Imbalanced data is extremely common in publishable applied work (medicine, fraud, fault detection) — and mishandling it is extremely common in rejected papers. Your methodology must state: the class ratio, which technique you used, that resampling touched training data only, and per-class metrics. A small comparison table (baseline vs. weights vs. SMOTE) turns a routine fix into evidence of rigor.</p>
+</blockquote>
+<h3 id="when-imbalance-does-not-matter-much">When imbalance does not matter (much)</h3>
+<p>Not every skew needs fixing. If the minority class still has thousands of examples, many models learn it fine — imbalance mainly bites when the minority class is <em>absolutely</em> small (tens or hundreds of examples), because then the model barely sees it. Also, some algorithms are naturally robust: tree ensembles, which split to isolate pure regions, often handle moderate imbalance without help. So the workflow is: establish a baseline first, look at per-class metrics, and intervene only if the minority performance is actually poor. Fixing a non-problem adds complexity and new ways to leak.</p>
+<h3 id="reframing-as-anomaly-detection">Reframing as anomaly detection</h3>
+<p>When the minority class is extremely rare (fraud at 0.01%, manufacturing defects at 0.001%), classification struggles no matter what — there may be too few positives to learn a boundary. An alternative framing is <strong>anomaly detection</strong>: learn what "normal" looks like (autoencoders, one-class SVM, Isolation Forest [6], [7]) and flag deviations. This needs no positive examples at all and is often the honest formulation when positives are vanishingly few. Mentioning this alternative in your paper's related-work or limitations section shows you understand the problem deeply, even if you stay with classification.</p>
+<h3 id="costs-not-just-counts">Costs, not just counts</h3>
+<p>The deepest fix for imbalance is not technical but economic: <strong>cost-sensitive learning</strong>, where each type of error carries its real-world price. Missing a cancer (false negative) may cost far more than a false alarm (false positive). Class weights are the simple version of this; full cost-sensitive decision-making uses expected cost at prediction time. When you can state costs — even roughly, from domain literature — your threshold choice stops being a tuning trick and becomes a justified decision. That justification belongs in your paper.</p>
+<h3 id="worked-mini-example-threshold-tuning">Worked mini-example: threshold tuning</h3>
+<p>A fraud model outputs probabilities. At the default 0.5 threshold: precision 0.92, recall 0.45 — it catches less than half the fraud. Lower the threshold to 0.3: precision 0.74, recall 0.83. Lower to 0.1: precision 0.31, recall 0.96 — nearly all fraud caught, but two-thirds of alarms are false. Which is right? It depends on cost: if a missed fraud costs 100× a false alarm, 0.1 may be optimal; if investigators drown in false alarms, 0.3 is saner. Plot precision vs. recall across thresholds (the PR curve), mark your operating point, and justify it with costs or with the F1 maximum. One curve, one marked point, one sentence of justification — and the "why this threshold?" question is answered before it is asked.</p>
+<h3 id="imbalance-reporting-checklist">Imbalance reporting checklist</h3>
+<ul>
+<li>[ ] Class counts and ratio stated (e.g., "284,000 transactions, 0.17% fraud").</li>
+<li>[ ] Technique named: class weights / resampling / SMOTE variant — with settings.</li>
+<li>[ ] Resampling applied to training folds only, after splitting (stated explicitly).</li>
+<li>[ ] Metrics: per-class precision/recall/F1 and PR-AUC — never accuracy alone.</li>
+<li>[ ] Decision threshold reported and justified.</li>
+</ul>
+<h3 id="smote-variants-and-caveats">SMOTE: variants and caveats</h3>
+<p>Plain SMOTE interpolates between a minority example and its minority neighbors — but not all minority regions deserve equal synthesis. <strong>Borderline-SMOTE</strong> focuses synthesis near the class boundary, where the classifier actually struggles; <strong>ADASYN</strong> generates more synthetic points for minority examples that are hardest to learn (those surrounded by majority-class neighbors). Caveats to know: in very high-dimensional spaces (e.g., raw TF-IDF vectors), "nearest neighbors" become nearly meaningless and SMOTE can synthesize garbage — reduce dimensionality first or prefer class weights. SMOTE also assumes the space between two minority examples is valid minority territory, which fails if classes overlap heavily. When in doubt, compare SMOTE against class weights empirically (Chapter 11's ablation table) rather than assuming the fancier method wins.</p>
+<h3 id="ensembling-for-imbalance">Ensembling for imbalance</h3>
+<p>A robust, underused approach: <strong>balanced ensembling</strong>. Train many models, each on all the minority examples plus a different random subsample of the majority class, then average their predictions (balanced bagging) or sequence them (balanced boosting variants). Each model sees a balanced problem; together they see all the majority data — no information discarded, no synthetic points invented. It costs more compute but is conceptually clean and hard to get wrong, which makes it easy to defend. If SMOTE's synthetic points make you (or your reviewer) nervous, balanced ensembling is the respectable alternative to try next.</p>
+<p><strong>Key takeaways</strong>
+- Imbalance makes accuracy meaningless; optimize for recall/precision on the minority class.
+- Options: undersampling, oversampling, SMOTE (synthetic interpolation between minority neighbors), class weights.
+- Try class weights first; add SMOTE if needed; tune the decision threshold.
+- Resample training data only, inside CV folds — never before splitting.
+- Report class ratios, your technique, and per-class metrics in the paper.</p>
+<hr />
+<h2 id="chapter-12-building-a-reproducible-preprocessing-pipeline-documenting-data-for-papers">Chapter 12: Building a Reproducible Preprocessing Pipeline + Documenting Data for Papers</h2>
+<p>Everything in this book fails if it is done by hand, in the wrong order, differently each time. A <strong>pipeline</strong> is a fixed, ordered sequence of preprocessing steps plus the model, defined once and applied identi

@@ -1,0 +1,122 @@
+cally to training, validation, test, and future data. It is the difference between "I cleaned the data somehow" and science.</p>
+<h3 id="why-pipelines-the-leakage-argument">Why pipelines: the leakage argument</h3>
+<p>Chapters 3, 6, 8, and 11 each contained the same warning: compute statistics on training data, apply to test data. Doing this manually across imputation, scaling, encoding, selection, and resampling — inside cross-validation folds — is nearly impossible to get right by hand. A pipeline object (e.g., scikit-learn's <code>Pipeline</code> [6]) encodes the order and the fit/transform discipline: <code>fit</code> learns parameters from training data, <code>transform</code> applies them, and cross-validation re-fits the whole pipeline per fold automatically. Leakage becomes structurally impossible rather than a matter of vigilance.</p>
+<h3 id="anatomy-of-a-good-pipeline">Anatomy of a good pipeline</h3>
+<ol>
+<li><strong>Fixed order.</strong> A sensible default: clean → handle missing values → encode categoricals → engineer features → scale → select features → resample (training only) → model. Order matters: scale after encoding (one-hot columns are already 0/1 — decide whether to scale them), select after engineering.</li>
+<li><strong>Versioned code and seeds.</strong> Pin library versions, set random seeds, and keep the pipeline definition in version control. "Random" steps (shuffling, SMOTE, train/test splits) must be seeded to be reproducible.</li>
+<li><strong>Saved artifacts.</strong> Persist the fitted pipeline (not just the model) so predictions on new data go through identical preprocessing. A model without its preprocessing is undeployable.</li>
+<li><strong>Ablation-friendly.</strong> Structure the pipeline so steps can be toggled — your paper's ablation tables (with vs. without imputation strategy X, scaling on/off) come straight from pipeline variants.</li>
+</ol>
+<h3 id="documenting-data-datasheets-for-datasets">Documenting data: datasheets for datasets</h3>
+<p>Increasingly, venues expect structured dataset documentation. The <strong>"Datasheets for Datasets"</strong> concept proposes a standard set of questions every dataset should answer: Why was it created? Who collected and labeled it, and under what conditions? What does each instance represent? What is missing, and what are the known biases and limitations? What are the recommended and discouraged uses? You do not need the full formal template for every project — but answering its core questions in your paper's dataset section (or appendix) puts you ahead of most submissions. At minimum, document: source and collection method, labeling protocol and annotator agreement if any, size and splits, preprocessing steps applied, known limitations, and licensing/consent.</p>
+<h3 id="the-reproducibility-checklist-for-your-paper">The reproducibility checklist for your paper</h3>
+<ul>
+<li>[ ] Dataset source, collection, and labeling described</li>
+<li>[ ] Train/validation/test split procedure stated (with seed)</li>
+<li>[ ] Every preprocessing step named, in order, with parameters</li>
+<li>[ ] All fitted statistics (imputation values, scaler params, encodings) from training data only</li>
+<li>[ ] Resampling/selection performed inside CV folds</li>
+<li>[ ] Library versions recorded; code or pseudocode available</li>
+<li>[ ] Known data limitations stated honestly</li>
+</ul>
+<p><strong>Worked example.</strong> A researcher submitted a paper on air-quality prediction and got the classic reviewer comment: "Preprocessing is unclear; results may not be reproducible." Revision: they wrapped all steps in a scikit-learn Pipeline (median imputation → target encoding of station IDs within folds → standardization → lasso selection → gradient boosting), seeded every random operation, recorded library versions, and added a half-page "Data and Preprocessing" appendix answering datasheet-style questions (sensor network source, calibration notes, 6% missingness MAR assumption, station coverage gaps as a stated limitation). The paper was accepted. The model had not changed at all between submission and acceptance — only the pipeline and documentation had.</p>
+<blockquote>
+<p><strong>For your research:</strong> Treat your preprocessing pipeline as a first-class research artifact, as citable as your model. Reviewers increasingly reject papers they cannot reproduce, and preprocessing vagueness is the most common cause. Build the pipeline early (not the night before submission), keep the checklist above next to your desk, and write the datasheet-style appendix while the decisions are fresh — reconstructing them months later is painful and error-prone.</p>
+</blockquote>
+<h3 id="versioning-data-not-just-code">Versioning data, not just code</h3>
+<p>You version your code with git — but what about your data? A preprocessing pipeline run on "the dataset" is meaningless if the dataset changed silently between runs. Lightweight answers exist: <strong>DVC (Data Version Control)</strong> tracks data files and pipeline stages alongside git; even simpler, keep a <code>DATA_VERSIONS.md</code> log noting each dataset snapshot's date, source, row count, checksum, and what changed. At minimum, never overwrite your raw data: keep <code>data/raw/</code> immutable and write all cleaned outputs to <code>data/processed/</code>. When a reviewer asks "which version of the data produced Table 3?", you should be able to answer in seconds.</p>
+<h3 id="writing-the-methodology-section">Writing the methodology section</h3>
+<p>All of this book converges on about a page of your paper. A strong preprocessing/methodology section follows this arc:</p>
+<ol>
+<li><strong>Data.</strong> Source, collection, size, splits (with seed), labeling protocol.</li>
+<li><strong>Cleaning.</strong> What was wrong, what you did, in order — missing data, outliers, with rates and rules.</li>
+<li><strong>Representation.</strong> Encodings, scaling, engineered features (the feature table), selection results.</li>
+<li><strong>Validation discipline.</strong> Pipeline structure, CV scheme, where resampling/selection happened, leakage safeguards.</li>
+<li><strong>Reproducibility.</strong> Library versions, seeds, code availability, data availability or access procedure.</li>
+<li><strong>Limitations.</strong> What the data cannot support — stated plainly.</li>
+</ol>
+<p>Write it while the work is fresh, in the order you did it. Future you — writing the thesis at 1 a.m. — will be grateful.</p>
+<h3 id="a-pipeline-sketch-in-code">A pipeline sketch in code</h3>
+<p>The ideas in this chapter map directly onto scikit-learn's <code>Pipeline</code> [6]. Schematically:</p>
+<pre><code>preprocess = ColumnTransformer([
+    ('num', Pipeline([
+        ('impute', SimpleImputer(strategy='median')),
+        ('scale', StandardScaler())]), numeric_features),
+    ('cat', Pipeline([
+        ('impute', SimpleImputer(strategy='most_frequent')),
+        ('encode', OneHotEncoder(handle_unknown='ignore'))]), categorical_features),
+])
+full = Pipeline([
+    ('preprocess', preprocess),
+    ('select', SelectFromModel(LassoCV())),
+    ('model', GradientBoostingClassifier()),
+])
+scores = cross_val_score(full, X, y, cv=5)   # everything re-fit per fold
+</code></pre>
+<p>Every step is re-fit inside each cross-validation fold automatically — imputation medians, scaler parameters, encodings, the lasso selection — so leakage is impossible by construction. The <code>handle_unknown='ignore'</code> handles new categories at prediction time. Save <code>full</code> after fitting, and deployment preprocessing is identical to training preprocessing. When your examiner asks "exactly what did you do to the data?", this object <em>is</em> the answer.</p>
+<h3 id="from-notebook-to-paper-the-handoff">From notebook to paper: the handoff</h3>
+<p>Research code usually starts as an exploratory notebook and must end as a defensible pipeline plus a methodology section. Make the handoff explicit: freeze a notebook as "exploration" (dated, read-only), and build the final pipeline as clean, reviewed code. The paper's methodology is then written <em>from</em> the pipeline, not from memory — which is why the two agree. The most common reproducibility failure is not malice but drift: the paper describes what the author <em>remembers</em> doing, which differs from what the final code <em>actually</em> does. Writing from the pipeline eliminates the gap.</p>
+<h3 id="datasheet-questions-answered-a-compact-example">Datasheet questions, answered: a compact example</h3>
+<p>To make datasheets concrete, here is what the core questions look like answered for a hypothetical crop-disease image dataset: <strong>Why created?</strong> To train disease classifiers for smallholder wheat farms in Punjab. <strong>Collected by whom, how?</strong> Two agronomy graduates photographed fields in 2024–2025 with phone cameras, following a written protocol (three angles per plant, morning light). <strong>Labels?</strong> Each image labeled by one graduate and verified by a plant pathologist; disagreements (4%) resolved by the pathologist. <strong>Composition?</strong> 8,200 images, 6 disease classes, 60/20/20 split by <em>farm</em> (not by image — images from one farm never span splits, preventing leakage). <strong>Limitations?</strong> Single province, two growing seasons, no night images; models may not transfer to other regions. <strong>Recommended use?</strong> Research and advisory tools with expert oversight; not for autonomous pesticide decisions. Six questions, honest answers, one page — and a reviewer instantly trusts the dataset section.</p>
+<h3 id="peer-review-your-pipeline">Peer-review your pipeline</h3>
+<p>Before submission, have someone — a labmate, a friend, anyone — read your preprocessing code and your methodology section side by side, checking that every claim in the text matches the code. Offer to do the same for them. Most leakage and irreproducibility bugs are invisible to the author (you know what you <em>meant</em>) but obvious to a fresh reader. If no human is available, do it yourself after a week's break: print the methodology section, and for each sentence, find the exact lines of code that implement it. Sentences with no matching code are either missing implementation or missing honesty — fix whichever it is.</p>
+<p><strong>Key takeaways</strong>
+- A pipeline fixes the order of preprocessing + model and enforces fit-on-train/apply-everywhere discipline, making leakage structurally impossible.
+- Version your code, seed randomness, pin libraries, and persist the fitted pipeline — not just the model.
+- Structure pipelines for ablations; your comparison tables come from toggling steps.
+- Document datasets datasheet-style: source, labeling, splits, preprocessing, limitations, licensing.
+- Use the reproducibility checklist before every submission; preprocessing clarity is what gets papers accepted.</p>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] T. Hastie, R. Tibshirani, and J. Friedman, <em>The Elements of Statistical Learning</em>, 2nd ed. New York, NY, USA: Springer, 2009.</p>
+<p>[2] C. M. Bishop, <em>Pattern Recognition and Machine Learning</em>. New York, NY, USA: Springer, 2006.</p>
+<p>[3] T. M. Mitchell, <em>Machine Learning</em>. New York, NY, USA: McGraw-Hill, 1997.</p>
+<p>[4] A. Géron, <em>Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow</em>, 2nd ed. Sebastopol, CA, USA: O'Reilly Media, 2019.</p>
+<p>[5] K. P. Murphy, <em>Probabilistic Machine Learning: An Introduction</em>. Cambridge, MA, USA: MIT Press, 2022.</p>
+<p>[6] F. Pedregosa et al., "Scikit-learn: Machine learning in Python," <em>J. Mach. Learn. Res.</em>, vol. 12, pp. 2825–2830, 2011.</p>
+<p>[7] I. Goodfellow, Y. Bengio, and A. Courville, <em>Deep Learning</em>. Cambridge, MA, USA: MIT Press, 2016.</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Garbage in, garbage out (GIGO)</strong> — The principle that flawed input data produces unreliable outputs regardless of model quality.</li>
+<li><strong>Exploratory data analysis (EDA)</strong> — Systematic inspection of data through statistics and plots before modeling.</li>
+<li><strong>MCAR</strong> — Missing Completely At Random: missingness unrelated to any data.</li>
+<li><strong>MAR</strong> — Missing At Random: missingness depends only on observed data.</li>
+<li><strong>MNAR</strong> — Missing Not At Random: missingness depends on the missing value itself.</li>
+<li><strong>Imputation</strong> — Filling missing values with estimated substitutes.</li>
+<li><strong>Outlier</strong> — A data point far from the rest; either an error or a genuine rare event.</li>
+<li><strong>One-hot encoding</strong> — Representing each category as its own binary column.</li>
+<li><strong>Ordinal encoding</strong> — Mapping ordered categories to integers that preserve rank.</li>
+<li><strong>Target encoding</strong> — Replacing a category with the average target value for that category.</li>
+<li><strong>Standardization</strong> — Rescaling to zero mean and unit variance.</li>
+<li><strong>Normalization (min-max)</strong> — Rescaling to a fixed range, typically [0, 1].</li>
+<li><strong>Feature engineering</strong> — Creating new informative features from raw data.</li>
+<li><strong>Feature selection</strong> — Keeping only features that help the model; dropping the rest.</li>
+<li><strong>Tokenization</strong> — Splitting text into processable units (words, subwords, characters).</li>
+<li><strong>TF-IDF</strong> — Weighting words by frequency in a document discounted by rarity across documents.</li>
+<li><strong>Embedding</strong> — A dense vector representation capturing meaning or similarity.</li>
+<li><strong>Data augmentation</strong> — Creating extra training examples via label-preserving transformations.</li>
+<li><strong>Class imbalance</strong> — A dataset where one class vastly outnumbers another.</li>
+<li><strong>SMOTE</strong> — Generating synthetic minority-class examples by interpolating between neighbors.</li>
+<li><strong>Data leakage</strong> — Test information accidentally influencing training, inflating reported results.</li>
+<li><strong>Pipeline</strong> — A fixed, reusable sequence of preprocessing steps plus the model.</li>
+<li><strong>Datasheet for datasets</strong> — A structured document describing a dataset's purpose, composition, collection, and limitations.</li>
+<li><strong>Ablation study</strong> — Comparing performance with and without a component to measure its contribution.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>Take any public tabular dataset (e.g., from UCI ML Repository). Write a one-page "data story": source, collection, labeling, suspected quality issues. Identify three things you would verify before modeling.</li>
+<li>Perform full EDA on the dataset: shape, types, <code>describe()</code>, missingness counts, value counts for categoricals, histograms, box plots, and a correlation heatmap. List every anomaly you find and its likely cause.</li>
+<li>For each column with missing values, argue whether the mechanism is MCAR, MAR, or MNAR, with evidence. Choose an imputation strategy per column and justify it in writing.</li>
+<li>Implement three imputation strategies (deletion, median, k-NN) with 5-fold cross-validation on a regression task. Report which wins and whether the differences are meaningful. Remember: split before imputing.</li>
+<li>Detect outliers in two numeric columns using both the z-score and IQR methods. Compare what each flags. Investigate three flagged points and decide: correct, remove, cap, or keep — with written reasons.</li>
+<li>Find a categorical column with high cardinality in a dataset. Compare one-hot encoding (with rare-category grouping), ordinal encoding (if ordered), and target encoding computed inside CV folds. Report performance and training time for each.</li>
+<li>Train a k-NN classifier and a random forest on the same dataset, with and without standardization. Explain why the results differ between the two models, referencing what each model computes.</li>
+<li>Engineer five new features for a dataset with a timestamp column (date parts, lags, aggregations). Show via cross-validation that at least two of them improve performance, and check each against the leakage question.</li>
+<li>Take 200 short text samples (e.g., product reviews). Build two pipelines: TF-IDF + logistic regression vs. a pretrained transformer with its own tokenizer. Document every preprocessing decision and compare results with an ablation on one cleaning step.</li>
+<li>End-to-end capstone: pick an imbalanced binary dataset, build a single scikit-learn Pipeline (imputation → encoding → scaling → SMOTE-inside-CV → model), tune the decision threshold, and write a two-page methodology section in paper style — dataset description, preprocessing paragraph, results table with per-class metrics, limitations, and the reproducibility checklist from Chapter 12.</li>
+</ol>
+<hr />
+<p><em>End of Book 4. Next: Book 5 — Model Evaluation: Accuracy, Precision, Recall.</em></p>

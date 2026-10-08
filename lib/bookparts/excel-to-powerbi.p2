@@ -1,0 +1,770 @@
+er BI Desktop is free — everything in Chapters 1-8 costs nothing. Sharing is where licensing enters:</p>
+<ul>
+<li><strong>Free:</strong> build reports, publish to My workspace, view your own content. You cannot share with others (with narrow exceptions).</li>
+<li><strong>Pro (per user, per month):</strong> share workspaces, publish apps, schedule refresh, use Analyze in Excel with colleagues. This is what a research lab needs — typically one Pro license per content creator; viewers of shared content generally need Pro too (or the content must live in Premium capacity).</li>
+<li><strong>Premium (capacity-based):</strong> larger models, more refreshes, deployment pipelines, AI features, and the ability to share with free users. Overkill for most student projects; relevant for institutional deployments.</li>
+</ul>
+<p>Practical guidance for students: check whether your university provides Pro licenses (many do through academic programs). A single Pro trial covers a capstone project. And licensing changes — verify current terms on official Microsoft documentation before budgeting a lab around them (see References). The architecture you learn in this book is identical across all tiers; only the sharing and scale limits move.</p>
+<h3 id="99-sharing-with-non-power-bi-people-the-stakeholder-menu">9.9 Sharing with non-Power BI people: the stakeholder menu</h3>
+<p>Not everyone will open your app, and that's fine. Keep this menu of alternatives — each preserves the single source of truth while meeting people where they are:</p>
+<ul>
+<li><strong>The live demo.</strong> Present the report itself in meetings instead of screenshots. Click the slicers live; answer "what about male respondents?" by clicking instead of promising a follow-up. This single habit converts more skeptics than any feature list.</li>
+<li><strong>Subscriptions.</strong> The emailed snapshot for the stakeholder who lives in their inbox (Chapter 9). They get the picture; the link underneath leads to the live report when curiosity strikes.</li>
+<li><strong>Teams integration.</strong> Pin the report as a tab in the team's channel. It lands where the conversation already happens, and the discussion stays attached to current data.</li>
+<li><strong>Exported extracts.</strong> The PDF for the committee packet, the Excel extract for the auditor (Chapter 10). Always generated from the model, always labeled with its date and filter state.</li>
+<li><strong>Analyze in Excel.</strong> For the co-author who thinks in PivotTables — their interface, your governed numbers.</li>
+</ul>
+<p>The principle behind the menu: <strong>every artifact flows from the model, and every artifact says where it came from.</strong> A screenshot with a date and a link back to the app is honest; a screenshot alone is a rumor.</p>
+<h3 id="910-the-workspace-naming-and-organization-habit">9.10 The workspace naming and organization habit</h3>
+<p>Workspaces multiply. A lab with three projects and two years of history can easily have forty, and "New workspace (2)" helps nobody. Adopt a naming convention from day one:</p>
+<p><strong><code>[Project] — [Purpose] — [Stage]</code></strong>, e.g., "Thalassemia Survey — Field Monitoring — PROD" vs "Thalassemia Survey — Experiments — DEV." Purpose separates the validated from the exploratory; stage separates what audiences see from what you're building. Add a one-paragraph description to every workspace (who it's for, who owns it, when it was last reviewed) and a contact.</p>
+<p>Twice a year, archive: workspaces with no refresh in 90 days get reviewed — promoted, archived (export the PBIX, note the archive location, delete the workspace), or deleted. Stale workspaces are where confidential data goes to be forgotten, which is the opposite of governance. The habit takes ten minutes per review and is the difference between a workspace list that orients newcomers and one that confuses everyone including you.</p>
+<p><strong>For your research:</strong> Supervisors and examiners increasingly expect to interact with findings, not just read them. An app link in your thesis with the validation page visible signals methodological confidence most theses cannot show. For multi-site studies, RLS lets site coordinators monitor their own data collection live — improving data quality during the study, not after. And the governance list above (classify, separate, version, provenance, afterlife) is directly the language of data management plans that funders require — write it once here, reuse it in every grant.</p>
+<p><strong>Key takeaways:</strong>
+- Replace "send the file" with "share the access": one dataset in a workspace, one app for the audience — nothing to be out of date.
+- Ladder: personal workspace for drafts, team workspace for co-authors, published app for stakeholders, Publish-to-web only for truly public data — never for sensitive research data.
+- Row-level security gives personalized views from one report — the thing email attachments cannot do.
+- Meet Excel collaborators where they are: Analyze in Excel gives them live PivotTables on your governed model.
+- Govern like a researcher: classify data, separate dev from published, version definitions, record provenance, plan the archive afterlife.</p>
+<hr />
+<h2 id="end-of-chunk-3-chapters-79"><em>End of chunk 3 — Chapters 7–9.</em></h2>
+<h2 id="chapter-10-when-to-still-use-excel-it-is-not-dead">Chapter 10: When to Still Use Excel (It Is Not Dead)</h2>
+<h3 id="101-the-honest-chapter">10.1 The honest chapter</h3>
+<p>After nine chapters of migration, this chapter says the quiet part out loud: <strong>Excel is not dead, and you should not migrate everything.</strong> Power BI is the better reporting engine; Excel remains the better thinking surface. Knowing which job belongs where is the mark of a senior analyst — and the researchers who thrive are bilingual, not converted.</p>
+<p>The test is simple: <strong>Power BI answers questions repeatedly; Excel answers questions once.</strong> If the question, the data shape, and the audience are stable, build the pipeline. If you are exploring, prototyping, entering data, or doing one-off arithmetic, Excel is faster and nobody should feel guilty about it.</p>
+<h3 id="102-excels-enduring-strongholds">10.2 Excel's enduring strongholds</h3>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Why Excel wins</th>
+<th>How it connects to Power BI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Quick ad-hoc arithmetic</td>
+<td>A grid computes in seconds; no model to build</td>
+<td>Paste results into a report; or connect Excel as a source</td>
+</tr>
+<tr>
+<td>Data entry and capture</td>
+<td>Grids are the best manual-entry UI ever made</td>
+<td>Enter in a proper Table; Power Query reads it (Chapter 2 rules apply)</td>
+</tr>
+<tr>
+<td>What-if analysis (Goal Seek, scenarios, Solver)</td>
+<td>Cell-level experimentation with instant feedback</td>
+<td>Prototype in Excel; productionize stable logic as DAX or what-if parameters</td>
+</tr>
+<tr>
+<td>Small, one-off datasets (under a few thousand rows)</td>
+<td>Pipeline overhead exceeds the benefit</td>
+<td>Analyze directly; migrate only if it becomes recurring</td>
+</tr>
+<tr>
+<td>Prototyping a calculation</td>
+<td>Test DAX logic as Excel formulas first</td>
+<td>Validate the math in the grid, then translate (Chapter 6)</td>
+</tr>
+<tr>
+<td>Sharing with Excel-only audiences</td>
+<td>Zero learning curve for the recipient</td>
+<td>Analyze in Excel against your model (Chapter 9) — best of both</td>
+</tr>
+<tr>
+<td>Freeform layout (forms, checklists, mixed documents)</td>
+<td>A report canvas is not a document</td>
+<td>Keep documents in Excel/Word; keep analytics in Power BI</td>
+</tr>
+</tbody>
+</table>
+<p>Two of these deserve emphasis for researchers. First, <strong>data entry</strong>: field teams will keep entering data in Excel or Google Sheets for years. Do not fight it — govern it: give them a proper Table template (Chapter 2's five rules, with data validation dropdowns), and let Power Query consume it. Second, <strong>prototyping</strong>: when a supervisor asks "what if we weighted the districts differently?", hacking it in Excel for ten minutes beats rebuilding a model. If the what-if becomes permanent, promote it to a what-if parameter in Power BI.</p>
+<h3 id="103-the-hybrid-workflow-the-actual-professional-standard">10.3 The hybrid workflow: the actual professional standard</h3>
+<p>The working pattern of experienced analysts is not "Excel versus Power BI" — it is a loop:</p>
+<ol>
+<li><strong>Capture and prototype in Excel.</strong> Enter data in governed tables; test calculations as cell formulas.</li>
+<li><strong>Productionize in Power BI.</strong> Power Query consumes the Excel tables; the model, measures, and visuals become the system of record.</li>
+<li><strong>Consume flexibly.</strong> The team views the app; the Excel holdout uses Analyze in Excel against the same dataset; you prototype the next change in Excel.</li>
+</ol>
+<p>Notice what this loop achieves: Excel's flexibility where flexibility matters (entry, exploration), Power BI's rigor where rigor matters (the published numbers). Neither tool is asked to do the other's job.</p>
+<h3 id="104-what-not-to-do-in-excel-anymore">10.4 What not to do in Excel anymore</h3>
+<p>Bilingual does not mean anything goes. Once the pipeline exists, retire these Excel habits for that report:</p>
+<ul>
+<li>Maintaining a parallel "shadow" workbook with its own formulas — two versions of the truth will diverge, and the divergence will be discovered at the worst moment.</li>
+<li>Hand-editing numbers in the source Excel file that feeds the pipeline ("just fixing this one cell") — fix the source system or document the adjustment as a query step; silent edits destroy the audit trail.</li>
+<li>Rebuilding in Excel what the report already shows — if the app answers the question, the answer is the app.</li>
+</ul>
+<h3 id="105-migration-walkthrough-the-hybrid-handoff">10.5 Migration walkthrough: the hybrid handoff</h3>
+<p>Take a budget-tracking workbook the finance officer loves and will never abandon.</p>
+<ol>
+<li>Keep the workbook — but restructure the entry sheets as proper Tables with data validation (Chapter 2).</li>
+<li>Build a Power BI model that reads those Tables via Power Query (OneDrive folder, Chapter 8).</li>
+<li>Rebuild the summary views as a report; validate against the workbook.</li>
+<li>The officer keeps entering data in Excel (unchanged habit); everyone else reads the app (new capability). Refresh on schedule.</li>
+<li>When the officer asks for a new what-if, prototype it in their workbook first; promote to the model only if it sticks.</li>
+</ol>
+<p>Nobody was forced to change tools. The numbers got rigor; the people kept comfort.</p>
+<h3 id="106-excel-as-a-data-source-three-patterns">10.6 Excel as a data source: three patterns</h3>
+<p>Excel doesn't just feed the pipeline — it plays three distinct, legitimate roles:</p>
+<ol>
+<li><strong>The governed entry template.</strong> Field teams enter data in a protected Excel Table (Chapter 2's five rules, plus data validation dropdowns and locked formula cells). Power Query consumes it from a shared folder. You get Excel's unbeatable entry UX with the pipeline's rigor. The template is versioned; when it changes, the pipeline's Source step notes the version.</li>
+<li><strong>The parameter table.</strong> Small Excel tables drive model behavior: a table of reporting thresholds, a mapping of old-to-new codes during a transition year, a list of indicators to include this quarter. Power Query reads them as parameters (Chapter 3). Non-technical colleagues can change behavior by editing a familiar grid instead of touching the model.</li>
+<li><strong>The extract for skeptics.</strong> A reviewer wants the raw numbers behind Figure 3 in a spreadsheet they can poke at. Export the visual's data (Chapter 9) and send it — with a note that the report is the system of record. This isn't surrender; it's meeting an auditor where they live.</li>
+</ol>
+<p>What Excel must never be in the hybrid: a shadow system of record with its own formulas duplicating the model's measures. Extracts flow <em>out</em> of the model; entry templates flow <em>in</em> through the pipeline. Both directions are governed; neither is a parallel truth.</p>
+<h3 id="107-decision-tree-which-tool-for-this-task">10.7 Decision tree: which tool for this task?</h3>
+<p>When you're unsure, walk this tree:</p>
+<ul>
+<li><strong>Is the task data entry?</strong> → Excel (governed template), consumed by the pipeline.</li>
+<li><strong>Is it a one-off question you'll never ask again?</strong> → Excel. Ten minutes in a grid beats an hour of modeling.</li>
+<li><strong>Is it exploratory — you're not sure what you're looking for?</strong> → Start in Excel (or Power BI's exploratory visuals); promote to the model only what survives.</li>
+<li><strong>Will you (or anyone) need this again next month?</strong> → Power BI pipeline. The second run pays for the build.</li>
+<li><strong>Do the numbers leave your hands (thesis, paper, audit)?</strong> → Power BI measures, validated. Reproducibility is the requirement, and only the pipeline provides it.</li>
+<li><strong>Does someone else need to interact with it?</strong> → Power BI app. Email the link, not the file.</li>
+<li><strong>Is it a what-if with instant feedback?</strong> → Excel first; promote to a what-if parameter if the scenario becomes standing.</li>
+</ul>
+<p>Tape this inside your project notebook. In six months you'll answer these without thinking — that's what "bilingual" feels like.</p>
+<h3 id="108-analyze-in-excel-the-deep-dive">10.8 Analyze in Excel: the deep dive</h3>
+<p><strong>Analyze in Excel</strong> deserves its own section because it's the single most effective bridge for Excel-native collaborators — and the most misunderstood feature in the sharing story.</p>
+<p>How it works: from a workspace in the Service, you choose Analyze in Excel on a dataset. It downloads a small ODC connection file; opening it creates a PivotTable whose data source is the live Power BI model, not a copy. Your collaborator drags fields, builds their familiar PivotTable — and every number comes from your validated measures and relationships. They can even write DAX-adjacent MDX-free queries without knowing it; the PivotTable generates them.</p>
+<p>What it doesn't do: it doesn't expose your M queries or let them edit the model (good — governance), and it needs the collaborator to have the right license and permissions (Chapter 9). Very large models can feel slower than local Excel, because every drag queries the Service.</p>
+<p>The conversion playbook for a holdout colleague: don't argue tools. Send them the connection file and say "your PivotTable, live numbers, no more monthly rebuild." Let them build the exact PivotTable they build every month — in two minutes, against current data. Then show them that when next month's data refreshes, their PivotTable refreshes too. Most holdouts convert at that moment, not because Power BI won a debate, but because their least-favorite chore disappeared.</p>
+<h3 id="109-the-one-workbook-test-auditing-your-excel-estate">10.9 The one-workbook test: auditing your Excel estate</h3>
+<p>Before migrating anything, audit what you have. Most researchers maintain between five and fifty workbooks and migrate the wrong one first (the biggest, the most broken, the one the supervisor cares about least). Run the one-workbook test on each candidate:</p>
+<ol>
+<li><strong>Recurrence score (1-3):</strong> How often is it rebuilt? Monthly scores 3; once per thesis scores 1.</li>
+<li><strong>Pain score (1-3):</strong> How long does the ritual take, and how often does it break? A full day with frequent errors scores 3.</li>
+<li><strong>Audience score (1-3):</strong> How many people consume it, and how much do errors cost? A supervisor-facing monthly report scores 3; a personal scratch workbook scores 1.</li>
+<li><strong>Feasibility score (1-3):</strong> How clean are the sources? Proper tables and stable files score 3; merged-cell archaeology scores 1.</li>
+</ol>
+<p>Total the scores. Migrate the highest-scoring workbook first — maximum payback, minimum risk. The lowest-scoring ones (one-off, personal, messy) stay in Excel forever, and that's correct: not everything deserves a pipeline. Re-run the audit yearly; today's scratch workbook becomes next year's monthly report more often than you'd expect, and the audit catches it before the ritual calcifies.</p>
+<h3 id="1010-the-bilingual-analysts-toolkit-keeping-both-sharp">10.10 The bilingual analyst's toolkit: keeping both sharp</h3>
+<p>Bilingualism decays without practice. Analysts who migrate fully to Power BI often find their Excel instincts rusting — slower at the quick what-if, clumsier at data entry design — while Excel-only colleagues never build pipeline discipline. Keep both sharp deliberately:</p>
+<ul>
+<li><strong>Monthly Excel reps:</strong> do at least one genuine analysis task in Excel monthly — a what-if model, a prototype calculation, a governed entry template for a colleague. Fluency is use.</li>
+<li><strong>Quarterly pipeline review:</strong> open your oldest Power BI model and re-read its queries and measures. You'll spot shortcuts your past self took; refactoring them is how expertise compounds.</li>
+<li><strong>Teach both directions:</strong> show an Excel colleague one Power Query trick; show a Power BI colleague one Excel modeling trick. Teaching exposes the gaps in your own understanding faster than any course.</li>
+<li><strong>Keep a decision journal:</strong> for one month, note each analytical task and which tool you chose, in one line. Review it: patterns reveal your biases (defaulting to Excel from comfort, or over-engineering in Power BI from enthusiasm). The journal makes the decision tree (section 10.7) a habit rather than a poster.</li>
+</ul>
+<p>The goal was never to leave Excel behind — it was to stop Excel from being the only tool. The bilingual analyst reaches for the grid or the pipeline the way a bilingual speaker reaches for a language: whichever says it best.</p>
+<p><strong>For your research:</strong> Thesis examiners do not care which tool you used — they care whether the numbers are right and reproducible. A hybrid workflow documented honestly ("field data captured in governed Excel templates; analysis pipeline in Power BI; see Appendix C") is stronger than a purist claim. And practically: your supervisor will keep sending you Excel files. The bilingual researcher says "great, I'll plug it into the pipeline" instead of starting a tooling debate.</p>
+<p><strong>Key takeaways:</strong>
+- Power BI answers questions repeatedly; Excel answers questions once. Migrate the recurring; keep the exploratory in Excel.
+- Excel's strongholds: data entry, what-if prototyping, one-off arithmetic, small datasets, Excel-only audiences.
+- The professional standard is a hybrid loop: capture and prototype in Excel, productionize in Power BI, consume via app or Analyze in Excel.
+- Retire shadow workbooks and silent source edits once the pipeline is the system of record.
+- Document the hybrid honestly in your methods — bilingual rigor beats purist tooling claims.</p>
+<hr />
+<h2 id="chapter-11-migrating-a-real-excel-report-full-walkthrough">Chapter 11: Migrating a Real Excel Report: Full Walkthrough</h2>
+<p><img alt="Migrating an Excel report to Power BI" src="/learn/images/media-generation-book-27-ch11-migration-0-b4e74a69-1db5-456a-b528-21376794efe4.webp" /></p>
+<h3 id="111-the-patient-a-district-health-performance-report">11.1 The patient: a district health performance report</h3>
+<p>Everything so far has been technique; this chapter is surgery. Our patient is a real-pattern report (assembled from common research-administration workbooks): <strong>"District Health Performance — Monthly"</strong>, an Excel workbook maintained by a university research unit tracking survey-based health indicators across 12 districts.</p>
+<p>The workbook as found:
+- <strong>Sheet "Data_Jan" through "Data_Dec"</strong>: twelve sheets, one per month, each with a title row, headers in row 3, district performance rows, hand-typed subtotal rows per province, and "n/a" in empty cells.
+- <strong>Sheet "Codebook"</strong>: district codes to names (with three spelling variants of one district), indicator codes to definitions.
+- <strong>Sheet "Report"</strong>: the presentation layer — a summary table built with SUMIFS, twelve district charts (copy-pasted), and a title retyped monthly.
+- <strong>The ritual</strong>: on the 5th of each month, the analyst spends a full day producing the PDF: new sheet, paste, fix, extend formulas, rebuild charts, email.</p>
+<p>Target state: a Power BI report with a validation page, scheduled refresh, and an app for the unit. Total build time: about two days. Payback: month two.</p>
+<h3 id="112-phase-1-inventory-hour-1">11.2 Phase 1 — Inventory (hour 1)</h3>
+<p>Before touching anything, document what the workbook does. Open each sheet and list: every data source (the twelve month sheets, the codebook), every transformation you can see (title rows, subtotals, "n/a"), every calculation (list the SUMIFS and their logic in plain words), every output (the summary table, the twelve charts, the PDF). This inventory becomes your migration checklist and, later, your validation script. Photograph the Report sheet — you will compare against it.</p>
+<p>Decision log (write it down): the twelve month sheets become one appended fact table; the codebook becomes two dimension tables (Districts, Indicators); the Report sheet's logic becomes DAX measures; the charts become visuals.</p>
+<h3 id="113-phase-2-extract-and-clean-with-power-query-hours-2-4">11.3 Phase 2 — Extract and clean with Power Query (hours 2-4)</h3>
+<ol>
+<li>Save a copy of the workbook as the frozen source. Work on the copy.</li>
+<li>In Power BI Desktop, Get data from the workbook. Select the twelve Data sheets — better: if the sheets are structurally identical, load one, build the cleaning steps, then duplicate the query eleven times and <strong>append</strong> them (Chapter 3). (If you control next month's process, switch the source to a folder of monthly files — Chapter 8.)</li>
+<li>Cleaning steps per sheet query: remove top rows (title + blank), promote headers, remove subtotal rows (filter where the district-code column is null or equals "Subtotal"), replace "n/a" with null, fix data types, unpivot the indicator columns if they are wide.</li>
+<li>Clean the Codebook sheet: split into Districts (remove duplicates on district code; standardize the three spelling variants to one) and Indicators. Verify: every district code used in the data exists in Districts — the unmatched ones appear as errors or blanks; resolve them now, not later.</li>
+<li>Add a date table (one row per day covering the data range) and relate it.</li>
+</ol>
+<h3 id="114-phase-3-model-hours-5-6">11.4 Phase 3 — Model (hours 5-6)</h3>
+<p>Tables: <code>Performance</code> (fact: one row per district per indicator per month), <code>Districts</code>, <code>Indicators</code>, <code>Dates</code>. Relationships: one-to-many, single direction, from each dimension to the fact. Mark the date table as a date table.</p>
+<p>Delete nothing yet — but hide from report view every key column and every raw column that should never be charted (the foreign keys, the staging columns). A clean field list is a kindness to your future self and to anyone who inherits the model.</p>
+<h3 id="115-phase-4-measures-hours-7-9">11.5 Phase 4 — Measures (hours 7-9)</h3>
+<p>Translate the Report sheet's SUMIFS cell by cell using Chapter 6's table. Typical set:</p>
+<ul>
+<li><code>Response Count = COUNTROWS(Performance)</code></li>
+<li><code>Average Score = AVERAGE(Performance[Score])</code></li>
+<li><code>Target Achievement = DIVIDE([Average Score], MAX(Indicators[Target]))</code></li>
+<li><code>Districts Reporting = DISTINCTCOUNT(Performance[DistrictCode])</code></li>
+<li><code>YoY Change = [Average Score] - CALCULATE([Average Score], SAMEPERIODLASTYEAR(Dates[Date]))</code></li>
+<li><code>Overall Average = CALCULATE(AVERAGE(Performance[Score]), ALL(Performance))</code> (for reference lines)</li>
+</ul>
+<p>Write a description for each. Validate each against the frozen workbook's Report sheet with all slicers cleared. Expect two or three mismatches — they will be subtotal rows you forgot to filter or a spelling variant you missed. Fix the query, not the measure.</p>
+<h3 id="116-phase-5-report-and-validation-page-hours-10-12">11.6 Phase 5 — Report and validation page (hours 10-12)</h3>
+<p>Build the report page to mirror the old PDF: KPI strip (districts reporting, average score, target achievement, YoY change), a bar visual of average score by district with the overall-average reference line, a line visual of trend by month, a matrix of district by indicator for the exact numbers, slicers for province, year, and indicator.</p>
+<p>Then build the <strong>validation page</strong> (your audit trail made visible): cards showing row count per source month, maximum date in data, checksum totals versus the workbook's grand totals, and a table of any "(Blank)" district codes (should be empty — if not, the codebook needs work). This page is what makes the migration defensible: anyone can see the new system agrees with the old.</p>
+<h3 id="117-phase-6-publish-schedule-retire-hours-13-14">11.7 Phase 6 — Publish, schedule, retire (hours 13-14)</h3>
+<p>Publish to a working workspace, create the app, set scheduled refresh, send the one email with the app link (Chapter 9). Run one full monthly cycle in parallel: produce the old PDF as usual, let the pipeline produce the new numbers, compare. When they agree, retire the ritual. Archive the frozen workbook with the migration notes — it is now a historical artifact, not a living document.</p>
+<h3 id="118-what-went-wrong-honest-notes-from-real-migrations">11.8 What went wrong (honest notes from real migrations)</h3>
+<ul>
+<li><strong>The hidden subtotal:</strong> a province subtotal row labeled like a district slipped through the filter and inflated one month by 8%. Caught by the validation page's checksum. Lesson: filter subtotal rows by pattern (null key), not by label.</li>
+<li><strong>The spelling variant:</strong> "Karachi" vs "Karachi " (trailing space) created a phantom thirteenth district. Caught by the distinct-count card. Lesson: Trim and Clean in Power Query, always.</li>
+<li><strong>The moving target:</strong> mid-migration, the unit added a new indicator column. Because the query unpivoted indicator columns generically, the new column flowed through with zero changes. This is the moment the analyst became a believer.</li>
+</ul>
+<h3 id="119-estimating-effort-and-managing-risk">11.9 Estimating effort and managing risk</h3>
+<p>Use the walkthrough's phases to estimate your own migration. Typical ranges for a first migration of a single-workbook monthly report:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Effort (first time)</th>
+<th>Effort (second migration)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inventory</td>
+<td>1-2 hours</td>
+<td>1 hour</td>
+</tr>
+<tr>
+<td>Extract and clean (Power Query)</td>
+<td>3-5 hours</td>
+<td>2 hours</td>
+</tr>
+<tr>
+<td>Model (relationships, date table)</td>
+<td>2-3 hours</td>
+<td>1 hour</td>
+</tr>
+<tr>
+<td>Measures (translate KPIs)</td>
+<td>3-5 hours</td>
+<td>2-3 hours</td>
+</tr>
+<tr>
+<td>Report + validation page</td>
+<td>3-4 hours</td>
+<td>2 hours</td>
+</tr>
+<tr>
+<td>Publish, schedule, retire</td>
+<td>2 hours</td>
+<td>1 hour</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>14-21 hours</strong></td>
+<td><strong>~9 hours</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The second migration is faster because the patterns transfer — date tables, validation pages, and DAX idioms get reused. Maintain a personal snippet library (your date-table M script, your validation measures) and the third migration is faster still.</p>
+<p>Risk register — the four risks that actually materialize, with mitigations:</p>
+<ol>
+<li><strong>Source schema change mid-migration</strong> (a column renamed upstream). Mitigation: freeze the source workbook at inventory time; build against the frozen copy; handle the live source as a Phase 6 problem.</li>
+<li><strong>Scope creep</strong> ("while you're at it, add last year's data and three new indicators"). Mitigation: the inventory document is the contract. New scope goes in phase two, not in this migration.</li>
+<li><strong>Stakeholder distrust</strong> ("I don't believe the new numbers"). Mitigation: the validation page and the parallel run (Phase 6). Trust is built with checksums, not assurances.</li>
+<li><strong>Key-person dependency</strong> (only you understand the pipeline). Mitigation: the handover note, measure descriptions, and exported M scripts. If you were hit by a bus, could a colleague run next month's refresh? Design for yes.</li>
+</ol>
+<h3 id="1110-pre-flight-checklist-before-publish">11.10 Pre-flight checklist before publish</h3>
+<p>Run this checklist before any publish or app update. Print it; initial each line.</p>
+<ul>
+<li>[ ] Every measure validated against the legacy source with slicers cleared; validation log complete</li>
+<li>[ ] Validation page shows no unexpected "(Blank)" values and row counts match sources</li>
+<li>[ ] Date table covers the full data range (no future dates missing, no gaps)</li>
+<li>[ ] All slicers tested: each one moves every visual it should, and none it shouldn't</li>
+<li>[ ] RLS roles tested with "View as role" for each role</li>
+<li>[ ] Visual titles are questions, not field dumps; no "Sum of…" implicit measures in important visuals</li>
+<li>[ ] App navigation set: pages ordered, hidden pages (validation) intentional</li>
+<li>[ ] Scheduled refresh configured and one manual refresh succeeded in the Service</li>
+<li>[ ] Frozen source workbook archived with the migration notes</li>
+<li>[ ] Handover note written: sources, schedule, contacts, what to do when refresh fails (Chapter 8's checklist)</li>
+</ul>
+<p>A publish that passes this checklist is boring — and boring is exactly what you want from production reporting.</p>
+<h3 id="1111-after-the-migration-the-first-90-days">11.11 After the migration: the first 90 days</h3>
+<p>The migration isn't finished at publish — it's finished when the pipeline has survived three monthly cycles without you touching it. The first 90 days have their own discipline:</p>
+<ul>
+<li><strong>Month 1: supervised.</strong> You watch the refresh, check the validation page personally, and compare against a quick manual sanity check. Expect one surprise (a new spelling variant, a late file). Log it; harden the pipeline against it.</li>
+<li><strong>Month 2: delegated.</strong> A colleague runs the refresh and validation using your handover note — while you're available but not driving. Every question they ask reveals a gap in the note; fix the note.</li>
+<li><strong>Month 3: autonomous.</strong> The pipeline runs on schedule; you only review the validation page. If nothing needed you, the migration is truly done.</li>
+</ul>
+<p>Meanwhile, keep a <strong>pipeline changelog</strong>: date, what changed (new indicator added, codebook updated), why. Three lines per month. When someone asks "why did March's numbers shift?" the changelog answers in seconds — and in research, that question always comes, usually from a reviewer, usually at the worst time.</p>
+<p>At day 90, do a retrospective: what broke, what the validation page caught, how many hours the old ritual would have cost versus the pipeline's five-minute validations. Write it up in one page. That page is the business case for migrating the next report — and the evidence section of your methods chapter.</p>
+<p><strong>For your research:</strong> This chapter is a template for your thesis's data pipeline section. Replace "district health performance" with your study, and Phases 1-7 become your methods narrative: inventory, cleaning pipeline, model, measures, validation, publication. Examiners rarely see this level of pipeline documentation from Excel-based projects — it differentiates your work. Keep the decision log and the frozen source workbook; "available on request" is infinitely stronger when the artifacts actually exist.</p>
+<p><strong>Key takeaways:</strong>
+- Migrate in phases: inventory, extract and clean, model, measures, report plus validation page, publish and retire.
+- The inventory and the frozen source workbook are your validation baseline — photograph the old report before you start.
+- The validation page (row counts, max date, checksums, blank-key check) is what makes the migration defensible.
+- Run one cycle in parallel (old ritual vs new pipeline) before retiring anything.
+- Keep the decision log and frozen artifacts — they become your methods section and your audit trail.</p>
+<hr />
+<h2 id="chapter-12-capstone-rebuild-your-own-report-in-power-bi">Chapter 12: Capstone — Rebuild Your Own Report in Power BI</h2>
+<h3 id="121-the-assignment">12.1 The assignment</h3>
+<p>You have twelve chapters of technique. Now the only remaining step is yours: <strong>take one real Excel report of your own — the one you actually maintain — and rebuild it in Power BI end to end.</strong> Not a tutorial dataset. Yours. The one with the quirks only you know about. This chapter is the project plan, the milestones, the validation gates, and the definition of done.</p>
+<p>Pick the right report: it should be recurring (monthly, per wave, per semester), important enough that errors matter, and small enough to finish — one workbook, a handful of sheets, under a few hundred thousand rows. Your thesis results chapter's data, your lab's monthly summary, your survey's wave report: all excellent candidates.</p>
+<h3 id="122-milestones-and-validation-gates">12.2 Milestones and validation gates</h3>
+<p><strong>Milestone 1 — Inventory and proper tables (Week 1).</strong> Deliverable: the inventory document (Chapter 11, Phase 1) and the source data converted to proper Excel Tables. Gate: every sheet documented; no merged cells, no stored totals in the source tables.</p>
+<p><strong>Milestone 2 — Power Query pipeline (Week 2).</strong> Deliverable: queries that turn the raw sources into clean tables, with Applied Steps you can narrate. Gate: delete the outputs and re-run from raw — the pipeline must reproduce the clean tables exactly (replay test).</p>
+<p><strong>Milestone 3 — Model (Week 3).</strong> Deliverable: a star schema with relationships, keys verified unique, date table in place. Gate: the "(Blank)" check — no unexpected blanks; every fact key resolves to a dimension.</p>
+<p><strong>Milestone 4 — Measures (Week 4).</strong> Deliverable: every KPI from the old report as a named, described DAX measure. Gate: with slicers cleared, every measure matches the old workbook's figure to the last decimal. Log any discrepancy and its cause — the log itself is a deliverable.</p>
+<p><strong>Milestone 5 — Report and validation page (Week 5).</strong> Deliverable: the report page plus the validation page. Gate: a second person (supervisor, colleague) can read the validation page and agree the numbers match, without your help.</p>
+<p><strong>Milestone 6 — Publish and hand over (Week 6).</strong> Deliverable: workspace, app, scheduled refresh, and a one-page handover note (data sources, refresh schedule, who to contact, where the frozen source lives). Gate: the old ritual is retired; the app link is the single current version.</p>
+<p>Six weeks, a few hours per week. If a milestone's gate fails, do not proceed — gates exist because errors compound downstream.</p>
+<h3 id="123-the-validation-log-your-most-important-artifact">12.3 The validation log: your most important artifact</h3>
+<p>Keep a running log with four columns: Figure (which number from the old report), Old value, New value, Status and notes. Every mismatch gets an entry and a diagnosed cause (missed subtotal row, spelling variant, filter-context error in DAX, wrong key). This log does three jobs: it proves the migration is correct, it teaches you where your data's bodies are buried, and it becomes the evidence appendix your examiner or auditor wants. A migration with a validation log is engineering; without one, it is hope.</p>
+<h3 id="124-documenting-the-pipeline-for-your-thesis-or-paper">12.4 Documenting the pipeline for your thesis or paper</h3>
+<p>Translate the build into methods prose using this scaffold:</p>
+<ul>
+<li><strong>Data sources:</strong> "Raw data were maintained in Excel workbooks (one sheet per month, frozen copies archived). Incoming files were stored in a versioned folder."</li>
+<li><strong>Cleaning:</strong> "A Power Query pipeline of N recorded steps performed deduplication, type enforcement, district-name standardization, and unpivoting of indicator columns (full step list in Appendix C)."</li>
+<li><strong>Model:</strong> "Cleaned tables were modeled as a star schema: one fact table (grain: one row per district per indicator per month) with dimension tables for districts, indicators, and dates (model diagram, Figure X)."</li>
+<li><strong>Analysis:</strong> "All reported figures are DAX measures computed over the model (definitions in Appendix D), ensuring every figure is reproducible from the archived sources by refresh."</li>
+<li><strong>Validation:</strong> "Each measure was validated against the legacy workbook's figures; the validation log (Appendix E) records all comparisons."</li>
+</ul>
+<p>That is a methods section most reviewers will envy — specific, reproducible, and honest about the legacy it replaced.</p>
+<h3 id="125-presenting-the-result">12.5 Presenting the result</h3>
+<p>When you demo the report (to a supervisor, a committee, a defense panel), lead with the validation page, not the pretty visuals. "Before I show you the findings, here is proof the new system reproduces every number from the old workbook" establishes trust in ninety seconds; everything after lands harder. Then show one interaction the old workbook could never do — click a district and watch the whole page re-aggregate — and let the room feel the difference. End with the refresh story: "next month's update is a five-minute validation, not a day of rebuilding."</p>
+<h3 id="126-definition-of-done">12.6 Definition of done</h3>
+<p>The capstone is complete when: (1) the old ritual is retired and the app link is the single current version; (2) every figure validates against the legacy workbook with a written log; (3) refresh runs on schedule (or on demand with one click) and the validation page confirms it; (4) the handover note exists and someone else could operate the report; (5) the pipeline documentation is filed where your thesis or paper can cite it. Print this list. Check the boxes. You are now the person in your lab who builds refreshable, defensible reports — a genuinely rare and employable skill.</p>
+<h3 id="127-capstone-troubleshooting-guide">12.7 Capstone troubleshooting guide</h3>
+<p>When (not if) something breaks, find your symptom:</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Measure total doesn't match Excel</td>
+<td>Stale subtotal rows in source; or filter context misunderstanding</td>
+<td>Check query filters first, then re-read the measure's DAX</td>
+</tr>
+<tr>
+<td>"(Blank)" appears in a visual</td>
+<td>Fact keys missing from the dimension (codebook gaps)</td>
+<td>Fix the codebook or source; the blank row is your to-do list (Ch. 4)</td>
+</tr>
+<tr>
+<td>Refresh fails on new month's file</td>
+<td>Schema changed (renamed column) or new junk rows</td>
+<td>Open the failing step; handle the new shape deliberately (Ch. 8)</td>
+</tr>
+<tr>
+<td>Slicer doesn't affect a visual</td>
+<td>No relationship path, or interactions disabled</td>
+<td>Check Model view lines; check Format, Edit interactions</td>
+</tr>
+<tr>
+<td>Relationship shows many-to-many</td>
+<td>Duplicate or blank keys in the dimension</td>
+<td>Group By the key in Power Query; deduplicate (Ch. 4)</td>
+</tr>
+<tr>
+<td>Report is slow</td>
+<td>Too many visuals, unfiltered fact tables, no query folding</td>
+<td>Reduce visuals per page; filter early; check folding (Ch. 3)</td>
+</tr>
+<tr>
+<td>Dates won't do YTD/YoY</td>
+<td>No proper date table, or inactive relationship</td>
+<td>Build the date table; check active relationship (Ch. 6)</td>
+</tr>
+<tr>
+<td>Numbers change when I click around</td>
+<td>That's cross-filtering working as designed</td>
+<td>If a visual shouldn't respond, set its interaction to None (Ch. 7)</td>
+</tr>
+<tr>
+<td>"Can't determine relationships" on load</td>
+<td>Ambiguous or duplicate column names</td>
+<td>Rename per Chapter 2 conventions; define relationships manually</td>
+</tr>
+</tbody>
+</table>
+<p>If your symptom isn't here, the debugging order never changes: <strong>source, then query steps, then model, then DAX, then visuals.</strong> Most beginners debug backwards (staring at the visual); professionals debug forwards from the source.</p>
+<h3 id="128-self-assessment-rubric">12.8 Self-assessment rubric</h3>
+<p>Grade your finished capstone honestly. "Adequate" everywhere is a solid pass; "Excellent" anywhere is portfolio material.</p>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Needs work</th>
+<th>Adequate</th>
+<th>Excellent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pipeline replayability</td>
+<td>Cleaning steps undocumented; can't reproduce from raw</td>
+<td>Steps recorded; replay test passes</td>
+<td>Steps recorded, narrated, exported to appendix; parameter-driven sources</td>
+</tr>
+<tr>
+<td>Model design</td>
+<td>Single flat table; no keys</td>
+<td>Star schema; relationships correct; date table present</td>
+<td>Plus: role-playing handled, junk dimensions used, fields hidden properly</td>
+</tr>
+<tr>
+<td>Measure correctness</td>
+<td>Implicit dragged fields; unvalidated</td>
+<td>Explicit named measures; all validated vs legacy</td>
+<td>Plus: VAR used, descriptions written, measures compose</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>"Looks about right"</td>
+<td>Validation page; old-vs-new log complete</td>
+<td>Plus: second person confirmed; discrepancies diagnosed in writing</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>None</td>
+<td>Handover note exists</td>
+<td>Plus: methods paragraph drafted; decision log kept</td>
+</tr>
+<tr>
+<td>Sharing governance</td>
+<td>File emailed around</td>
+<td>Workspace + app; audience correct</td>
+<td>Plus: RLS where needed; dev/prod separated; archive plan written</td>
+</tr>
+</tbody>
+</table>
+<p>Score yourself, then ask your supervisor to score you independently. The gaps between the two scores are your actual learning agenda — more valuable than any certificate.</p>
+<p><strong>For your research:</strong> This capstone is not an exercise — it is infrastructure for your degree. The report you rebuild here can become the living results engine of your thesis: as new waves arrive, refresh updates every figure, and your validation log grows into the reproducibility appendix. Students who do this stop dreading the "final data update" before submission, because the update is a refresh, not a rewrite. Start this week; your future self, facing the pre-defense data update, will thank you.</p>
+<p><strong>Key takeaways:</strong>
+- Rebuild one real, recurring, finishable report of your own — not a tutorial dataset.
+- Six milestones, six weeks, each with a validation gate: inventory, pipeline, model, measures, report plus validation page, publish and hand over.
+- The validation log (old value vs new value, every discrepancy diagnosed) is the most important artifact — it proves correctness and becomes your appendix.
+- Document the pipeline in methods prose with the five-part scaffold: sources, cleaning, model, analysis, validation.
+- Done means: ritual retired, figures validated, refresh scheduled, handover written, documentation filed. Lead every demo with the validation page.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="excel-to-power-bi-translation-cheat-sheet">Excel-to-Power BI translation cheat sheet</h3>
+<table>
+<thead>
+<tr>
+<th>Excel concept</th>
+<th>Power BI concept</th>
+<th>Lives in</th>
+<th>First learned</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workbook (.xlsx)</td>
+<td>PBIX file: queries + model + report</td>
+<td>Desktop</td>
+<td>Ch. 1</td>
+</tr>
+<tr>
+<td>Worksheet with a data block</td>
+<td>Table (from proper Excel Table)</td>
+<td>Power Query / Model</td>
+<td>Ch. 2</td>
+</tr>
+<tr>
+<td>Cell range with headers</td>
+<td>Excel Table (Ctrl+T), then query</td>
+<td>Excel / Power Query</td>
+<td>Ch. 2</td>
+</tr>
+<tr>
+<td>Text-to-Columns, Find and Replace</td>
+<td>Transformation steps</td>
+<td>Power Query Editor</td>
+<td>Ch. 3</td>
+</tr>
+<tr>
+<td>Fill-down formula column</td>
+<td>Calculated column (M custom column or DAX)</td>
+<td>Power Query / Model</td>
+<td>Ch. 3, 6</td>
+</tr>
+<tr>
+<td>VLOOKUP / XLOOKUP column</td>
+<td>Relationship (one line in Model view)</td>
+<td>Model view</td>
+<td>Ch. 4</td>
+</tr>
+<tr>
+<td>Reference/codebook sheet</td>
+<td>Dimension table</td>
+<td>Model view</td>
+<td>Ch. 4</td>
+</tr>
+<tr>
+<td>PivotTable</td>
+<td>Matrix visual (or chart) + measures</td>
+<td>Report view</td>
+<td>Ch. 5</td>
+</tr>
+<tr>
+<td>Rows / Columns / Values / Filters</td>
+<td>Rows / Columns / Values / Filters pane + slicers</td>
+<td>Report view</td>
+<td>Ch. 5</td>
+</tr>
+<tr>
+<td>Calculated Field</td>
+<td>DAX measure</td>
+<td>Model</td>
+<td>Ch. 6</td>
+</tr>
+<tr>
+<td>Cell formula (SUM, IF, SUMIF)</td>
+<td>DAX measure (SUM, IF, CALCULATE)</td>
+<td>Model</td>
+<td>Ch. 6</td>
+</tr>
+<tr>
+<td>Named range / named cell</td>
+<td>Named measure or parameter</td>
+<td>Model</td>
+<td>Ch. 6</td>
+</tr>
+<tr>
+<td>Chart</td>
+<td>Visual</td>
+<td>Report view</td>
+<td>Ch. 7</td>
+</tr>
+<tr>
+<td>Slicer (Excel) / report filter</td>
+<td>Slicer visual, synced across pages</td>
+<td>Report view</td>
+<td>Ch. 7</td>
+</tr>
+<tr>
+<td>Copy-paste monthly update</td>
+<td>Refresh (manual, scheduled, incremental)</td>
+<td>Queries / Service</td>
+<td>Ch. 8</td>
+</tr>
+<tr>
+<td>Email attachment</td>
+<td>Workspace + app</td>
+<td>Power BI Service</td>
+<td>Ch. 9</td>
+</tr>
+<tr>
+<td>File password</td>
+<td>Workspace roles + row-level security</td>
+<td>Service</td>
+<td>Ch. 9</td>
+</tr>
+<tr>
+<td>Goal Seek / scenarios</td>
+<td>What-if parameter</td>
+<td>Report view</td>
+<td>Ch. 10</td>
+</tr>
+<tr>
+<td>Print to PDF</td>
+<td>Export to PDF / paginated report</td>
+<td>Service</td>
+<td>Ch. 9</td>
+</tr>
+</tbody>
+</table>
+<h3 id="formula-to-dax-quick-map">Formula-to-DAX quick map</h3>
+<table>
+<thead>
+<tr>
+<th>I want…</th>
+<th>Excel</th>
+<th>DAX</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sum with one condition</td>
+<td>SUMIF</td>
+<td>CALCULATE(SUM(…), filter)</td>
+</tr>
+<tr>
+<td>Sum with many conditions</td>
+<td>SUMIFS</td>
+<td>CALCULATE(SUM(…), f1, f2)</td>
+</tr>
+<tr>
+<td>Count with condition</td>
+<td>COUNTIF</td>
+<td>CALCULATE(COUNTROWS(…), filter)</td>
+</tr>
+<tr>
+<td>Average with condition</td>
+<td>AVERAGEIF</td>
+<td>CALCULATE(AVERAGE(…), filter)</td>
+</tr>
+<tr>
+<td>Nested IF ladder</td>
+<td>IF(IF(IF(…)))</td>
+<td>SWITCH(TRUE(), …)</td>
+</tr>
+<tr>
+<td>Safe division</td>
+<td>IF(b=0, 0, a/b)</td>
+<td>DIVIDE(a, b)</td>
+</tr>
+<tr>
+<td>Conditional sum-product</td>
+<td>SUMPRODUCT((cond)*vals)</td>
+<td>SUMX(FILTER(…), …)</td>
+</tr>
+<tr>
+<td>Percent of total</td>
+<td>value / SUM(whole range)</td>
+<td>DIVIDE(SUM(…), CALCULATE(SUM(…), ALL(…)))</td>
+</tr>
+<tr>
+<td>Year-to-date total</td>
+<td>SUMIFS with date bounds</td>
+<td>TOTALYTD(SUM(…), Dates[Date])</td>
+</tr>
+<tr>
+<td>Same period last year</td>
+<td>Manual offset lookup</td>
+<td>SAMEPERIODLASTYEAR(Dates[Date]) inside CALCULATE</td>
+</tr>
+<tr>
+<td>Running total</td>
+<td>SUM($A$2:A2) filled down</td>
+<td>CALCULATE(SUM(…), FILTER(ALL(Dates), Dates[Date] &lt;= MAX(Dates[Date])))</td>
+</tr>
+<tr>
+<td>Lookup then aggregate</td>
+<td>XLOOKUP column, then SUM</td>
+<td>Relationship; SUM sliced by dimension</td>
+</tr>
+<tr>
+<td>Row-wise flag</td>
+<td>IF formula filled down</td>
+<td>Calculated column with IF or SWITCH</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sharing-options-comparison">Sharing options comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Recommended method</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Just you, drafting</td>
+<td>My workspace (private)</td>
+<td>Safe sandbox; nothing shared by accident</td>
+</tr>
+<tr>
+<td>Supervisor and co-authors</td>
+<td>Team workspace, role-based</td>
+<td>They see model, queries, validation page</td>
+</tr>
+<tr>
+<td>Department or committee</td>
+<td>App published from workspace</td>
+<td>Curated, always current, no internals</td>
+</tr>
+<tr>
+<td>Excel-only collaborator</td>
+<td>Analyze in Excel on the dataset</td>
+<td>Their PivotTable, your governed numbers</td>
+</tr>
+<tr>
+<td>One-off external reviewer</td>
+<td>Direct share link, time-boxed</td>
+<td>Narrow, revocable</td>
+</tr>
+<tr>
+<td>General public</td>
+<td>Publish to web — only if data is truly public</td>
+<td>Simple link; irreversible, so classify first</td>
+</tr>
+<tr>
+<td>District-scoped field staff</td>
+<td>App plus row-level security</td>
+<td>One report, each viewer sees only their rows</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>App</strong> — a curated, read-only package of reports and dashboards published from a workspace for a broad audience.</li>
+<li><strong>Applied Steps</strong> — the recorded, replayable list of transformations in a Power Query query.</li>
+<li><strong>Bookmark</strong> — a saved state of a report page (filters, slicers, visual states) you can return to or present.</li>
+<li><strong>Calculated column</strong> — a DAX column computed once at refresh and stored; used for categories, flags, and bins.</li>
+<li><strong>Cardinality</strong> — the shape of a relationship: one-to-many, many-to-many, or one-to-one.</li>
+<li><strong>Cross-filtering / cross-highlighting</strong> — visuals responding to selections in other visuals by filtering or dimming.</li>
+<li><strong>Dashboard</strong> — (in the Service) a single-page collection of pinned tiles from one or more reports.</li>
+<li><strong>Data model</strong> — the set of tables, relationships, and calculations behind a report.</li>
+<li><strong>Dataset</strong> — (in the Service) the published data model (queries' output plus DAX) that reports connect to.</li>
+<li><strong>Date table</strong> — a dimension with one row per calendar day, required for DAX time intelligence.</li>
+<li><strong>DAX (Data Analysis Expressions)</strong> — the formula language for measures and calculated columns.</li>
+<li><strong>Decomposition tree</strong> — a visual for interactive root-cause drill-down into a total.</li>
+<li><strong>Dimension table</strong> — a table of descriptive entities (districts, products, dates) used for slicing.</li>
+<li><strong>Drillthrough</strong> — jumping from a data point to a detail page pre-filtered to it.</li>
+<li><strong>Evaluation context</strong> — the filter context plus row context under which a DAX expression is computed.</li>
+<li><strong>Explicit measure</strong> — a named DAX measure you define; the unit of validated calculation.</li>
+<li><strong>Fact table</strong> — the central table of measurable events (one row per transaction, response, or reading).</li>
+<li><strong>Filter context</strong> — the active filters (slicers, axes, visual selections) shaping a measure's result.</li>
+<li><strong>Gateway (on-premises data gateway)</strong> — a bridge letting the Power BI Service refresh from local data sources.</li>
+<li><strong>Implicit measure</strong> — an automatic aggregation from dragging a raw field into a visual; avoid for important numbers.</li>
+<li><strong>Incremental refresh</strong> — reloading only new or changed partitions of large tables.</li>
+<li><strong>Key influencers</strong> — an AI visual identifying which columns most influence an outcome.</li>
+<li><strong>M (Power Query Formula Language)</strong> — the language behind Power Query steps, visible in the formula bar.</li>
+<li><strong>Matrix</strong> — the PivotTable-like visual with rows, columns, values, and subtotals.</li>
+<li><strong>Measure</strong> — a DAX calculation evaluated live at render time, respecting filter context.</li>
+<li><strong>Model view</strong> — the Desktop view where tables and relationships are managed.</li>
+<li><strong>Power Query</strong> — the data-connection and transformation engine shared by Excel and Power BI.</li>
+<li><strong>Publish to web</strong> — a public, irreversible sharing link; only for truly public data.</li>
+<li><strong>Query folding</strong> — Power Query pushing transformation steps back to the source database for efficiency.</li>
+<li><strong>Refresh</strong> — re-running queries (and recalculating the model) against current source data.</li>
+<li><strong>Relationship</strong> — a defined join between tables on a shared key, usually one-to-many.</li>
+<li><strong>Report</strong> — a multi-page collection of visuals in Desktop or the Service.</li>
+<li><strong>Row context</strong> — row-by-row evaluation context in calculated columns and X-functions.</li>
+<li><strong>Row-level security (RLS)</strong> — roles with DAX filters personalizing which rows each viewer sees.</li>
+<li><strong>Scheduled refresh</strong> — automatic cloud refresh of a dataset on a timetable.</li>
+<li><strong>Slicer</strong> — a visual control for filtering a report by selecting values.</li>
+<li><strong>Small multiples</strong> — one visual automatically repeated per category value.</li>
+<li><strong>Star schema</strong> — a fact table surrounded by dimension tables; the standard model shape.</li>
+<li><strong>Theme</strong> — a report-wide set of colors, fonts, and formatting applied in one click.</li>
+<li><strong>Validation page</strong> — a report page proving the pipeline's numbers match trusted sources.</li>
+<li><strong>What-if parameter</strong> — an interactive numeric input driving scenario measures.</li>
+<li><strong>Workspace</strong> — a cloud collaboration space holding datasets, reports, and dashboards.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Skill inventory.</strong> List five Excel tasks you do regularly. For each, write its Power BI equivalent from Chapter 1's skill map, in your own words.</li>
+<li><strong>Rescue a range.</strong> Take one messy sheet of your own (title rows, blanks, subtotals). Convert it to a proper Table following Chapter 2's five rules and the walkthrough. Record how long it took.</li>
+<li><strong>Replay test.</strong> Build a Power Query pipeline that cleans a small dataset (at least six steps). Delete the output, change two values in the source, refresh, and confirm the pipeline reproduces the clean result. Write down what each step does.</li>
+<li><strong>Kill the lookups.</strong> Find a workbook where you use VLOOKUP or XLOOKUP to attach descriptions. Rebuild it with a dimension table and a relationship (Chapter 4). Verify the totals match, then delete the lookup columns.</li>
+<li><strong>PivotTable transplant.</strong> Rebuild your most-used PivotTable as a matrix with explicit measures (Chapters 5-6). Validate three cells: the grand total, one row total, and one interior cell.</li>
+<li><strong>Translate ten formulas.</strong> Take ten real formulas from one of your KPI sheets and translate each to DAX using Chapter 6's table. Classify each as measure or calculated column first, and note where you used CALCULATE.</li>
+<li><strong>Figure rebuild.</strong> Rebuild one chart from a past report as a Power BI visual with a slicer and a reference line (Chapter 7). Bookmark the exact state and write the caption, including the filter state.</li>
+<li><strong>Automate a ritual.</strong> Document one monthly copy-paste ritual of yours step by step, then design the refresh pipeline that replaces it (Chapter 8): sources, parameters, generic cleaning steps, and the validation page you would check.</li>
+<li><strong>Research migration plan (research-oriented).</strong> Choose the dataset behind your thesis or current paper. Write a two-page migration plan following Chapter 11's phases: inventory, pipeline, model diagram (star schema with grain stated), measure list, validation strategy, and sharing plan with data classification. Identify which figures in your paper each measure produces.</li>
+<li><strong>Capstone proposal (research-oriented).</strong> Draft the Milestone 1 deliverable for your own capstone (Chapter 12): the report you will rebuild, why it matters, the inventory of its sheets and calculations, the validation baseline (frozen source + photographed outputs), and the methods paragraph you will eventually write. Share it with your supervisor for sign-off before you build.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] K. Puls and M. Escobar, <em>M is for (Data) Monkey</em>. Uniontown, OH, USA: Holy Macro! Books, 2015.</p>
+<p>[2] M. Ferrari and A. Russo, <em>Analyzing Data with Power BI and Power Pivot for Excel</em>. Redmond, WA, USA: Microsoft Press, 2017.</p>
+<p>[3] M. Ferrari and A. Russo, <em>The Definitive Guide to DAX: Business Intelligence with Microsoft Power BI, SQL Server Analysis Services, and Excel</em>, 2nd ed. Redmond, WA, USA: Microsoft Press, 2019.</p>
+<p>[4] R. Collie and A. Singh, <em>Power Pivot and Power BI: The Excel User's Guide to DAX, Power Query, Power BI and Power Pivot in Excel 2010-2016</em>, 2nd ed. Uniontown, OH, USA: Holy Macro! Books, 2016.</p>
+<p>[5] G. Raviv, <em>Collect, Combine, and Transform Data Using Power Query in Excel and Power BI</em>. Redmond, WA, USA: Microsoft Press, 2018.</p>
+<p>[6] M. Allington, <em>Supercharge Power BI: Power BI Is Better When You Learn to Write DAX</em>, 2nd ed. Uniontown, OH, USA: Holy Macro! Books, 2018.</p>
+<p>[7] A. Jelen and B. Alexander, <em>Power Pivot Principles: The A to Z of Working with Data in Excel and Power BI</em>. Uniontown, OH, USA: Holy Macro! Books, 2019.</p>
+<p>[8] T. H. Davenport and J. G. Harris, <em>Competing on Analytics: The New Science of Winning</em>, updated ed. Boston, MA, USA: Harvard Business Review Press, 2017.</p>
+<p>[9] H. Chen, R. H. L. Chiang, and V. C. Storey, "Business intelligence and analytics: From big data to big impact," <em>MIS Quarterly</em>, vol. 36, no. 4, pp. 1165-1188, Dec. 2012.</p>
+<p>[10] Microsoft Learn, "Power BI documentation," Microsoft, 2026. [Online]. Available: https://learn.microsoft.com/power-bi/</p>
+<p>[11] Microsoft Learn, "Excel documentation," Microsoft, 2026. [Online]. Available: https://learn.microsoft.com/office/</p>
+<p>[12] Microsoft Learn, "DAX basics in Power BI Desktop," Microsoft, 2026. [Online]. Available: https://learn.microsoft.com/power-bi/transform-model/desktop-quickstart-learn-dax-basics</p>
+<hr />
+<h2 id="a-final-word">A Final Word</h2>
+<p>You started this book as an Excel user. You finish it as something rarer: an analyst who can choose. Every technique here — the proper table, the recorded query, the relationship, the named measure, the validation page — is really one idea wearing different clothes: <strong>make the work replayable, and the replay will make the work trustworthy.</strong></p>
+<p>The migration this book describes is not a software upgrade. It is a change in what your numbers are: from cells you maintain to definitions the machine maintains, from a story you tell about cleaning to a pipeline anyone can re-run, from attachments that decay to a link that stays current. That change is what turns a monthly chore into infrastructure, and infrastructure into the quiet confidence of knowing every figure in your thesis can be reproduced on demand.</p>
+<p>Start this week, with one report, following the capstone. Six weeks from now you'll wonder why the ritual ever felt normal.</p>
+<p><em>End of Book 27. Next: Book 28 — Research Data Management and Reproducibility.</em></p>

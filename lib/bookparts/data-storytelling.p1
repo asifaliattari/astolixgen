@@ -1,0 +1,354 @@
+r. Budget narratives ("where did the funding go?"), enrollment funnels, and emissions accounting all read naturally as waterfalls. Annotate each step's cause.</p>
+<p><strong>Sankey/flow diagrams.</strong> When the message is about flows — energy through a system, students through degree stages, money through a budget — a Sankey diagram's proportional bands show magnitude and path simultaneously. Use sparingly (they are visually heavy) and only when the flow itself is the finding.</p>
+<p><strong>Radar/spider charts: avoid.</strong> They encode values as area and angle — the two worst-judged channels (Chapter 1) — and the resulting shape depends on axis order, which is arbitrary. Almost every radar chart is better as small multiples of bars or a simple dot plot.</p>
+<p><strong>Showing uncertainty — the honesty requirement.</strong> A point estimate without uncertainty is a claim without credibility. Match the display to the claim:</p>
+<ul>
+<li>Comparing group means? Error bars showing 95% confidence intervals — and <em>say so</em> in the caption. Error bars showing standard deviation versus standard error tell different stories; unlabeled error bars are meaningless ink.</li>
+<li>Showing a trend with uncertainty? A shaded confidence band around the line.</li>
+<li>Comparing many estimates? A forest plot: dots with interval whiskers, sorted by effect size — the reader sees magnitude and precision at once.</li>
+<li>Rich distributions? Show them: jittered raw points behind the summary, or violin plots. A bar chart of means can hide bimodality, skew, and outliers; the distribution is often where the real story lives.</li>
+</ul>
+<p>One caution: never treat uncertainty displays as clutter to delete. They are data ink (Chapter 5). If your chart looks cleaner without error bars but your claim depends on the difference being real, the clean version is dishonest.</p>
+<p><strong>Log scales: powerful — handle with care.</strong> When data spans orders of magnitude (incomes, populations, pollutant concentrations), a log scale reveals structure a linear scale crushes. But log scales compress large differences visually — a "small" gap on a log axis can be a 10× difference. Rules: label the axis honestly ("log scale"), annotate what equal distances mean ("each gridline is 10×"), and never use a log scale to <em>minimize</em> a difference you would emphasize on a linear one. Reviewers notice.</p>
+<blockquote>
+<p><strong>For your research:</strong> Audit every figure in your current paper or thesis draft against the decision tree above. For each figure, write down: (a) the message sentence, (b) the relationship family, (c) whether the chart type matches, and (d) which of the seven classic errors (if any) it commits. Researchers are often shocked to find that two or three of their figures are miscast — ## 4.6 Choosing Under Constraints: Print, Slides, and Interactivity</p>
+</blockquote>
+<p>The right chart also depends on the medium:</p>
+<ul>
+<li><strong>Print (papers, theses):</strong> static, small, possibly grayscale. Favor high data-density charts that survive shrinking: dot plots, small multiples, forest plots. Avoid thin lines, tiny labels, and color-dependent encodings. Always test at final column width.</li>
+<li><strong>Slides:</strong> huge, fleeting, seen from meters away. Favor one-message charts with massive type: a single highlighted bar, one clean trend line, big numbers. Split multi-panel paper figures across slides; rebuild rather than shrink.</li>
+<li><strong>Interactive (dashboards, web):</strong> the reader controls the view. Favor overviews that invite drilling down: a clean summary chart with filters, tooltips carrying precise values, and linked views. But never use interactivity to excuse a confusing default view — most readers never click anything, so the static first screen must tell the story alone.</li>
+<li><strong>Posters:</strong> between slides and print — large but static, read at arm's length in minutes. One hero figure, supporting small multiples, minimal text (Chapter 9).</li>
+</ul>
+<p>A useful habit: design the <em>print</em> version first (the most constrained), then adapt outward to slides and interactive. Constraints force the message to be sharp; a chart that works at column width in grayscale will survive any projector. The reverse — shrinking a dashboard widget into a paper — almost always fails.</p>
+<p>fixing the casting is usually faster and more impactful than any cosmetic restyling.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Start from the question, not the chart gallery. Every message is comparison, composition, distribution, or relationship.</li>
+<li>Bars compare (axis at zero, sorted by value); lines show change over time; dot plots compare precisely; pies only for simple compositions with a dominant slice.</li>
+<li>The seven classic errors — crowded pies, truncated axes, dual axes, rainbow palettes, categorical lines, 3D effects, spaghetti plots — each have a standard fix.</li>
+<li>Run the six-step chooser: message sentence → family → data shape → simplest chart → honesty checks → stranger test.</li>
+</ul>
+<hr />
+<h1 id="chapter-5-decluttering-removing-chartjunk">Chapter 5: Decluttering — Removing Chartjunk</h1>
+<p>Edward Tufte coined the term <strong>chartjunk</strong> for all the ink on a chart that carries no information: heavy gridlines, 3D bevels, decorative backgrounds, redundant legends, borders around everything. His <strong>data-ink ratio</strong> — the proportion of ink devoted to the data itself — remains the sharpest single diagnostic in visualization. This chapter turns that idea into a repeatable decluttering process you can apply to any chart in minutes.</p>
+<p><img alt="Decluttering: a cluttered overloaded chart transformed into one clean highlighted bar among gray bars" src="/learn/images/media-generation-book-26-ch5-declutter-0-88a266a7-e852-4ce7-b2dd-e035d37f14a4.webp" /></p>
+<h2 id="51-what-clutter-costs">5.1 What Clutter Costs</h2>
+<p>Every non-data element competes for the reader's preattentive attention (Chapter 1). A dark gridline grid shouts; the data whispers. A 3D bevel adds visual mass with zero meaning. A legend forces the reader's eye to bounce between the chart and a key, holding color mappings in working memory — which, recall, holds about four items. Clutter is not an aesthetic preference issue; it is a <em>cognitive tax</em> levied on every reader, and most charts are heavily taxed.</p>
+<p>There is also a credibility cost. Cluttered, default-styled charts signal "I pasted this from the software." Clean, deliberate charts signal "I thought about you, the reader." Reviewers and stakeholders both read that signal, consciously or not.</p>
+<h2 id="52-the-systematic-declutter-pass">5.2 The Systematic Declutter Pass</h2>
+<p>Take any default chart from your software and apply these steps in order. Each step is small; together they transform the figure.</p>
+<p><strong>Step 1: Remove the container.</strong> Delete the chart border, the plot-area fill, and any background shading. The page is already white; the chart does not need a box inside the page. This single step removes a surprising amount of visual noise.</p>
+<p><strong>Step 2: Tame the gridlines.</strong> Gridlines are reference marks, not content. Either delete them entirely (if values are labeled directly on the data) or make them the lightest gray your medium allows. Never use dark or colored gridlines. Horizontal gridlines only, for bar and line charts — vertical gridlines rarely help and usually distract. Tufte's ideal: the minimum grid that lets a reader estimate a value.</p>
+<p><strong>Step 3: Quiet the axes.</strong> Remove axis lines where possible, or render them thin and gray. Remove tick marks pointing outward. Reduce axis labels to the minimum readable set — you rarely need a label on every tick. Use a clean, single font family throughout (one for the whole document, ideally), and never use bold for axis labels: bold is emphasis, and axes are not the emphasis.</p>
+<p><strong>Step 4: Label directly; kill the legend.</strong> Legends are cognitive middlemen. Instead of coloring series red/blue/green and explaining below, place the series name next to its line or bar in the same color. Direct labeling cuts the eye-bounce and frees working memory. Keep a legend only when direct labeling is genuinely impossible (many-series small multiples).</p>
+<p><strong>Step 5: Declutter the data marks themselves.</strong> Remove data labels on every point (label only what matters — the max, the min, the turning point). Remove markers on every point of a line chart (a clean line reads better; add a dot only at points you annotate). Round numbers ruthlessly: "34.2%" beats "34.17382%," and in text, "about a third" often beats both.</p>
+<p><strong>Step 6: Use white space as a tool.</strong> White space is not emptiness; it is grouping. Increase margins, separate panels with space rather than lines, let the chart breathe. If two elements are related, put them close; if unrelated, separate them. This is the Gestalt principle of proximity doing your layout work for free.</p>
+<h2 id="53-full-redesign-walkthrough-before-and-after-in-detail">5.3 Full Redesign Walkthrough — Before and After, in Detail</h2>
+<p><strong>The before.</strong> A master's student plots monthly electricity consumption (kWh) for a university building over two years, comparing "before" and "after" a solar installation. The default output: a 3D clustered bar chart, 24 pairs of beveled bars in default blue and orange, dark gray gridlines every 200 kWh, a thick black chart border, a legend at the bottom, data labels on all 48 bars, y-axis from 0 to 12,000 with labels at every 1,000, x-axis labels rotated 45°, and the default title "Chart 1." Reading it feels like work because it <em>is</em> work: the eye must decode perspective, parse 48 labels, and hold the legend mapping — all before noticing the actual finding.</p>
+<p><strong>The declutter pass, step by step.</strong> Remove the border and background (Step 1) — immediately calmer. Lighten gridlines to faint gray and keep only every 2,000 kWh (Step 2) — the bars now dominate. Thin the axes, drop the rotated labels for clean horizontal month abbreviations (Step 3). Replace the legend with direct labels: "Before solar" in blue above the left cluster area, "After solar" in orange (Step 4). Delete all 48 data labels; instead annotate one thing: the month the solar array came online, with a vertical reference line and the note "Solar installed — March 2024" (Step 5). Add white space around the chart (Step 6).</p>
+<p><strong>The after.</strong> What remains is almost stark: two years of monthly bars, the post-installation months visibly and consistently lower, one annotation, one teaching title: "Solar cut the building's monthly electricity use by 38% — savings visible from the first full month." The finding that was buried under 48 labels now hits in seconds. Total time for the pass: about ten minutes. This is the highest return-on-effort skill in this entire book.</p>
+<h2 id="54-when-less-goes-too-far">5.4 When "Less" Goes Too Far</h2>
+<p>Decluttering has a failure mode: stripping away information the reader needs. Three things must survive every declutter pass:</p>
+<ul>
+<li><strong>The scale.</strong> Removing gridlines is fine; removing the axis so the reader cannot judge magnitude is not. Keep enough reference to estimate values.</li>
+<li><strong>The uncertainty.</strong> If your claim depends on a difference being real, error bars or confidence bands are data ink, not chartjunk. Deleting them to look clean is dishonest minimalism.</li>
+<li><strong>The context.</strong> Baselines, targets, and reference lines ("WHO limit," "last year's average") are often the most informative ink on the chart. Declutter <em>around</em> them, not <em>through</em> them.</li>
+</ul>
+<p>The test: after decluttering, ask whether a careful reader could still reconstruct the claim and check it. If yes, the ink that remains is justified. Minimalism serves the message; the message does not serve minimalism.</p>
+<h2 id="55-second-walkthrough-decluttering-a-line-chart-plus-tables">5.5 Second Walkthrough: Decluttering a Line Chart — Plus Tables</h2>
+<p><strong>Before.</strong> A PhD student tracks monthly survey response rates across eight universities over 18 months. The default chart: eight lines in default saturated colors, a legend, dark gridlines in both directions, markers on all 144 points, a thick border, a y-axis from 0–100% labeled every 5%, and the title "Response rates." The finding — that one university's rate collapsed after switching survey platforms in month 11 — is invisible in the rainbow tangle.</p>
+<p><strong>The pass.</strong> Remove border and background. Gridlines to faint gray, horizontal only, every 20%. Thin gray axes; y-labels at 0/20/40/60/80/100. Delete all 144 markers — eight clean lines. Delete the legend; instead, seven universities' lines go light gray, and the collapsed university's line goes bold coral with a direct label. One annotation at the break point: "Platform switch — response rate halved." Action title: "Response rates held steady at seven universities — but collapsed at one after the platform switch." Subtitle: "Monthly survey response rates, 8 universities · 18 months."</p>
+<p><strong>After.</strong> The eye goes straight to the coral line's cliff. The gray lines provide exactly the context needed: this was not a sector-wide decline; it was one institution's event. Ten minutes of work; the difference between a chart that confuses and one that testifies.</p>
+<p><strong>Decluttering tables</strong> (following Stephen Few's table design principles):</p>
+<ul>
+<li>Remove all vertical rules and most horizontal rules; use white space to separate, keeping rules only to group headers.</li>
+<li>Left-align text, right-align numbers, and align numbers on the decimal point.</li>
+<li>Round aggressively; put units in the column header, not every cell ("Response rate (%)", not "45% / 52% / …").</li>
+<li>Highlight the key row or column with subtle shading — the table equivalent of the coral bar.</li>
+<li>Sort rows by the story (descending value), not alphabetically, unless lookup is the table's job.</li>
+</ul>
+<p><strong>The 10-minute routine.</strong> Make decluttering a habit, not a project: every time you create a figure, spend the last ten minutes running the six-step pass and the checklist before you consider it done. Figures decluttered at creation stay clean; figures "to be fixed later" accumulate into the cluttered drafts that embarrass you at submission time. A decluttered table respects the reader the same way a decluttered chart does: every remaining element earns its ink.</p>
+<blockquote>
+<p><strong>For your research:</strong> Take the single most cluttered figure in your current draft — every researcher has one — and run the six-step declutter pass on it today. Save the before and after side by side. Show both to a colleague and time how long each takes them to state the finding. This before/after pair is also excellent material for your thesis defense: ## 5.6 Taming Your Software's Defaults</p>
+</blockquote>
+<p>You will declutter hundreds of figures in your career; doing it by hand every time is wasteful. Invest once in clean defaults:</p>
+<ul>
+<li><strong>matplotlib (Python):</strong> create a personal <code>mplstyle</code> file — white background, no top/right spines, light gray horizontal gridlines only, your palette as the color cycle, a clean sans-serif font. One line (<code>plt.style.use('my-style')</code>) then declutters every figure at creation.</li>
+<li><strong>ggplot2 (R):</strong> build a custom theme function wrapping <code>theme_minimal()</code> with your fonts, palette scale, and legend positioning (or legend removal with direct labels via <code>ggrepel</code>). Apply it in every script's setup chunk.</li>
+<li><strong>Excel / PowerPoint:</strong> modify the default template — remove chart borders and plot fills, set the palette to your project colors, set default fonts. Excel's defaults are the single largest source of chartjunk in student work; thirty minutes fixing the template pays off forever.</li>
+<li><strong>BI tools (Power BI, Tableau):</strong> build a theme JSON once with your palette, fonts, and gridline settings, and apply it to every report.</li>
+</ul>
+<p>The principle: <strong>make the clean version the path of least resistance.</strong> When your defaults already produce borderless, gray-gridlined, palette-consistent charts, the six-step pass shrinks to a two-minute polish instead of a rescue operation. Share the style files with your lab — a research group with a shared visual standard produces theses and papers that look like they came from one careful mind.</p>
+<p>examiners love seeing that you can critique and improve your own communication.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Chartjunk is any ink that carries no information; the data-ink ratio measures how much of your chart is signal.</li>
+<li>Clutter is a cognitive tax: every non-data element competes for preattentive attention and working memory.</li>
+<li>The six-step pass — remove containers, tame gridlines, quiet axes, label directly, declutter data marks, use white space — transforms any default chart in minutes.</li>
+<li>Direct labeling beats legends; rounded, selective numbers beat labels on everything.</li>
+<li>Never declutter away the scale, the uncertainty, or the context — minimalism serves the message.</li>
+</ul>
+<hr />
+<h1 id="chapter-6-color-contrast-and-preattentive-attributes">Chapter 6: Color, Contrast, and Preattentive Attributes</h1>
+<p>Color is the most powerful and most abused tool in visualization. Used deliberately, a single spot of color can deliver your message before the reader reads a word. Used carelessly — the default rainbow — it creates confusion, excludes colorblind readers, and signals that no one thought about the audience. This chapter makes your color use intentional.</p>
+<h2 id="61-the-preattentive-toolkit-more-than-color">6.1 The Preattentive Toolkit: More Than Color</h2>
+<p>Color is one of several preattentive attributes — visual channels the brain processes in milliseconds, before conscious attention. The full toolkit includes:</p>
+<ul>
+<li><strong>Color (hue and intensity):</strong> the strongest category signal. Use for: highlighting the message, distinguishing a few categories.</li>
+<li><strong>Size/length:</strong> naturally read as "more." Use for: emphasis, magnitude (with care — area is misjudged, length is not).</li>
+<li><strong>Position:</strong> the most precise channel (Chapter 1). Use for: the actual data encoding.</li>
+<li><strong>Orientation and shape:</strong> good for distinguishing categories among points (circles vs. triangles in a scatter).</li>
+<li><strong>Enclosure and connection:</strong> grouping — a light ellipse around a cluster says "these belong together" without a word.</li>
+<li><strong>Motion:</strong> the strongest attention-grabber of all — which is why you should almost never use it in static figures, and sparingly in talks.</li>
+</ul>
+<p>The master rule: <strong>use preattentive attributes to encode meaning, and use them sparingly.</strong> If everything is highlighted, nothing is. A chart where one bar is colored and eleven are gray says "look here" with total clarity. A chart where all twelve bars are different bright colors says nothing at all — the reader's preattentive system, bombarded with signals, gives up and forces slow conscious decoding.</p>
+<h2 id="62-the-strategic-use-of-gray">6.2 The Strategic Use of Gray</h2>
+<p>The most underused color in data visualization is gray. Gray is the visual equivalent of a quiet room: it lets the one colored thing speak. The professional pattern, used throughout Cole Nussbaumer Knaflic's work, is:</p>
+<ul>
+<li><strong>Gray for context:</strong> background series, comparison groups, historical data, "everyone else."</li>
+<li><strong>One saturated color for the message:</strong> the finding, the anomaly, the recommended option.</li>
+<li><strong>A second color only for a second meaning:</strong> e.g., teal for "improved" and coral for "declined" — never two colors for decoration.</li>
+</ul>
+<p>Before/after described: a line chart of literacy rates for eight provinces over ten years, all eight lines in bright distinct colors — spaghetti. The after: seven lines in light gray, one province's line (the one that reformed its curriculum and diverged upward) in bold teal, with a direct label. The reader's eye goes to the teal line instantly; the gray lines provide the honest context that the divergence is real, not an artifact of a cropped view. Same data, opposite cognitive experiences.</p>
+<h2 id="63-choosing-palettes-categorical-sequential-diverging">6.3 Choosing Palettes: Categorical, Sequential, Diverging</h2>
+<p>Different data needs different color logic:</p>
+<ul>
+<li><strong>Categorical data</strong> (provinces, models, treatments): distinct hues, but muted and harmonious — never the default rainbow at full saturation. Limit to about six categories; beyond that, group or use small multiples. Tools like ColorBrewer (colorbrewer2.org) provide tested categorical palettes.</li>
+<li><strong>Sequential data</strong> (low to high: temperatures, rates, concentrations): a single hue varying from light to dark. The eye naturally reads darker as "more." Never use a rainbow for sequential data — rainbows create false boundaries (yellow bands look like categories) and are unreadable for many colorblind viewers.</li>
+<li><strong>Diverging data</strong> (two directions from a midpoint: profit/loss, above/below average): two hues meeting at a neutral midpoint (e.g., teal-to-gray-to-coral). The midpoint must be meaningful (zero, the average), not arbitrary.</li>
+</ul>
+<p><strong>The colorblindness imperative.</strong> About 1 in 12 men and 1 in 200 women have color-vision deficiency, most commonly red-green. The classic red/green "bad/good" encoding is invisible to them. Design rule: never encode meaning with red vs. green alone. Use blue/orange, or add a redundant channel (position, label, shape) so the meaning survives without color. Test your figures with a colorblind simulator before submitting a paper — reviewers do notice, and accessibility is increasingly an explicit publication standard.</p>
+<h2 id="64-contrast-backgrounds-and-text">6.4 Contrast, Backgrounds, and Text</h2>
+<p>Contrast is what makes the colored element <em>pop</em> against its surroundings:</p>
+<ul>
+<li>On white backgrounds (papers, reports): dark saturated colors for emphasis, light grays for context. Ensure text meets readability contrast — thin light-gray axis labels may look elegant and be illegible in print.</li>
+<li>On dark backgrounds (slides, dashboards): bright, luminous colors for emphasis. But beware: dark backgrounds in printed papers reproduce badly and can look unprofessional — reserve them for screen presentations.</li>
+<li>Never place text on a busy or colored background without checking legibility. White text on a saturated bar is fine at large sizes; at small sizes it dissolves.</li>
+</ul>
+<p>A practical contrast check: convert your figure to grayscale. If the message element still stands out (by darkness/lightness), your encoding has redundant contrast and will survive bad projectors, cheap printers, and colorblindness. If it disappears, you were relying on hue alone — fix it.</p>
+<h2 id="65-color-with-meaning-semantic-and-cultural-associations">6.5 Color with Meaning: Semantic and Cultural Associations</h2>
+<p>Colors carry associations — use them or deliberately override them, but never accidentally fight them:</p>
+<ul>
+<li><strong>Semantic resonance:</strong> blue for water/cooling, warm tones for heat, green for growth/nature (where colorblind-safe), gray for the past or "other." When the color matches the subject, decoding is instant.</li>
+<li><strong>Cultural caution:</strong> color meanings vary — red signals danger in the West but prosperity in China; white signals purity in some cultures and mourning in others. For international journals and conferences, prefer neutral semantic encodings over culturally loaded ones.</li>
+<li><strong>Brand and consistency:</strong> within one paper, thesis, or talk, a color must mean the same thing everywhere. If teal is "treatment group" in Figure 1, it must be "treatment group" in Figure 5. Build a tiny personal palette (3–5 colors) and reuse it — consistency is a form of honesty.</li>
+</ul>
+<h2 id="66-workshop-building-and-documenting-your-project-palette">6.6 Workshop: Building and Documenting Your Project Palette</h2>
+<p>Do this once per project; reuse everywhere.</p>
+<p><strong>Step 1 — Neutrals.</strong> Pick two grays: a light gray for context elements (light enough to recede, dark enough to see) and a dark gray for text and axes (near-black, softer than pure black). These carry roughly 80% of your chart.</p>
+<p><strong>Step 2 — The message color.</strong> Choose one saturated color with strong contrast against white: a deep teal, a confident blue, a warm coral. Check it in grayscale — it must read clearly darker than your light gray. This color means "look here; this is the finding."</p>
+<p><strong>Step 3 — The second meaning (optional).</strong> If your story needs two directions (improved/declined, treatment/control), add one more color that harmonizes with the first and stays distinguishable in grayscale and for colorblind viewers. Blue + orange is the classic safe pair.</p>
+<p><strong>Step 4 — The sequential scale.</strong> One hue, light to dark, for ordered data — take a tested ColorBrewer sequential scale rather than inventing one.</p>
+<p><strong>Step 5 — Test everything.</strong> Run every figure through: (a) a colorblind simulator for the common deficiencies; (b) the grayscale conversion; (c) a cheap print or projector test if the work will be presented live. Fix failures now — recoloring twelve figures the night before submission is miserable.</p>
+<p><strong>Step 6 — Document it.</strong> Write a half-page style note (thesis appendix, project wiki, or shared doc): the palette's values, what each color means, font choices, and the rule "this color = treatment group in every figure." Future you — and your coauthors — will thank present you. Consistency across a 200-page thesis is impossible without a written standard.</p>
+<p><strong>Tools worth knowing:</strong> ColorBrewer 2 (colorbrewer2.org) for tested palettes; Viz Palette for testing palettes against your data; Coblis for colorblind simulation; and your software's theme system (matplotlib style files, ggplot2 themes, slide masters) for applying the palette automatically instead of recoloring by hand.</p>
+<p><strong>A note on dark slides.</strong> If your talks use dark backgrounds, build a parallel palette: luminous, slightly desaturated colors for emphasis on dark, with the same meaning mapping (teal is still the finding). Never reuse print palette values blindly on dark backgrounds — fully saturated colors vibrate against black and exhaust the eye.</p>
+<blockquote>
+<p><strong>For your research:</strong> Define your project's palette today: one neutral gray, one primary message color, one secondary color for a second meaning, and one sequential scale — all checked in a colorblind simulator. Apply this palette to every figure in your paper or thesis. This single act of standardization will make your document look professionally designed and, more importantly, ## 6.7 Color and Emotion: The Rhetoric of Palettes</p>
+</blockquote>
+<p>Color does not only direct attention; it sets an emotional register — and that register is part of your story, whether you choose it or not.</p>
+<ul>
+<li><strong>Alarm palettes</strong> (reds, oranges, high contrast) signal urgency and risk. Appropriate for genuinely urgent findings (contamination exceeding safe limits, a collapsing trend). Inappropriate for modest changes, where alarm colors manufacture drama the data doesn't support (Chapter 3's honesty constraint).</li>
+<li><strong>Calm palettes</strong> (blues, teals, soft grays) signal objectivity and stability. The default register for most research communication — but beware using calm colors to <em>soothe away</em> a finding that should alarm. A crisis in pastel is a form of hiding.</li>
+<li><strong>Warm vs. cool framing.</strong> The same trend in warm coral ("decline emphasized") versus cool slate ("decline observed") reads differently. Neither is dishonest if the encoding is accurate — but notice that you are making a rhetorical choice, and make it match the finding's real stakes.</li>
+</ul>
+<p><strong>The ethical rule:</strong> your palette's emotional register should match the data's actual gravity. Exaggerating urgency to win attention is manipulation; muting urgency to avoid discomfort is abdication. When in doubt, choose the neutral register and let the <em>numbers</em> carry the weight — a 6× exceedance of a safety limit needs no red paint to alarm a careful reader, and the restraint itself builds ethos (Chapter 1).</p>
+<p>A final practical note: document palette <em>intent</em> alongside palette values in your style note (Section 6.6) — "coral reserved for findings requiring action" — so coauthors use the rhetoric consistently instead of coloring by mood.</p>
+<p>make every figure's emphasis instantly readable.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Preattentive attributes (color, size, position, orientation) deliver meaning in milliseconds — use them sparingly, or they cancel each other out.</li>
+<li>Gray is your most strategic color: gray for context, one saturated color for the message.</li>
+<li>Match palette type to data type: categorical (distinct muted hues), sequential (light-to-dark single hue), diverging (two hues around a meaningful midpoint).</li>
+<li>Never encode meaning with red vs. green alone; ~1 in 12 men are red-green colorblind. Test with a simulator.</li>
+<li>Check contrast in grayscale; keep color meanings consistent across the whole document; respect semantic and cultural associations.</li>
+</ul>
+<hr />
+<h1 id="chapter-7-annotations-and-titles-that-teach">Chapter 7: Annotations and Titles That Teach</h1>
+<p>A figure without guidance is a map without labels: technically complete, practically useless. Titles, subtitles, annotations, and labels are the teaching layer of a chart — the difference between a reader who sees "some bars" and one who learns "the intervention worked, and here is where." This chapter shows how to write that layer.</p>
+<h2 id="71-the-title-is-the-message-action-titles">7.1 The Title Is the Message: Action Titles</h2>
+<p>Most student charts carry descriptive titles: "Figure 3: Accuracy by model," "Monthly rainfall, 2020–2024." These titles describe the <em>topic</em> but abdicate the teaching job. An <strong>action title</strong> (also called a takeaway title) states the <em>conclusion</em>: "Model B outperforms all baselines on noisy sensor data," "Dry seasons have arrived earlier every year since 2022."</p>
+<p>The difference is cognitive. A descriptive title forces the reader to derive the conclusion from the chart — the hard work. An action title hands them the conclusion and lets the chart <em>confirm</em> it — the easy, pleasant work of verification. Readers of action titles understand faster and remember longer, because the title and the visual reinforce each other instead of duplicating the topic.</p>
+<p>Practical rules for action titles:</p>
+<ul>
+<li><strong>State the finding, not the subject.</strong> "What the data shows" &gt; "what the data is about."</li>
+<li><strong>Include the magnitude when it is the story.</strong> "…by 38%" beats "…decreased."</li>
+<li><strong>Keep it to one line</strong> (roughly under 90 characters). If it needs two lines, the message is not sharp enough yet.</li>
+<li><strong>Never use the software default</strong> ("Chart 1") — it advertises that no human thought about the reader.</li>
+<li><strong>In papers</strong>, pair the action with a conventional numbered caption below: the title teaches, the caption documents (method, sample, statistics).</li>
+</ul>
+<h2 id="72-subtitles-and-the-two-line-teaching-header">7.2 Subtitles and the Two-Line Teaching Header</h2>
+<p>A subtitle carries what the title cannot fit: the scope, the comparison, or the caveat. Together they form a two-line teaching header:</p>
+<blockquote>
+<p><strong>Solar cut the building's electricity use by 38%</strong>
+<em>Monthly consumption, Jan 2023 – Dec 2024 · university admin block · savings from first full month after installation</em></p>
+</blockquote>
+<p>The title delivers the message; the subtitle delivers the context that makes the message credible (what, when, where). This pattern — <strong>conclusion on top, context beneath</strong> — works for slides, dashboards, reports, and posters. Train yourself to write both lines before considering a figure done.</p>
+<h2 id="73-annotations-pointing-at-what-matters">7.3 Annotations: Pointing at What Matters</h2>
+<p>An <strong>annotation</strong> is text placed directly on the chart to explain a specific feature: a spike, a dip, a turning point, an outlier, a policy date. Annotations are the most underused teaching tool in student work, and the most powerful, because they answer the reader's inevitable question — "what happened <em>there</em>?" — at the exact moment it arises.</p>
+<p>Annotation techniques:</p>
+<ul>
+<li><strong>Callout the anomaly.</strong> A line chart of daily website signups shows a 5× spike on one day. An annotation — "Featured in national press, March 14" — converts confusion into understanding in six words.</li>
+<li><strong>Mark the intervention.</strong> A vertical reference line with a label ("Mentoring program began") divides before from after and makes causal reading natural.</li>
+<li><strong>Explain the outlier.</strong> That far-flung point in the scatter plot? Label it ("Karachi — port disruption month") rather than deleting it silently or leaving it to distract.</li>
+<li><strong>Translate the scale.</strong> "186 µg/m³" means little; "6× the WHO safe limit" means everything. Annotations can carry the human-scale translation.</li>
+</ul>
+<p>Annotation discipline: annotate the <em>few</em> features that carry the story — typically one to three per chart. Annotating everything is just clutter with arrows. Each annotation should be short (under ~12 words), placed close to its target, and written in the same plain language as the title.</p>
+<h2 id="74-direct-labels-vs-legends-axis-titles-and-number-formatting">7.4 Direct Labels vs. Legends, Axis Titles, and Number Formatting</h2>
+<p><strong>Direct labels</strong> (Chapter 5's Step 4) deserve emphasis here because they are annotation's close cousin: instead of a legend mapping colors to series, write the series name in its color next to the data. This removes the working-memory burden of holding the mapping and is almost always the right choice.</p>
+<p><strong>Axis titles</strong> should be plain-language, not variable names. "Monthly electricity use (kWh)" beats "cons_month_kwh." Include units in the axis title — never make the reader guess whether it is thousands or millions.</p>
+<p><strong>Number formatting</strong> is annotation too: every unnecessary decimal is noise. Round to the precision your claim needs. Use thousands separators. In text near charts, prefer human phrasing ("about one in three") for the headline number and exact figures in parentheses or captions.</p>
+<h2 id="75-the-self-explanatory-figure-test">7.5 The Self-Explanatory Figure Test</h2>
+<p>A figure in a paper or report will often be seen <em>without</em> its surrounding text — in a skim, a slide deck, a forwarded PDF. Design for that reality. The self-explanatory figure carries four layers:</p>
+<ol>
+<li><strong>Action title</strong> — the conclusion.</li>
+<li><strong>Subtitle</strong> — scope and context.</li>
+<li><strong>Annotated data</strong> — the story's key moments marked.</li>
+<li><strong>Source/caption note</strong> — where the data came from and what the statistics mean ("n = 120 farms; bars show 95% CI").</li>
+</ol>
+<p><strong>Full before/after walkthrough.</strong> A student studies bus punctuality. <em>Before:</em> a line chart titled "On-time percentage by route," 12 thin lines in default colors, a legend, no annotations. The reader's experience: spaghetti, no message. <em>After:</em> the same data, eleven routes in light gray, Route 7 (the redesigned express route) in bold teal with a direct label. Action title: "The redesigned Route 7 is the only route above the 90% punctuality target." Subtitle: "On-time arrivals, 12 city routes · Jan–Jun 2025 · target = city service standard." One annotation on Route 7's line at March: "Express lanes opened." One source note: "Data: city transit authority; n = 41,200 trips." The transformation used no new data — only the teaching layer. A reviewer skimming the paper now learns the finding from the figure alone, which is exactly what figures are for.</p>
+<h2 id="76-caption-workshop-anatomy-of-a-great-caption">7.6 Caption Workshop: Anatomy of a Great Caption</h2>
+<p>In papers, the caption does the teaching work that the title-subtitles-annotations layer does on slides. A strong caption has four parts, in order:</p>
+<ol>
+<li><strong>The finding</strong> (one sentence — the action title, adapted to caption style).</li>
+<li><strong>What is shown</strong> (the data, the sample, the symbols: "Bars show mean yield across 120 farms; teal = drip-irrigation adopters, gray = non-adopters").</li>
+<li><strong>The statistics</strong> (define uncertainty and tests: "Error bars show 95% confidence intervals; n = 120; p-values from mixed-effects models").</li>
+<li><strong>The reading guide</strong> (anything non-obvious: "Districts sorted by adoption rate; dashed line marks the provincial average").</li>
+</ol>
+<p><strong>Example — weak caption:</strong> "Figure 3. Yield comparison. Error bars are shown."</p>
+<p><strong>Example — strong caption:</strong> "Figure 3. Drip-irrigation adopters out-yielded non-adopters by 34%, with the largest gains on farms under 2 acres. Bars show mean tomato yield (tonnes/hectare) across 120 farms in the 2024 season; teal = adopters (n = 58), gray = non-adopters (n = 62). Error bars show 95% confidence intervals. Districts are sorted by adoption rate; the dashed line marks the provincial average yield."</p>
+<p>The weak caption describes nothing and teaches nothing; the strong caption lets a skimming reader learn the finding without opening the text. Note what the strong caption does <em>not</em> do: it does not interpret beyond the figure ("this suggests subsidies would work" belongs in the text), and it does not repeat the methods chapter.</p>
+<p><strong>Two more caption patterns:</strong></p>
+<ul>
+<li><em>Multi-panel figure:</em> open with the overall message, then guide panel by panel: "Irrigation gains concentrate on small farms. (a) Mean yield by adoption status… (b) Gain versus farm size, showing… (c) Adoption rate by farm size, revealing the paradox…"</li>
+<li><em>Supplementary figure:</em> captions here can be slightly more technical since the audience is specialists, but keep the four-part structure — supplementary figures are skipped even more often than main ones, so the caption may be all anyone reads.</li>
+</ul>
+<p><strong>Numbering and cross-reference discipline.</strong> Number figures in the order they are first referenced; reference every figure by number before it appears; never write "the figure below" (layout shifts). In a thesis, consider chapter-prefixed numbering (Figure 4.2) so readers always know where they are. Broken cross-references ("see Figure ??") are the small humiliations that signal an unfinished manuscript — compile and check them before every submission.</p>
+<blockquote>
+<p><strong>For your research:</strong> Rewrite the titles of all figures in your current draft as action titles using the four rules in Section 7.1. Then add subtitles with scope and context, and annotate the one to three key features of each chart. Read each figure in isolation — title, subtitle, chart, notes — and ask: "Could a colleague understand the finding without reading my text?" Keep revising until the answer is yes. This is one of the fastest ways to lift a paper from "competent" to "clear."</p>
+</blockquote>
+<h2 id="77-teaching-titles-for-tables-and-equations-too">7.7 Teaching Titles for Tables and Equations Too</h2>
+<p>The teaching layer is not only for charts. Tables and equations benefit from the same treatment:</p>
+<ul>
+<li><strong>Table titles as messages.</strong> "Table 2. Drip irrigation raised yields most on the smallest farms" beats "Table 2. Yield by farm size and adoption status." The table's stub and headers then carry the structure; a final "Difference" column or a highlighted row carries the point.</li>
+<li><strong>Equation annotations.</strong> A bare equation is a chart without labels. Annotate terms inline or in the text immediately below: name each symbol in plain words, state the intuition in one sentence ("the second term penalizes complexity, preventing overfitting"), and give the units. Readers who cannot parse the symbols can still follow the story.</li>
+<li><strong>Code and algorithm boxes.</strong> In methods-heavy work, pseudocode boxes with a message-style caption ("Algorithm 1. The iterative reweighting converges in under 50 steps on all test sets") teach far better than uncommented listings.</li>
+</ul>
+<p>The principle generalizes: <em>every</em> formal element — figure, table, equation, algorithm — should announce its message and guide its reading. The document where each element teaches is the document reviewers describe as "clear," and clarity, as Chapter 11 argues, is scored as quality.
+<strong>Key takeaways:</strong></p>
+<ul>
+<li>Replace descriptive titles with action titles that state the conclusion, including the magnitude.</li>
+<li>Use the two-line teaching header: conclusion on top, context beneath.</li>
+<li>Annotate the one to three features that carry the story — anomalies, interventions, outliers — in under ~12 words each.</li>
+<li>Label series directly instead of using legends; write axis titles in plain language with units; round numbers ruthlessly.</li>
+<li>A figure should be self-explanatory: title, subtitle, annotated data, and source note let it teach without the surrounding text.</li>
+</ul>
+<hr />
+<h1 id="chapter-8-designing-dashboards-that-tell-stories">Chapter 8: Designing Dashboards That Tell Stories</h1>
+<p>A dashboard is a visual display of the most important information needed to achieve objectives, arranged on a single screen so it can be monitored at a glance (Few, 2013). The keyword is <em>objectives</em>: most dashboards fail not from bad graphics but from having no story — they are junk drawers of widgets. This chapter shows how to design dashboards that narrate.</p>
+<p><img alt="A storytelling dashboard: KPI, line chart and bar chart flowing like chapters along a path, with a magnifying glass for insight" src="/learn/images/media-generation-book-26-ch8-dashboard-0-94fcf8f0-7b4b-4849-b05b-c2e26aa04492.webp" /></p>
+<h2 id="81-what-job-is-the-dashboard-doing">8.1 What Job Is the Dashboard Doing?</h2>
+<p>Few distinguishes three dashboard purposes, and the design follows the purpose:</p>
+<ul>
+<li><strong>Strategic dashboards</strong> (executives, funders): Are we achieving our goals? Few, high-level KPIs, trends over months/quarters, targets and thresholds. Updated infrequently. The story: <em>where we stand against where we promised to be.</em></li>
+<li><strong>Analytical dashboards</strong> (researchers, analysts): What is happening and why? Richer detail, comparisons, distributions, drill-downs. The story: <em>exploration with a guided path</em> — the analyst should be led from the headline to the mechanism.</li>
+<li><strong>Operational dashboards</strong> (control rooms, clinic managers): What needs attention <em>right now</em>? Real-time or daily data, alerts, exceptions. The story: <em>what is abnormal and what to do about it.</em></li>
+</ul>
+<p>Before sketching anything, write the dashboard's one-sentence job: "This dashboard lets the program manager see each week whether literacy centers are on track and which ones need a visit." If you cannot write that sentence, you are building a junk drawer.</p>
+<h2 id="82-layout-as-narrative-the-reading-path">8.2 Layout as Narrative: The Reading Path</h2>
+<p>Readers scan screens in predictable patterns — top-left to bottom-right in left-to-right languages, with the top-left corner getting the most attention. Use that path as your narrative order:</p>
+<ol>
+<li><strong>Top-left: the headline KPI.</strong> The single most important number, large, with its context: the target, the change since last period, and a plain-language label. This is the dashboard's title in numeric form.</li>
+<li><strong>Top row: the trend.</strong> The headline KPI over time, with the target as a reference line. Trend answers "are we getting better?" — the first question every stakeholder asks.</li>
+<li><strong>Middle: the breakdown.</strong> The KPI decomposed by the dimensions that drive decisions: by region, by center, by group. This is where the story deepens — the national average is on track, but <em>three districts are dragging it down</em>.</li>
+<li><strong>Bottom/right: the detail and the action.</strong> Tables of exceptions, the worst performers, the alerts — the specific items someone must act on this week.</li>
+</ol>
+<p>This top-to-bottom flow — <strong>headline → trend → breakdown → action</strong> — is a narrative arc in dashboard form: setup (where we stand), conflict (where it breaks down), resolution (what to do). A dashboard that follows it feels guided; one that scatters widgets randomly feels like a control panel in an airplane cockpit — impressive and useless.</p>
+<h2 id="83-the-five-dashboard-disciplines">8.3 The Five Dashboard Disciplines</h2>
+<p><strong>1. One screen, no scrolling.</strong> If the story needs scrolling, it is two stories. Constrain yourself to a single view; the constraint forces prioritization, which is the actual design work.</p>
+<p><strong>2. Few KPIs, chosen ruthlessly.</strong> Three to five headline metrics, maximum. Every additional widget halves the attention available for the others. For each candidate widget, ask: "What decision does this change?" If none, cut it.</p>
+<p><strong>3. Context on every number.</strong> A KPI without a target, a prior period, or a benchmark is just a number. "73%" means nothing; "73% (target 85%, up from 68% last quarter)" tells a story. Reference lines, targets, and sparklines are the cheapest storytelling devices in dashboards.</p>
+<p><strong>4. Highlight the exceptions.</strong> In operational and analytical dashboards, the reader's scarcest resource is attention. Use color and position to surface what is abnormal — the centers below target in coral, the rest in gray (Chapter 6's discipline, applied at dashboard scale). The dashboard should answer "where do I look?" before "what are the numbers?"</p>
+<p><strong>5. Interactivity serves the story, not the toy box.</strong> Filters and drill-downs are powerful when they let the reader follow the narrative path themselves (click a struggling district → see its centers → see the action list). They are harmful when they let the reader get lost in uncurated slicing. Design the default view as the complete story; interactivity as the footnotes.</p>
+<h2 id="84-dashboard-pitfalls-to-avoid">8.4 Dashboard Pitfalls to Avoid</h2>
+<ul>
+<li><strong>The KPI confetti:</strong> twenty "key" metrics, none key. Fix with the decision test (discipline 2).</li>
+<li><strong>The vanity metric:</strong> a big impressive number that never changes any decision (total registered users, cumulative totals that only go up). Replace with rates, changes, and target gaps.</li>
+<li><strong>The missing baseline:</strong> charts floating without targets or history. Add reference lines and prior periods.</li>
+<li><strong>The 3D gauge:</strong> speedometer-style gauges waste enormous space on one number and are notoriously hard to read. A big number with a small trend sparkline communicates more in a tenth of the space.</li>
+<li><strong>The rainbow alert:</strong> everything red, so nothing is urgent. Reserve alert color for genuine exceptions.</li>
+<li><strong>The stale dashboard:</strong> data nobody updates. A dashboard with last quarter's data actively misleads. Either automate the refresh or retire the dashboard.</li>
+</ul>
+<h2 id="85-redesign-walkthrough-from-junk-drawer-to-story">8.5 Redesign Walkthrough: From Junk Drawer to Story</h2>
+<p><strong>Before:</strong> A university research office dashboard for tracking publications. Twelve widgets: total publications (a giant number), a 3D pie of publication types, a gauge showing "68% of target," a table of all 200 faculty, a word cloud of keywords, a map with one dot per paper, monthly counts as a rainbow bar chart, and more. The research director opens it, feels busy, and learns nothing — there is no headline, no trend against target, no sense of which departments need support.</p>
+<p><strong>After — the story version.</strong> One screen, four zones following the reading path. Top-left headline: "Publications this year: 142 (target 180) — 12 behind pace." Top row: a clean line of cumulative publications against the target trajectory line, the gap visible and annotated ("conference season dip, recoverable"). Middle: bars by department, sorted, the three behind-pace departments in coral, the rest gray, with direct labels. Bottom: the action list — the five departments furthest behind pace with their coordinators' names and a "schedule review" prompt. Five widgets instead of twelve; every widget tied to the one-sentence job: <em>"help the director see whether the university will hit its publication target and which departments need support."</em> The director now opens the dashboard and knows, in ten seconds, what to do on Monday morning. That is a dashboard telling a story.</p>
+<h2 id="86-case-study-a-field-trial-monitoring-dashboard">8.6 Case Study: A Field-Trial Monitoring Dashboard</h2>
+<p>To make the disciplines concrete, here is a full design for an <strong>analytical/operational dashboard</strong> monitoring the drip-irrigation field trial from this book's running example — built for the project's weekly team standup.</p>
+<p><strong>The job sentence:</strong> "Each Monday, the trial coordinator sees whether data collection is on track, which districts lag, and which farms need a field visit this week."</p>
+<p><strong>Layout on the reading path:</strong></p>
+<ul>
+<li><em>Top-left headline:</em> "Farms reporting this week: 112 / 120" — large, with context beneath: "Target 120 · 8 missing (worst: District C, 5 missing)."</li>
+<li><em>Top row trend:</em> a clean line of cumulative enrolled farms against the enrollment target trajectory, with the gap annotated (" monsoon delay, weeks 3–4 — recovering").</li>
+<li><em>Middle breakdown:</em> two panels. Left: bars of mean yield-to-date by district, sorted, districts below the expected range in coral. Right: adoption rate by farm-size band — the trial's key paradox made visible weekly.</li>
+<li><em>Bottom action list:</em> a short table — the 8 non-reporting farms with coordinator names, days since last report, and a "visit scheduled" checkbox column. This is the Monday-morning to-do list, generated by the dashboard.</li>
+</ul>
+<p><strong>What was cut:</strong> the original draft had 14 widgets, including a map with one dot per farm (pretty, useless at this scale), a word cloud of farmer feedback (entertainment, not monitoring), cumulative totals that only ever rose (vanity metrics), and three different yield charts showing the same number. Each cut was decided by the decision test: "Does this change what the coordinator does on Monday?" The map failed; the action list passed.</p>
+<p><strong>How it is used.</strong> The standup opens on the headline (30 seconds: are we on track?), moves to the trend (is the gap closing?), then the breakdown (where is the problem?), and ends on the action list (who visits whom). Fifteen minutes, decisions made, meeting over. After six weeks, the team added one widget the data earned: an alert strip flagging sensors reporting impossible values (a data-quality exception the coordinator now catches weekly instead of discovering at analysis time). The dashboard grew by <em>one</em> widget in six weeks — the sign of a design with a clear job.</p>
+<p><strong>The research payoff.</strong> This dashboard is not thesis decoration: it is operational infrastructure that improves the data your thesis analyzes. Fewer missing farms, faster-caught sensor faults, documented weekly decisions — all of which become the methods chapter's evidence of careful fieldwork. Examiners notice.</p>
+<blockquote>
+<p><strong>For your research:</strong> Many theses and project reports now include a "dashboard" chapter or appendix — often a junk drawer. Take any dashboard-like display in your work (a results summary page, a monitoring figure set) and rewrite its one-sentence job. Then rebuild it on the headline → trend → breakdown → action path with at most five headline metrics, context on every number, and exceptions highlighted. If your research involves ongoing data collection (a survey wave, a field trial), this disciplined dashboard is also a genuine contribution to the project team, not just a thesis decoration.</p>
+</blockquote>
+<h2 id="87-dashboard-maintenance-keeping-the-story-true">8.7 Dashboard Maintenance: Keeping the Story True</h2>
+<p>A dashboard is a living document; a story that goes stale becomes misinformation. Four maintenance disciplines:</p>
+<ul>
+<li><strong>Refresh cadence, stated visibly.</strong> Every dashboard should display "Data as of …" and its refresh schedule. A KPI without a timestamp is a rumor. If the refresh breaks, the dashboard should say so loudly (a banner, not silence) — stale data presented as fresh is worse than no dashboard.</li>
+<li><strong>Ownership.</strong> Name one person responsible for data quality and one for design changes. Dashboards without owners accumulate orphaned widgets and broken queries; the field-trial dashboard in Section 8.6 worked because the coordinator owned it.</li>
+<li><strong>Quarterly pruning.</strong> Every three months, check each widget against the decision test (Section 8.3). Usage logs help: widgets nobody clicks are candidates for removal. A dashboard should shrink over time as the team learns what actually drives decisions — growth is usually a sign of lost focus.</li>
+<li><strong>Change documentation.</strong> When a KPI definition changes (a new sensor, a revised district boundary), annotate the trend line at the change point and note it in the dashboard's about panel. Nothing destroys trust faster than a trend break nobody explained.</li>
+</ul>
+<p>Plan the dashboard's retirement too: when the trial ends or the question is answered, archive it with its data and move on. A graveyard of stale dashboards teaches the organization to ignore dashboards — including the good ones.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Name the dashboard's job in one sentence before designing; match the design to strategic, analytical, or operational purpose.</li>
+<li>Lay out the reading path as narrative: headline KPI → trend → breakdown → action list.</li>
+<li>Five disciplines: one screen, few KPIs, context on every number, highlight exceptions, interactivity that serves the story.</li>
+<li>Avoid KPI confetti, vanity metrics, missing baselines, 3D gauges, rainbow alerts, and stale data.</li>
+<li>A dashboard succeeds when the reader knows what to do on Monday morning.</li>
+</ul>
+<hr />
+<h1 id="chapter-9-presenting-data-live-slide-and-talk-techniques">Chapter 9: Presenting Data Live — Slide and Talk Techniques</h1>
+<p>A live talk is the most demanding form of data storytelling: you have minutes, one chance, and an audience that cannot rewind. The chart that works in a paper — dense, complete, self-explanatory — will fail on a slide if you simply paste it. This chapter covers how to translate data stories to the stage.</p>
+<h2 id="91-slides-are-not-documents-the-assertionevidence-structure">9.1 Slides Are Not Documents: The Assertion–Evidence Structure</h2>
+<p>The research of Michael Alley and colleagues established the <strong>assertion–evidence</strong> slide structure: a concise, complete-sentence headline stating the slide's message (the assertion), supported by visual evidence (a clean chart, diagram, or image) — instead of a topic phrase plus bullet points. Compare:</p>
+<ul>
+<li><em>Topic slide:</em> headline "Results," five bullets ("Accuracy improved by 4%…", "Model B was best…", ...). The audience reads the bullets instead of listening to you, and two slides later remembers nothing.</li>
+<li><em>Assertion–evidence slide:</em> headline "Model B beat the baseline by 4 points on every dataset," one clean dot plot with Model B highlighted. The audience <em>sees</em> the evidence while <em>hearing</em> your explanation — two channels reinforcing one message.</li>
+</ul>
+<p>Rules for the slide deck:</p>
+<ul>
+<li><strong>One message per slide.</strong> If a slide needs "and also," it is two slides.</li>
+<li><strong>Headlines are sentences.</strong> Every slide headline should be understandable alone — strung together, your headlines should read as the talk's executive summary.</li>
+<li><strong>Minimal text.</strong> No full sentences in the body (the headline is the sentence); labels, numbers, and short phrases only. If you need paragraphs, that is a handout, not a slide.</li>
+<li><strong>Big type, high contrast.</strong> 24pt minimum for body text; assume the worst projector in the building.</li>
+<li><strong>Simplify paper figures for slides.</strong> A paper figure with six panels becomes two or three slides, each with one panel enlarged, decluttered further, and given an action title. Never shrink a paper figure to fit — rebuild it for the screen.</li>
+</ul>
+<h2 id="92-narrating-a-chart-live-the-guided-tour">9.2 Narrating a Chart Live: The Guided Tour</h2>
+<p>When a chart appears, the audience needs about five seconds of orientation before they can follow your point. Give them a <strong>guided tour</strong> in three moves:</p>
+<ol>
+<li><strong>Orient:</strong> "This chart shows monthly dropout rates for 50 schools — blue is schools with mentoring, gray is without — over two school years." (Axes, series, time frame — ten seconds, plain words.)</li>
+<li><strong>Point:</strong> "Watch what happens here, in grade 8…" (physically or verbally direct attention to the key feature; pause.)</li>
+<li><strong>Interpret:</strong> "…the mentored schools hold steady while the others spike. That gap is the program's effect." (State the conclusion — never leave the audience to derive it while you move on.)</li>
+</ol>
+<p>The most common live-chart failure is skipping move 1 (the audience spends your explanation decoding axes) or move 3 (you show an interesting chart and say "as you can see," but they cannot). The pause in move 2 is a feature: silence while the audience looks is what makes the insight land.</p>
+<p><strong>Progressive reveal</strong> is your friend for complex charts: build the chart in stages — axes first, then context series in gray, then the highlighted finding, then the annotation. Each stage gets its narration. The audience constructs understanding with you instead of being ambushed by a finished graphic. Use it especially for the talk's key result.</p>
+<h2 id="93-pacing-structure-and-the-arc-on-stage">9.3 Pacing, Structure, and the Arc on Stage</h2>
+<p>A 15-minute talk holds roughly 12–15 slides — about one per minute, with breathing room for the key charts. Structure it on Chapter 3's arc:</p>
+<ul>
+<li><strong>Hook (1 min):</strong> the startling number or violated expectation. Never open with "Good morning, I am X and today I will present…" — your title slide already says that.</li>
+<li><strong>Setup (3 min):</strong> problem, stakes, what was believed. End with the curiosity gap.</li>
+<li><strong>Method (2 min, maximum):</strong> just enough for credibility. "We surveyed 4,000 households across six districts" — the details live in the paper.</li>
+<li><strong>Results (6 min):</strong> the conflict, staged — expected findings briefly, the key surprise with a guided tour and progressive reveal. This is where you spend your time.</li>
+<li><strong>Resolution (3 min):</strong> mechanism, implication, the one message restated, thanks and questions.</li>
+</ul>
+<p><strong>Transitions are narration, not decoration.</strong> Say the story aloud between sections: "So we kne

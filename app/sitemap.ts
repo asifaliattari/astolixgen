@@ -3,7 +3,7 @@ import { SITE_URL, services, projects, posts } from "@/lib/data";
 
 /** Static sitemap: all routes are statically generated. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/about", "/services", "/projects", "/blog", "/contact"];
+  const staticRoutes = ["", "/about", "/services", "/projects", "/impact", "/blog", "/contact"];
 
   const entries: MetadataRoute.Sitemap = staticRoutes.map((route) => ({
     url: `${SITE_URL}${route}`,

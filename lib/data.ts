@@ -431,3 +431,49 @@ export const values = [
       "Your data stays yours. We design with least-privilege access, and we never train models on your private data without consent.",
   },
 ];
+
+/* --------------------------------- Impact -------------------------------- */
+/* Field work: real visits, real videos, real photos.                        */
+/* Videos below are real uploads from the AstolixGen YouTube channel.        */
+/* Photos: drop real field photos into public/impact/ and list them here.   */
+
+export const impactStories = [
+  {
+    id: "kpk-rural",
+    kicker: "Rural KPK",
+    title: "Where Education Is a Daily Struggle",
+    description:
+      "The AstolixGen team travelled to rural and remote mountain communities in Khyber Pakhtunkhwa to see firsthand how children learn where schools, teachers and connectivity are scarce — and to talk about what AI and IT education could mean for them.",
+    youtubeId: "yfKlANrd5zg",
+  },
+  {
+    id: "karachi-schools",
+    kicker: "Karachi · Low-cost schools",
+    title: "IT & AI Awareness for Teachers",
+    description:
+      "Sessions with teachers at low-resource schools in Karachi — including Qamar Educational Academy — on bringing IT and AI awareness into classrooms that run on passion more than budget.",
+    youtubeId: "dV9OCJ04cyE",
+  },
+  {
+    id: "itcn-asia-2026",
+    kicker: "ITCN Asia 2026 · Karachi",
+    title: "Pakistan's Biggest Tech & AI Exhibition",
+    description:
+      "AstolixGen at ITCN Asia 2026 in Karachi — Pakistan's biggest technology and AI exhibition — connecting with the country's tech community, including a visit with Rehan Allahwala.",
+    youtubeId: "31ureB0omfc",
+  },
+  {
+    id: "itcn-asia-2025",
+    kicker: "ITCN Asia 2025 · Karachi",
+    title: "On the floor of Pakistan's biggest ICT exhibition",
+    description:
+      "A look back at ITCN Asia 2025 — walking the floors of Pakistan's largest ICT and technology exhibition and meeting the builders shaping the industry.",
+    youtubeId: "v3GeDJzaBTE",
+  },
+];
+
+/* Real field photos. Files live in public/impact/. Add entries as photos arrive. */
+export const impactPhotos: { src: string; alt: string }[] = [
+  // Example once photos are provided:
+  // { src: "/impact/kpk-visit-1.jpg", alt: "AstolixGen team with students in rural KPK" },
+];

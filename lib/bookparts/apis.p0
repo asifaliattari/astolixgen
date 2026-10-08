@@ -1,0 +1,642 @@
+<h1 id="workflow-automation-with-apis">Workflow Automation with APIs</h1>
+<p><strong>Book 43 of 50 — AstolixGen Learning Series (Detailed Edition)</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover: connected gears and data flowing between cloud apps, purple and blue theme" src="/learn/images/media-generation-book-43-cover-0-6df387dd-636d-4790-b969-7e1d67f5aace.webp" /></p>
+<h2 id="about-this-book">About This Book</h2>
+<p>Modern research runs on software. Literature searches, data collection, manuscript tracking, citation management, conference alerts, survey collection, and collaboration all happen inside web applications — and almost every one of those applications exposes an <em>API</em>, a doorway that lets your own programs talk to it directly. Learning to use APIs turns repetitive, click-by-click research chores into small automated workflows that run while you sleep: a script that checks every morning whether new papers cite your work, a form that feeds survey responses straight into your analysis spreadsheet, or a pipeline that downloads, cleans, and archives datasets with a single command. This book teaches you the complete skill chain — what APIs are, how REST works, how authentication protects them, how to call them from Python, how to connect services with webhooks, how to chain multi-step workflows, how to handle errors and rate limits, how to schedule and monitor jobs, how to transform data between systems, how to keep everything secure, and finally how to assemble all of it into one production-ready automated workflow. You do not need a computer science degree; you need basic Python familiarity and the willingness to read documentation carefully.</p>
+<p>By the end of this book, you will be able to:</p>
+<ul>
+<li>Explain what an API is, how it differs from a user interface, and identify the APIs hidden inside the tools you already use.</li>
+<li>Make correct REST requests and interpret responses, status codes, and error messages like a professional.</li>
+<li>Authenticate securely with API keys, bearer tokens, and OAuth 2.0 flows, and store credentials without exposing them.</li>
+<li>Use Python's <code>requests</code> library to query scholarly APIs (such as Crossref, OpenAlex, and arXiv) and collect publication data programmatically.</li>
+<li>Receive real-time events with webhooks and chain multiple services into reliable multi-step workflows.</li>
+<li>Compare no-code automation platforms (such as Zapier and n8n) against code-based automation and choose the right tool for each job.</li>
+<li>Handle failures gracefully with retries, backoff, pagination, and rate-limit awareness.</li>
+<li>Schedule recurring jobs, log their behavior, and monitor them so you notice problems before they corrupt your data.</li>
+<li>Map and transform data between different systems so fields, formats, and identifiers line up correctly.</li>
+<li>Apply security best practices — least privilege, secret rotation, audit logging — to every automation you build.</li>
+<li>Design, build, and document a complete automated research workflow as your capstone project.</li>
+</ul>
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="chapter-map">Chapter Map</h3>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Guiding Question</th>
+<th>Key Takeaway</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. What Are APIs? A Practical Introduction</td>
+<td>What is an API, really, and why should a researcher care?</td>
+<td>An API is a machine-readable doorway into software; it lets you automate anything you can already do by clicking.</td>
+</tr>
+<tr>
+<td>2. REST Fundamentals: Requests, Responses, and Status Codes</td>
+<td>How do I ask a web service for data and understand its answer?</td>
+<td>Every interaction is a request with a method, URL, headers, and body — and a response with a status code and payload.</td>
+</tr>
+<tr>
+<td>3. Authentication: API Keys, Tokens, and OAuth</td>
+<td>How do I prove who I am without leaking secrets?</td>
+<td>Use the weakest credential that works, keep secrets out of code, and let OAuth handle delegated access.</td>
+</tr>
+<tr>
+<td>4. Python requests in Practice</td>
+<td>How do I actually call an API from Python?</td>
+<td>The <code>requests</code> library plus JSON parsing covers 90% of research automation needs.</td>
+</tr>
+<tr>
+<td>5. Webhooks: Letting Services Talk to You</td>
+<td>How do services notify <em>my</em> code when something happens?</td>
+<td>Webhooks push events to you; verify signatures and always respond fast.</td>
+</tr>
+<tr>
+<td>6. Chaining Services into Multi-Step Workflows</td>
+<td>How do I connect several apps into one pipeline?</td>
+<td>Break the workflow into trigger → steps → result, with clear data handoffs at each boundary.</td>
+</tr>
+<tr>
+<td>7. No-Code and Low-Code Automation Platforms</td>
+<td>When should I click instead of code?</td>
+<td>No-code platforms are fastest for simple glue work; code wins for scale, cost, and control.</td>
+</tr>
+<tr>
+<td>8. Error Handling, Retries, and Rate Limits</td>
+<td>What do I do when an API fails, throttles, or paginates?</td>
+<td>Treat failure as normal: retry with backoff, respect rate limits, and page through results completely.</td>
+</tr>
+<tr>
+<td>9. Scheduling and Monitoring Your Automations</td>
+<td>How do I run jobs automatically and know they're healthy?</td>
+<td>Schedule with cron or a managed scheduler, log everything, and alert on silence.</td>
+</tr>
+<tr>
+<td>10. Mapping and Transforming Data Between Systems</td>
+<td>How do I make data from system A fit system B?</td>
+<td>Write explicit mapping functions; never trust field names, formats, or identifiers to match.</td>
+</tr>
+<tr>
+<td>11. Security Best Practices for API Automation</td>
+<td>How do I keep credentials and data safe?</td>
+<td>Secrets in a vault, least privilege everywhere, HTTPS always, and an audit trail of what ran.</td>
+</tr>
+<tr>
+<td>12. Capstone: Building a Complete Automated Workflow</td>
+<td>Can I put it all together into one real project?</td>
+<td>A documented, scheduled, monitored citation-and-dataset pipeline you can adapt to your own thesis.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="core-tools-checklist">Core Tools Checklist</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>What It Does</th>
+<th>When to Use It</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python <code>requests</code></td>
+<td>Sends HTTP requests and reads responses in Python</td>
+<td>Your default tool for calling any REST API from code</td>
+</tr>
+<tr>
+<td><code>jq</code> / Python <code>json</code></td>
+<td>Parses and inspects JSON payloads</td>
+<td>Debugging responses and extracting fields</td>
+</tr>
+<tr>
+<td>cURL</td>
+<td>Makes raw HTTP requests from the terminal</td>
+<td>Quick experiments and testing endpoints</td>
+</tr>
+<tr>
+<td>Postman / Insomnia</td>
+<td>Visual API client for building and saving requests</td>
+<td>Exploring a new API before writing code</td>
+</tr>
+<tr>
+<td>Environment variables / <code>.env</code></td>
+<td>Keeps secrets out of source code</td>
+<td>Always — for every API key and token</td>
+</tr>
+<tr>
+<td>Git + GitHub</td>
+<td>Versions your automation scripts</td>
+<td>Any script you will run more than once</td>
+</tr>
+<tr>
+<td>cron / Task Scheduler</td>
+<td>Runs scripts on a schedule</td>
+<td>Daily/weekly recurring research jobs</td>
+</tr>
+<tr>
+<td>Zapier / Make / n8n</td>
+<td>No-code workflow automation across apps</td>
+<td>Simple cross-app glue, especially non-technical teams</td>
+</tr>
+<tr>
+<td>Webhook receiver (Flask/FastAPI)</td>
+<td>Accepts incoming event notifications</td>
+<td>Reacting to events in real time</td>
+</tr>
+<tr>
+<td>Logging (<code>logging</code> module)</td>
+<td>Records what your automation did</td>
+<td>Every scheduled or unattended job</td>
+</tr>
+<tr>
+<td>pandas</td>
+<td>Cleans and reshapes tabular API data</td>
+<td>Turning API results into analysis-ready datasets</td>
+</tr>
+<tr>
+<td>OAuth 2.0</td>
+<td>Delegated, scoped authorization standard</td>
+<td>When an API acts on a user's behalf</td>
+</tr>
+</tbody>
+</table>
+<h3 id="research-fit">Research Fit</h3>
+<table>
+<thead>
+<tr>
+<th>Book Part</th>
+<th>How It Helps a Researcher's Workflow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chapters 1–2 (API &amp; REST basics)</td>
+<td>Read and query scholarly APIs (Crossref, OpenAlex, ORCID, arXiv) for literature discovery and bibliometric data</td>
+</tr>
+<tr>
+<td>Chapter 3 (Authentication)</td>
+<td>Register for API access safely — email-to-token flows for publishers, OAuth for ORCID/Google Scholar integrations</td>
+</tr>
+<tr>
+<td>Chapter 4 (Python requests)</td>
+<td>Build your first data-collection scripts: harvest metadata, abstracts, citations for systematic reviews</td>
+</tr>
+<tr>
+<td>Chapters 5–6 (Webhooks &amp; chaining)</td>
+<td>React to events: new citations, form submissions, dataset updates — and chain collection → cleaning → storage</td>
+</tr>
+<tr>
+<td>Chapter 7 (No-code platforms)</td>
+<td>Automate admin chores (application tracking, alerts, spreadsheet sync) without writing code</td>
+</tr>
+<tr>
+<td>Chapters 8–9 (Errors, scheduling, monitoring)</td>
+<td>Run long, unattended harvests (e.g., weekly literature scans) that survive failures and report their own health</td>
+</tr>
+<tr>
+<td>Chapter 10 (Data mapping)</td>
+<td>Merge records from multiple databases (Scopus-style exports, Crossref, institutional repositories) into one clean dataset</td>
+</tr>
+<tr>
+<td>Chapter 11 (Security)</td>
+<td>Protect credentials in shared labs and avoid leaking keys in theses, repos, or screenshots</td>
+</tr>
+<tr>
+<td>Chapter 12 (Capstone)</td>
+<td>Produce a documented, reproducible pipeline suitable for a methods section or a lab handoff</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="chapter-1-what-are-apis-a-practical-introduction">Chapter 1: What Are APIs? A Practical Introduction</h2>
+<p>Imagine you are at a restaurant. You do not walk into the kitchen, open the fridge, and cook your own meal. You look at the menu, tell the waiter what you want, and the kitchen does the work and delivers the result. An API — Application Programming Interface — is the waiter. It is a defined menu of requests you can make to a piece of software, and it returns the results in a format your own programs can use. The kitchen (the application's internal code and database) stays hidden; you only interact through the agreed interface.</p>
+<p>Now replace the restaurant with a research database. Every day you visit publisher websites, search Google Scholar, check who cited your paper, download datasets, and copy metadata into spreadsheets — all through the "dining room," the graphical user interface. But those same services also run a "waiter's counter" for programs: a URL you can call from a Python script that returns the same information as structured data, in seconds, for thousands of records at once. That is what this book is about: moving from the dining room to the waiter's counter, so that repetitive research work becomes small programs instead of long afternoons.</p>
+<h3 id="the-two-faces-of-every-application">The two faces of every application</h3>
+<p>Every modern application has two faces. The first is the human face: buttons, forms, and pages designed for eyes and clicks. The second is the programmatic face: the API, designed for other software to call. They usually reach the same underlying data and functions. When you search for papers on a publisher's website, the page you see was assembled from the same data that the publisher's API would hand your script directly. The difference is that the human face returns a web page styled for reading, while the API returns raw structured data — typically JSON — styled for processing.</p>
+<p>Why does this matter for you? Because structured data is computable. A list of 2,000 paper titles in a spreadsheet is useful; the same 2,000 records as JSON — with authors, dates, DOIs, citation counts, and abstracts attached in predictable fields — can be filtered, counted, merged, and analyzed automatically. APIs are the bridge between "the web has this information" and "my program can work with this information."</p>
+<h3 id="what-an-api-call-actually-looks-like">What an API call actually looks like</h3>
+<p>At its simplest, calling a web API means sending a message to a URL and getting a message back. Consider OpenAlex, a free and open index of the world's scholarly works. If you open this URL in a browser — <code>https://api.openalex.org/works?search=machine+learning</code> — you will see a page of JSON: a structured list of scholarly works about machine learning. That URL <em>is</em> an API call. Your browser made it, the server answered, and what came back was data, not a designed page.</p>
+<p>A Python script does exactly the same thing, except it can then loop over the results, extract fields, save them to a file, and repeat the process for a hundred queries:</p>
+<pre><code class="language-python">import requests
+
+response = requests.get(&quot;https://api.openalex.org/works?search=machine+learning&quot;)
+data = response.json()
+print(&quot;Total works found:&quot;, data[&quot;meta&quot;][&quot;count&quot;])
+for work in data[&quot;results&quot;][:5]:
+    print(&quot;-&quot;, work[&quot;title&quot;])
+</code></pre>
+<p>That five-line program replaces minutes of manual searching, copying, and pasting — and it runs the same way every time, which means it is reproducible. Reproducibility is not a side benefit for researchers; it is the point. When your literature search is a script, anyone can run it, audit it, and get the same dataset.</p>
+<h3 id="types-of-apis-you-will-meet">Types of APIs you will meet</h3>
+<p>Not every API works the way OpenAlex's does. The most common family, and the focus of this book, is <strong>REST</strong> (Representational State Transfer): APIs that use ordinary web addresses (URLs) and the standard vocabulary of the web — GET to read, POST to create, PUT/PATCH to update, DELETE to remove. REST is the style described in Roy Fielding's doctoral dissertation [1], and it dominates research and web tooling because it is simple, stateless, and works with any programming language.</p>
+<p>You will also encounter three other families. <strong>SOAP</strong> is an older, stricter style built on XML envelopes and formal contracts; some institutional and government systems (library catalogues, university administration portals) still expose SOAP endpoints, and you may have to call one when integrating with legacy campus software. <strong>GraphQL</strong> is a newer query language that lets the client ask for exactly the fields it wants in a single request; GitHub's API, for example, offers both REST and GraphQL, and GraphQL shines when you need deeply nested data without making dozens of requests. Finally, <strong>language libraries and SDKs</strong> (software development kits) are not network APIs at all — they are packages you install, like Python's <code>pandas</code> or a publisher's official Python client, which wrap the network calls in friendly functions. Underneath, most SDKs are still talking to a REST API; they just hide the HTTP details.</p>
+<p>For this book, REST is the foundation because it is universal: if you understand REST, you can read any REST API's documentation and start working within an hour, and the mental model transfers to GraphQL and webhooks.</p>
+<h3 id="the-anatomy-of-a-web-api-interaction">The anatomy of a web API interaction</h3>
+<p>Every web API interaction has four ingredients on the way out and three on the way back. On the way out: the <strong>method</strong> (what you want to do: GET, POST, …), the <strong>URL</strong> (which resource you want: which papers, which dataset, which record), the <strong>headers</strong> (metadata about your request: who you are, what format you accept), and the <strong>body</strong> (the data you are sending, for requests that create or update things). On the way back: the <strong>status code</strong> (a number saying what happened: 200 for success, 404 for not found, 429 for too many requests), the <strong>headers</strong> (metadata about the response), and the <strong>body</strong> (the data itself, usually JSON).</p>
+<p>You already know this pattern from everyday browsing — every click in your browser sends exactly such a request. APIs simply let your programs send those requests on purpose, in bulk, and on a schedule.</p>
+<h3 id="real-research-apis-you-can-use-today">Real research APIs you can use today</h3>
+<p>The scholarly world is unusually generous with APIs, which makes it the perfect training ground:</p>
+<ul>
+<li><strong>Crossref</strong> (<code>api.crossref.org</code>) — metadata for tens of millions of published works with DOIs: titles, authors, journals, dates, references, funding. Free, no key required for polite use.</li>
+<li><strong>OpenAlex</strong> (<code>api.openalex.org</code>) — an open catalogue of works, authors, venues, institutions, and citation links, designed as a free alternative to commercial bibliometric databases.</li>
+<li><strong>ORCID</strong> (<code>orcid.org</code>) — researcher identity records; its public API lets you look up a researcher's profile and works by ORCID iD.</li>
+<li><strong>arXiv</strong> (<code>export.arxiv.org</code>) — the preprint server's API for searching papers by topic, author, or date range.</li>
+<li><strong>Zenodo</strong> (<code>zenodo.org/api</code>) — CERN's open research repository; its API lets you search and deposit datasets and software.</li>
+<li><strong>GitHub REST API</strong> (<code>api.github.com</code>) — repositories, issues, and releases; useful for research software engineering and for archiving code with releases.</li>
+<li><strong>Semantic Scholar API</strong> — paper search with citation contexts and influential-citation data.</li>
+</ul>
+<p>You do not need accounts or keys for the basic read operations of most of these, which means you can start experimenting in the next chapter with zero setup. When you later need to write data (deposit a dataset, update a profile), authentication enters the picture — that is Chapter 3.</p>
+<h3 id="apis-versus-scraping-an-important-distinction">APIs versus scraping: an important distinction</h3>
+<p>A tempting alternative to APIs is <em>web scraping</em>: writing a program that downloads human web pages and extracts data from the HTML. Scraping works, but it is fragile and often against a site's terms of service. Page layouts change without warning, breaking your extractor; aggressive scraping can get your IP address blocked; and many publishers explicitly permit API access while forbidding scraping. The professional rule is simple: <strong>if an API exists, use the API.</strong> It is the supported, stable, documented doorway. Reserve scraping for the rare case where no API exists, keep it gentle (slow request rates, respect robots.txt), and check the terms of use first.</p>
+<h3 id="automation-from-single-calls-to-workflows">Automation: from single calls to workflows</h3>
+<p>One API call is a tool; many calls arranged in a sequence is a <em>workflow</em>; and a workflow that runs on its own is <em>automation</em>. The progression this book follows looks like this:</p>
+<ol>
+<li><strong>Manual:</strong> you click through websites and copy data by hand.</li>
+<li><strong>Assisted:</strong> a script fetches data for you on demand (Chapter 4).</li>
+<li><strong>Connected:</strong> services notify your code of events, and your code chains several services together (Chapters 5–6).</li>
+<li><strong>Autonomous:</strong> the workflow runs on a schedule, handles its own errors, logs its activity, and alerts you only when something needs a human (Chapters 8–9).</li>
+</ol>
+<p>Most researchers live at stage 1. The goal of this book is to move you to stage 4 for the repetitive parts of your work — literature monitoring, data harvesting, metadata cleaning, reporting — while keeping you firmly in control of the intellectual parts: what to search, what counts as evidence, and what the results mean.</p>
+<h3 id="going-deeper-reading-api-documentation-like-a-professional">Going deeper: reading API documentation like a professional</h3>
+<p>Every API ships with documentation, and learning to read it quickly is a meta-skill that pays off for every API you will ever touch. Good documentation follows a predictable anatomy. The <strong>overview or quickstart</strong> tells you the base URL (the part all endpoints share, e.g. <code>https://api.openalex.org</code>) and shows one working example — run that example first, before reading anything else, so you have a known-good baseline. The <strong>authentication</strong> section explains which credential scheme the API uses and how to obtain one; read this before you design anything, because it determines how your code will be structured. The <strong>endpoint reference</strong> lists each URL, its supported methods, and its parameters — this is the menu from Chapter 1's restaurant analogy, and you will return to it constantly. The <strong>errors</strong> section documents status codes and error-body formats specific to this API. The <strong>rate limits</strong> section states your quotas. Finally, the <strong>changelog</strong> tells you what changed recently — check it whenever old code mysteriously breaks.</p>
+<p>Two practical habits accelerate everything. First, <strong>find the base URL and the versioning scheme immediately</strong>: some APIs version in the path (<code>/v1/works</code>), others in a header. Knowing this prevents the classic beginner error of mixing examples from different API versions. Second, <strong>test in the shallow end</strong>: before writing a script, paste a simple GET URL into your browser or run it with <code>curl</code>. If the raw request works, any failure in your code is in your code — a powerful debugging bisection that saves hours.</p>
+<p>A final note on <strong>JSON</strong>, the data format nearly all these APIs speak [5]. JSON has only a few building blocks: objects (<code>{"key": "value"}</code>), arrays (<code>[1, 2, 3]</code>), strings, numbers, booleans, and null. In Python, <code>response.json()</code> converts JSON objects to dictionaries and JSON arrays to lists — the mapping is one-to-one, which is why navigating API responses feels like navigating nested Python dicts. When documentation shows an "example response," read it as a map of the keys your code can rely on, and cross-check with a live response, because documentation examples sometimes lag behind the real API.</p>
+<blockquote>
+<p><strong>For your research:</strong> Pick one repetitive task you did this month — checking citations, downloading papers' metadata for a review, or copying survey results into a spreadsheet. Write down the exact steps. That list is your first automation candidate; by Chapter 6 you will be able to sketch it as a workflow, and by Chapter 12 you will build it. Keep the list handy as you read.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- An API is a program-to-program interface: a defined menu of requests a software system accepts, returning structured data instead of web pages.
+- REST APIs use URLs, HTTP methods, and JSON; they are the most common style and the foundation of this book.
+- Scholarly APIs (Crossref, OpenAlex, ORCID, arXiv, Zenodo) are free, keyless for reading, and ideal for learning and for real bibliometric work.
+- Structured API data is computable and reproducible — a script that fetches data can be rerun, audited, and shared.
+- Prefer APIs over web scraping: APIs are the supported, stable, documented path.
+- Automation is a ladder: single calls → chained workflows → scheduled, self-monitoring pipelines.</p>
+<hr />
+<h2 id="chapter-2-rest-fundamentals-requests-responses-and-status-codes">Chapter 2: REST Fundamentals: Requests, Responses, and Status Codes</h2>
+<p>REST is not a standard you download or a library you install. It is an architectural <em>style</em> — a set of conventions for designing web APIs so they are predictable, scalable, and easy to learn. It was described by Roy Fielding in his 2000 doctoral dissertation on network-based software architectures [1], and although the academic language is dense, the practical rules are few and intuitive. This chapter teaches you those rules as working knowledge: how to read a request, how to read a response, and what the numbers coming back actually mean.</p>
+<p><img alt="Diagram of a REST API request-response cycle between a client app and a server" src="/learn/images/media-generation-book-43-rest-0-c1f476e6-730e-4db9-be53-49e3ccba5d86.webp" /></p>
+<h3 id="resources-and-urls-everything-is-a-thing-with-an-address">Resources and URLs: everything is a thing with an address</h3>
+<p>The central idea of REST is the <strong>resource</strong>: any meaningful thing the API manages — a paper, an author, a dataset, a user profile, a deposit — gets its own URL, called its <em>endpoint</em>. You interact with the thing by sending HTTP requests to its address. A well-designed API reads almost like a sentence:</p>
+<ul>
+<li><code>GET https://api.openalex.org/works/W2741809807</code> — "give me the work with this ID"</li>
+<li><code>GET https://api.openalex.org/authors/A5023888391</code> — "give me this author"</li>
+<li><code>GET https://api.openalex.org/works?filter=from_publication_date:2024-01-01</code> — "give me works published since January 2024"</li>
+</ul>
+<p>Notice the pattern: nouns, not verbs. The URL names <em>what</em> you want; the HTTP method says <em>what to do with it</em>. This noun-based design is the single most useful habit for reading unfamiliar API documentation: find the nouns (the endpoints), then check which verbs (methods) each one supports.</p>
+<h3 id="the-http-methods-a-small-complete-vocabulary">The HTTP methods: a small, complete vocabulary</h3>
+<p>HTTP defines a handful of methods, and REST APIs use five of them for almost everything:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td>Read a resource (never changes anything)</td>
+<td>Fetch a paper's metadata</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td>Create a new resource</td>
+<td>Deposit a dataset on Zenodo</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td>Replace a resource completely</td>
+<td>Update a full profile record</td>
+</tr>
+<tr>
+<td><code>PATCH</code></td>
+<td>Modify part of a resource</td>
+<td>Change just a paper's abstract</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td>Remove a resource</td>
+<td>Delete a draft deposit</td>
+</tr>
+</tbody>
+</table>
+<p>Two properties matter. First, <code>GET</code> is <em>safe</em>: calling it must not change anything on the server, so you can call it freely, repeatedly, and cache the result. Second, <code>PUT</code> and <code>DELETE</code> are <em>idempotent</em>: calling them once or ten times has the same effect. These guarantees are what make automated retries safe — if a <code>GET</code> times out, you can simply send it again without worrying that you created something twice. (For <code>POST</code>, which is <em>not</em> idempotent, retries need more care — see Chapter 8.)</p>
+<h3 id="query-parameters-asking-precise-questions">Query parameters: asking precise questions</h3>
+<p>A URL can carry extra instructions after a question mark, as <code>key=value</code> pairs joined by <code>&amp;</code>:</p>
+<pre><code>https://api.openalex.org/works?search=climate+adaptation&amp;filter=from_publication_date:2023-01-01&amp;per-page=50
+</code></pre>
+<p>Here <code>search</code>, <code>filter</code>, and <code>per-page</code> are <strong>query parameters</strong> that narrow the request. Nearly every search-style API uses them, and learning to read an API's parameter list is the fastest way to become productive with it. Common parameter families include search text, filters (date ranges, types, languages), sorting (<code>sort=cited_by_count:desc</code>), and pagination (<code>page=2</code>, <code>per-page=50</code>). Always check the documentation for the exact parameter names — they differ between APIs — and watch for maximum page sizes, which force you to loop through pages (Chapter 8 covers pagination patterns).</p>
+<h3 id="headers-the-envelope-around-your-request">Headers: the envelope around your request</h3>
+<p><strong>Headers</strong> are key–value metadata sent alongside the request and response. You will meet a small set constantly:</p>
+<ul>
+<li><code>Authorization</code> — proves who you are (Chapter 3).</li>
+<li><code>Accept</code> — the format you want back, e.g. <code>application/json</code>.</li>
+<li><code>Content-Type</code> — the format of the body you are sending, e.g. <code>application/json</code> for a POST payload.</li>
+<li><code>User-Agent</code> — identifies your client; many scholarly APIs ask you to include a contact email here so they can reach you if your script misbehaves.</li>
+</ul>
+<p>In Python's <code>requests</code>, headers are just a dictionary:</p>
+<pre><code class="language-python">headers = {
+    &quot;Accept&quot;: &quot;application/json&quot;,
+    &quot;User-Agent&quot;: &quot;MyThesisBot/1.0 (mailto:you@university.edu)&quot;,
+}
+response = requests.get(&quot;https://api.openalex.org/works/W2741809807&quot;, headers=headers)
+</code></pre>
+<p>Including a polite <code>User-Agent</code> with your email is good citizenship with free scholarly APIs — and with some of them it puts your requests in a faster, more generous rate-limit pool.</p>
+<h3 id="the-request-body-sending-data-in">The request body: sending data in</h3>
+<p><code>GET</code> requests carry everything in the URL, but <code>POST</code>, <code>PUT</code>, and <code>PATCH</code> usually send a <strong>body</strong>: the data to create or update. The body is almost always JSON, and the <code>Content-Type: application/json</code> header tells the server how to parse it. A Zenodo-style deposit creation might look like this:</p>
+<pre><code class="language-python">payload = {
+    &quot;metadata&quot;: {
+        &quot;title&quot;: &quot;Survey responses, Karachi households 2026&quot;,
+        &quot;upload_type&quot;: &quot;dataset&quot;,
+        &quot;description&quot;: &quot;Anonymized survey data for thesis chapter 4.&quot;,
+        &quot;creators&quot;: [{&quot;name&quot;: &quot;Asif, Ali&quot;}],
+    }
+}
+response = requests.post(
+    &quot;https://zenodo.org/api/deposit/depositions&quot;,
+    json=payload,          # requests sets Content-Type and encodes JSON for you
+    headers={&quot;Authorization&quot;: &quot;Bearer YOUR_TOKEN&quot;},
+)
+</code></pre>
+<p>Using the <code>json=</code> argument (rather than manually converting with <code>json.dumps</code>) is a <code>requests</code> convenience: it serializes the dictionary and sets the right header automatically.</p>
+<h3 id="the-response-status-code-headers-body">The response: status code, headers, body</h3>
+<p>Every response has three parts. The <strong>status code</strong> is a three-digit number summarizing the outcome. The <strong>headers</strong> describe the response (its format, how many requests you have left before throttling, pagination links). The <strong>body</strong> carries the payload — usually JSON you parse into a dictionary.</p>
+<h3 id="status-codes-reading-the-servers-mood">Status codes: reading the server's mood</h3>
+<p>Status codes are grouped by their first digit. You do not need to memorize all of them, but you must recognize the families and the common individuals:</p>
+<p><strong>2xx — Success.</strong> <code>200 OK</code> (here is your data), <code>201 Created</code> (your POST worked; the new resource's URL is usually in the <code>Location</code> header), <code>202 Accepted</code> (request received, processing asynchronously), <code>204 No Content</code> (success, nothing to return — typical for DELETE).</p>
+<p><strong>3xx — Redirection.</strong> <code>301/302</code> (moved; follow the <code>Location</code> header). The <code>requests</code> library follows redirects automatically for GET.</p>
+<p><strong>4xx — Client error: the request was wrong.</strong> <code>400 Bad Request</code> (malformed syntax or invalid parameters — read the error body, it usually tells you exactly what was wrong), <code>401 Unauthorized</code> (missing or invalid credentials), <code>403 Forbidden</code> (credentials valid but you lack permission), <code>404 Not Found</code> (the resource does not exist — check the URL and ID), <code>422 Unprocessable Entity</code> (the server understood you, but the data failed validation), <code>429 Too Many Requests</code> (you are going too fast — slow down; see Chapter 8).</p>
+<p><strong>5xx — Server error: the server failed.</strong> <code>500 Internal Server Error</code> (something broke on their side), <code>502 Bad Gateway</code>, <code>503 Service Unavailable</code> (try again later), <code>504 Gateway Timeout</code>. These are usually transient: the correct response is to wait and retry (Chapter 8), not to "fix" your request.</p>
+<p>The single most important debugging habit in API work: <strong>when a request fails, read the response body.</strong> Good APIs return JSON error objects explaining the problem — which parameter was invalid, which field failed validation, what the rate limit is. Beginners stare at the status code; professionals read the message.</p>
+<pre><code class="language-python">response = requests.get(&quot;https://api.openalex.org/works/INVALID_ID&quot;)
+print(response.status_code)   # 404
+print(response.json())        # error details: what went wrong and why
+</code></pre>
+<h3 id="a-complete-annotated-example">A complete annotated example</h3>
+<p>Let us put it together with a realistic research task: find the most-cited recent works on a topic and extract their essentials.</p>
+<pre><code class="language-python">import requests
+
+url = &quot;https://api.openalex.org/works&quot;
+params = {
+    &quot;search&quot;: &quot;renewable energy microgrids&quot;,
+    &quot;filter&quot;: &quot;from_publication_date:2023-01-01&quot;,
+    &quot;sort&quot;: &quot;cited_by_count:desc&quot;,
+    &quot;per-page&quot;: 10,
+}
+headers = {&quot;User-Agent&quot;: &quot;ThesisLitReview/1.0 (mailto:student@university.edu)&quot;}
+
+response = requests.get(url, params=params, headers=headers)
+response.raise_for_status()          # raises an exception for 4xx/5xx — fail fast, fail loud
+data = response.json()
+
+for work in data[&quot;results&quot;]:
+    title = work.get(&quot;title&quot;, &quot;No title&quot;)
+    year = work.get(&quot;publication_year&quot;)
+    cited = work.get(&quot;cited_by_count&quot;, 0)
+    doi = work.get(&quot;doi&quot;, &quot;no DOI&quot;)
+    print(f&quot;[{year}] {title} — cited {cited}x — {doi}&quot;)
+</code></pre>
+<p>Note three professional touches: <code>params=</code> lets <code>requests</code> encode the query string correctly (spaces, special characters), <code>raise_for_status()</code> converts HTTP errors into Python exceptions so failures cannot pass silently, and <code>.get()</code> with defaults guards against missing fields — APIs evolve, and a field present today may be absent tomorrow.</p>
+<h3 id="rest-constraints-in-plain-language">REST constraints in plain language</h3>
+<p>Fielding's dissertation [1] defines REST through constraints; three are worth knowing by name because API documentation assumes them. <strong>Statelessness</strong> means each request carries everything the server needs — the server remembers nothing between your calls, which is why you send your credentials with every request (Chapter 3). <strong>Uniform interface</strong> means resources, methods, and representations work the same way across the whole API, so learning one endpoint teaches you the pattern for all of them. <strong>Cacheability</strong> means responses can declare themselves reusable, which is why repeated <code>GET</code>s are cheap and safe. You do not need the full theory — but when documentation says "this API is stateless," you now know it means: no login sessions, send auth every time.</p>
+<h3 id="going-deeper-urls-encoding-and-content-negotiation">Going deeper: URLs, encoding, and content negotiation</h3>
+<p>URLs look simple until your query contains a space, an ampersand, or a non-English character — then <strong>URL encoding</strong> matters. Certain characters are reserved in URLs (<code>?</code>, <code>&amp;</code>, <code>=</code>, <code>/</code>, spaces), so they must be percent-encoded (<code>%20</code> for space, <code>%26</code> for <code>&amp;</code>). This is why Chapter 2 used <code>params={...}</code> instead of hand-building query strings: <code>requests</code> encodes everything correctly, including Urdu or Arabic search terms, which would otherwise corrupt the request or silently change its meaning. If you ever must build a URL manually, use <code>urllib.parse.quote</code> — never string concatenation with raw user input.</p>
+<p>Two more HTTP features are worth knowing. <strong>Content negotiation</strong> is the mechanism behind the <code>Accept</code> header: the client declares which representation it wants (<code>application/json</code>, <code>application/xml</code>, sometimes even <code>text/csv</code>), and the server responds accordingly. Some scholarly APIs serve citations in multiple formats from the same endpoint — asking for BibTeX instead of JSON can be a one-header change. And beyond the big five methods, two minor ones occasionally help: <code>HEAD</code> (like GET but returns headers only — a cheap way to check whether a resource exists or how large it is) and <code>OPTIONS</code> (asks the server which methods an endpoint supports — useful when exploring an unfamiliar API).</p>
+<p>Finally, develop the habit of sending a <strong>request identifier</strong> on non-trivial calls — many APIs accept or generate one (returned as something like <code>X-Request-Id</code>). When something fails and you contact support, quoting the request ID lets them find your exact call in their logs. It costs one header and can save days of back-and-forth.</p>
+<h3 id="going-deeper-case-study-reading-the-crossref-api-reference">Going deeper: case study — reading the Crossref API reference</h3>
+<p>Let's apply the documentation-reading skill to a real example: the Crossref REST API, which provides metadata for works with DOIs. Its documentation follows the anatomy from the previous section. The <strong>base URL</strong> is <code>https://api.crossref.org</code>, and the central <strong>resource</strong> is the work: <code>GET /works/{doi}</code> returns one work's metadata, while <code>GET /works</code> searches and filters the whole collection. The endpoint reference lists <strong>query parameters</strong> you'll recognize immediately: <code>query</code> (free-text search), <code>filter</code> (structured constraints like <code>from-pub-date:2023-01-01</code>), <code>rows</code> (page size), <code>offset</code> (page position), <code>sort</code> and <code>order</code>, and <code>select</code> (limit which fields come back — a simple form of the field-selection idea behind GraphQL).</p>
+<p>Two Crossref-specific conventions are worth noticing because they generalize. First, the API asks you to identify yourself with a <code>mailto</code> parameter or <code>User-Agent</code> header containing your email — in return, your requests join a faster, more generous pool. This "polite pool" pattern appears across free scholarly APIs: identification buys you better service. Second, the response wraps results in a <code>message</code> object containing <code>items</code> (the records) and pagination metadata — every API nests things slightly differently, which is why the first thing you do with a new API is print one full response and map its nesting.</p>
+<p>A compact status-code field guide for daily use:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Your response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200</td>
+<td>OK</td>
+<td>Process the body</td>
+</tr>
+<tr>
+<td>201</td>
+<td>Created</td>
+<td>Read the <code>Location</code> header for the new URL</td>
+</tr>
+<tr>
+<td>400</td>
+<td>Bad request</td>
+<td>Read the error body; fix your parameters</td>
+</tr>
+<tr>
+<td>401</td>
+<td>Unauthorized</td>
+<td>Check credential presence, format, expiry</td>
+</tr>
+<tr>
+<td>403</td>
+<td>Forbidden</td>
+<td>Check scopes and permissions</td>
+</tr>
+<tr>
+<td>404</td>
+<td>Not found</td>
+<td>Check the ID/URL; the resource may genuinely not exist</td>
+</tr>
+<tr>
+<td>409</td>
+<td>Conflict</td>
+<td>Your change collides with existing state; fetch, reconcile, retry</td>
+</tr>
+<tr>
+<td>422</td>
+<td>Unprocessable</td>
+<td>Data failed validation; read the field-level errors</td>
+</tr>
+<tr>
+<td>429</td>
+<td>Too many requests</td>
+<td>Back off; honor <code>Retry-After</code></td>
+</tr>
+<tr>
+<td>500/502/503</td>
+<td>Server trouble</td>
+<td>Retry with backoff; it's their problem, not yours</td>
+</tr>
+</tbody>
+</table>
+<p>Tape this table near your desk until the families feel automatic.</p>
+<blockquote>
+<p><strong>For your research:</strong> Open your browser and try the OpenAlex and Crossref URLs from this chapter by hand. Change the search terms to your thesis topic and add a date filter. Watch how the JSON is organized: <code>results</code> arrays, <code>meta</code> counts, nested <code>authorships</code>. Understanding that structure by sight makes every script you write later dramatically easier, because you will know exactly which keys to extract.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- REST models everything as a resource with a URL; the HTTP method (GET, POST, PUT, PATCH, DELETE) says what to do with it.
+- Query parameters (<code>?key=value&amp;...</code>) filter, sort, and paginate; headers carry metadata like <code>Authorization</code>, <code>Accept</code>, and <code>User-Agent</code>.
+- POST/PUT/PATCH send a JSON body; <code>requests</code>' <code>json=</code> argument handles encoding and the <code>Content-Type</code> header.
+- Status codes group by family: 2xx success, 3xx redirect, 4xx your mistake, 5xx their problem; <code>429</code> means slow down.
+- Always read the error body — it usually names the exact problem.
+- <code>raise_for_status()</code> plus <code>.get()</code> with defaults makes scripts fail loudly on errors and tolerate missing fields.</p>
+<hr />
+<h2 id="chapter-3-authentication-api-keys-tokens-and-oauth">Chapter 3: Authentication: API Keys, Tokens, and OAuth</h2>
+<p>Reading public data is the friendly on-ramp, but real workflows also write: depositing datasets, updating profiles, posting to project channels, or accessing your own private data. Every such action requires the API to answer two questions: <strong>who are you</strong> (authentication) and <strong>are you allowed to do this</strong> (authorization). This chapter covers the credential systems you will actually encounter, from simplest to most robust, and the non-negotiable habits for handling secrets.</p>
+<h3 id="why-apis-need-authentication-at-all">Why APIs need authentication at all</h3>
+<p>An open read API like OpenAlex can serve anyone because reading public metadata harms no one. But an endpoint that deposits a dataset under your name, spends your quota, or reads your private messages must verify identity — otherwise anyone could impersonate you. Authentication also lets providers enforce <strong>rate limits per user</strong> (fair sharing of a free service), <strong>billing</strong> (paid tiers), and <strong>audit trails</strong> (who changed what, when). Expect every write operation and every access to non-public data to require credentials.</p>
+<h3 id="level-1-api-keys-the-simple-password">Level 1: API keys — the simple password</h3>
+<p>An <strong>API key</strong> is a long random string the service issues to you, acting as both identifier and password. You typically send it in a header or query parameter:</p>
+<pre><code class="language-python">headers = {&quot;X-API-Key&quot;: &quot;sk_live_abc123...&quot;}          # header style
+# or
+params = {&quot;api_key&quot;: &quot;abc123...&quot;}                      # query-parameter style
+</code></pre>
+<p>Keys are simple and common (Semantic Scholar, many publisher APIs, and countless SaaS tools use them). Their weakness is that they are <em>bearer credentials with no expiry and broad power</em>: anyone holding the key has your full access, and keys often live forever until manually revoked. Treat a key like a password: never hard-code it, never share it, and regenerate it the moment you suspect exposure.</p>
+<h3 id="level-2-bearer-tokens-keys-with-an-expiry-date">Level 2: Bearer tokens — keys with an expiry date</h3>
+<p>A <strong>bearer token</strong> works like an API key — whoever bears it is accepted — but it is typically short-lived (minutes to hours) and scoped to specific permissions. You send it in the standard <code>Authorization</code> header:</p>
+<pre><code class="language-python">headers = {&quot;Authorization&quot;: &quot;Bearer eyJhbGciOi...&quot;}
+response = requests.get(&quot;https://api.example.org/v1/profile&quot;, headers=headers)
+</code></pre>
+<p>Tokens are issued by a login step: you present long-lived credentials once, receive a short-lived token, and use the token for subsequent calls. When it expires, you request a fresh one. This design limits damage — a leaked token dies within the hour — and it is the mechanism underneath OAuth (below) and most modern APIs, including Zenodo's personal access tokens and the GitHub API's fine-grained tokens.</p>
+<h3 id="level-3-basic-auth-username-and-password-over-https">Level 3: Basic auth — username and password over HTTPS</h3>
+<p><strong>HTTP Basic authentication</strong> sends a username and password encoded (not encrypted — merely base64-encoded) in the <code>Authorization</code> header. It is only safe over HTTPS, which encrypts the whole connection. You will still meet it in university systems, mail servers, and some legacy APIs:</p>
+<pre><code class="language-python">response = requests.get(url, auth=(&quot;username&quot;, &quot;password&quot;))
+</code></pre>
+<p><code>requests</code> handles the encoding for you. Rule of thumb: if a service offers tokens or keys, prefer them; use Basic auth only when it is the documented option, and never over plain <code>http://</code>.</p>
+<h3 id="level-4-oauth-20-delegated-access-without-sharing-passwords">Level 4: OAuth 2.0 — delegated access without sharing passwords</h3>
+<p>The most important system to understand is <strong>OAuth 2.0</strong>, the industry standard for delegated authorization, specified in RFC 6749 [4]. The problem it solves: you want an application (say, a reference manager) to access your ORCID record or your cloud storage <em>on your behalf</em>, without giving it your password. OAuth solves this with a choreographed handoff between four parties: the <strong>resource owner</strong> (you), the <strong>client</strong> (the app), the <strong>authorization server</strong> (ORCID's login system), and the <strong>resource server</strong> (the API holding your data).</p>
+<p>The most common flow, the <strong>authorization code flow</strong>, works like this:</p>
+<ol>
+<li>The app redirects you to the authorization server: "ORCID, this app wants to read my profile — allow?"</li>
+<li>You log in to ORCID directly (the app never sees your password) and approve specific <strong>scopes</strong> (permissions like "read profile" or "update works").</li>
+<li>ORCID redirects you back to the app with a one-time <strong>authorization code</strong>.</li>
+<li>The app exchanges the code (plus its own client secret) for an <strong>access token</strong> and a <strong>refresh token</strong>.</li>
+<li>The app calls the API with the access token (<code>Authorization: Bearer ...</code>).</li>
+<li>When the access token expires, the app uses the refresh token to get a new one without bothering you.</li>
+</ol>
+<p><strong>Scopes</strong> are the key security idea: instead of all-or-nothing access, you grant exactly the permissions the app needs. When you connect ORCID to a manuscript system and it asks for "read your ORCID record and add works," those are scopes — and you should be suspicious of any app requesting scopes beyond its job.</p>
+<p>For server-to-server automation with no human present, OAuth offers the <strong>client credentials flow</strong>: your script authenticates with its own client ID and secret and receives a token directly. Many institutional APIs support this for backend jobs.</p>
+<p>In practice, you rarely implement OAuth by hand — libraries like <code>requests-oauthlib</code> or <code>authlib</code> manage the flows — but you must understand the model to register applications, choose scopes, and debug the inevitable redirect and token errors. A concrete research example: ORCID's member API uses OAuth so that universities and publishers can read and update researcher profiles only with each researcher's explicit, scoped consent.</p>
+<h3 id="the-golden-rules-of-handling-secrets">The golden rules of handling secrets</h3>
+<p>However you authenticate, the credential itself must be protected. These rules are non-negotiable:</p>
+<ol>
+<li><strong>Never hard-code secrets.</strong> No API keys in source code, notebooks, theses, screenshots, or chat messages. Ever.</li>
+<li><strong>Use environment variables.</strong> Load secrets from the environment at runtime:
+   <code>python
+   import os
+   token = os.environ["ZENODO_TOKEN"]   # fails loudly if missing — good</code></li>
+<li><strong>Use a <code>.env</code> file for local development</strong> (loaded with the <code>python-dotenv</code> package), and add <code>.env</code> to <code>.gitignore</code> on the first day of the project. A secret committed to Git is compromised forever — even if you delete it later, it lives in history.</li>
+<li><strong>Prefer the weakest credential that works.</strong> Read-only token for a read job; fine-grained GitHub tokens limited to one repository; OAuth scopes narrowed to the task.</li>
+<li><strong>Rotate regularly and revoke instantly.</strong> Generate new keys periodically; the moment a key might have leaked (pasted in a forum, committed to a repo, shown in a screenshot), revoke it and issue a new one.</li>
+<li><strong>Separate credentials per environment.</strong> Development, testing, and production (your scheduled jobs) get different keys, so revoking one does not break everything.</li>
+</ol>
+<p>A minimal safe pattern for a research script:</p>
+<pre><code class="language-python">import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()                                    # reads .env into environment (dev only)
+token = os.environ.get(&quot;OPENALEX_EMAIL&quot;)         # or a real token variable
+if not token:
+    raise SystemExit(&quot;Set OPENALEX_EMAIL in your .env file first.&quot;)
+
+headers = {
+    &quot;Authorization&quot;: f&quot;Bearer {os.environ['RESEARCH_API_TOKEN']}&quot;,
+    &quot;User-Agent&quot;: f&quot;ThesisBot/1.0 (mailto:{token})&quot;,
+}
+</code></pre>
+<h3 id="what-to-do-when-authentication-fails">What to do when authentication fails</h3>
+<p><code>401 Unauthorized</code> means the credential is missing, malformed, or expired: check the header format (<code>Bearer</code> prefix, no extra spaces), check expiry, and re-issue. <code>403 Forbidden</code> means the credential is valid but lacks permission: check scopes, check that the token was granted access to <em>that</em> resource, and check whether the key is restricted by IP or referrer. When debugging, print everything <em>except</em> the secret — log that a token was present and its first few characters at most. Full tokens in logs are a classic leak vector (Chapter 11).</p>
+<h3 id="going-deeper-how-tokens-actually-work-jwts-and-refresh-flows">Going deeper: how tokens actually work (JWTs and refresh flows)</h3>
+<p>Many modern APIs issue tokens in a format called <strong>JWT (JSON Web Token)</strong>, standardized in RFC 7519 [9]. A JWT is three base64-encoded segments joined by dots — <code>header.payload.signature</code> — and you can paste one into a decoder to inspect it (never paste a <em>real</em> secret token into a random website; decode locally or not at all). The payload carries <strong>claims</strong>: who the token was issued to (<code>sub</code>), who issued it (<code>iss</code>), when it expires (<code>exp</code>), and what it may do (<code>scope</code>). The signature lets the API verify the token wasn't tampered with, without calling back to the authorization server each time. Understanding this demystifies expiry errors: when a call fails with 401 after working for an hour, check the token's <code>exp</code> claim — it probably just expired, and the fix is a refresh, not a bug hunt.</p>
+<p>The <strong>refresh flow</strong> is how long-running automation stays authenticated without human logins. Alongside the short-lived access token, OAuth issues a longer-lived <strong>refresh token</strong>; your script trades the refresh token for a new access token whenever the old one expires:</p>
+<pre><code class="language-python">def refresh_access_token():
+    r = requests.post(&quot;https://auth.example.org/oauth/token&quot;, data={
+        &quot;grant_type&quot;: &quot;refresh_token&quot;,
+        &quot;refresh_token&quot;: os.environ[&quot;OAUTH_REFRESH_TOKEN&quot;],
+        &quot;client_id&quot;: os.environ[&quot;OAUTH_CLIENT_ID&quot;],
+        &quot;client_secret&quot;: os.environ[&quot;OAUTH_CLIENT_SECRET&quot;],
+    }, timeout=15)
+    r.raise_for_status()
+    tokens = r.json()
+    return tokens[&quot;access_token&quot;], tokens.get(&quot;refresh_token&quot;)
+</code></pre>
+<p>Note that refresh tokens can themselves rotate (the response may include a <em>new</em> refresh token replacing the old one) — your code must persist the latest one. For scheduled jobs, store tokens in a small state file or secret store and refresh lazily: attempt the API call, and only on a 401, refresh and retry once. This "try, then refresh on 401" pattern handles expiry robustly without complicating the happy path.</p>
+<p>One more scenario: <strong>service accounts and machine users</strong>. When automation belongs to a lab rather than a person, create a dedicated account (or use the provider's service-account feature) instead of minting tokens from your personal login. Personal tokens inherit your personal access and break when you change your password or leave; service identities survive personnel changes and make audit logs meaningful ("the harvester did this" rather than "Asif did this at 3am").</p>
+<h3 id="going-deeper-choosing-and-combining-credential-schemes">Going deeper: choosing and combining credential schemes</h3>
+<p>Real projects rarely use one scheme — they combine several, each where it fits. A typical research automation stack might use: an <strong>API key</strong> for a publisher's metadata API (simple, read-only), a <strong>bearer token</strong> from OAuth for writing to a cloud spreadsheet on the lab's behalf (scoped, expiring), and <strong>HTTP Basic</strong> for the university's legacy library catalogue (the only option its ancient endpoint offers). The skill is matching the scheme to the situation: prefer tokens over keys where both exist, prefer OAuth over shared secrets when acting for other people, and accept Basic auth only over HTTPS when nothing better is offered.</p>
+<p>Manage this multiplicity with <strong>one secrets file per environment</strong>. Your laptop's <code>.env</code> holds development keys; the lab server holds production keys with different values; the scheduled job reads from the secret store of whatever runs it. The code never changes — only the environment does:</p>
+<pre><code># .env.example (committed to git — names only, never values)
+RESEARCH_API_TOKEN=
+PUBLISHER_API_KEY=
+CONTACT_EMAIL=
+SMTP_USER=
+SMTP_PASS=
+OAUTH_CLIENT_ID=
+OAUTH_CLIENT_SECRET=
+OAUTH_REFRESH_TOKEN=
+</code></pre>
+<pre><code># .gitignore (committed from day one)
+.env
+*.log
+state/
+__pycache__/
+</code></pre>
+<p>A new collaborator copies <code>.env.example</code> to <code>.env</code>, fills in their own keys, and the project runs — no code edits, no secrets in chat. When someone leaves the project, you revoke <em>their</em> keys without touching anyone else's. This separation of code, configuration, and credentials is one of the oldest professional practices in software, and automation projects need it just as much as web applications do.</p>
+<blockquote>
+<p><strong>For your research:</strong> Create a free account on one service you will actually use — Zenodo, ORCID, or GitHub — and generate a personal access token with the narrowest scope that fits a read-only experiment. Store it in a <code>.env</code> file, load it with <code>python-dotenv</code>, and make one authenticated request. Then deliberately revoke the token and watch the request fail with <code>401</code>. That ten-minute exercise teaches more about credential lifecycle than any lecture.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong>
+- Authentication answers "who are you"; authorization answers "may you do this" — APIs need both for writes and private data.
+- API keys are simple but long-lived and powerful: guard them like passwords.
+- Bearer tokens are short-lived and scoped; they are the modern default, sent as <code>Authorization: Bearer ...</code>.
+- OAuth 2.0 [4] lets apps act on your behalf with explicit, scoped consent — without ever seeing your password.
+- Secrets live in environment variables or a vault, never in code, repos, or screenshots; revoke and rotate on any suspicion of exposure.
+- <code>401</code> = bad/missing credential; <code>403</code> = valid credential, insufficient permission.</p>
+<hr />
+<h2 id="chapter-4-python-requests-in-practice">Chapter 4: Python requests in Practice</h2>
+<p>Theory becomes skill at the keyboard. This chapter is a hands-on tour of Python's <code>requests</code> library — the de facto standard for calling HTTP APIs from Python — built around realistic research tasks: searching scholarly APIs, downloading records, handling JSON, and saving results for analysis. If you can work through this chapter comfortably, you can automate against any documented REST API.</p>
+<h3 id="setup-installation-and-first-call">Setup: installation and first call</h3>
+<p><code>requests</code> is not in the standard library, so install it once per Python environment:</p>
+<pre><code class="language-bash">pip install requests python-dotenv pandas
+</code></pre>
+<p>(<code>python-dotenv</code> manages secrets as shown in Chapter 3; <code>pandas</code> [2] will turn API results into dataframes later.) Verify with the smallest possible program — a GET request to OpenAlex:</p>
+<pre><code class="language-python">import requests
+
+response = requests.get(&quot;https://api.openalex.org/works/W2741809807&quot;)
+print(response.status_code)   # expect 200
+print(response.json()[&quot;title&quot;])
+</code></pre>
+<p>If that prints a title, your toolchain works. Everything else in this chapter is elaboration on this pattern.</p>
+<h3 id="get-with-parameters-headers-and-timeouts">GET with parameters, headers, and timeouts</h3>
+<p>Real queries need parameters and headers, and every request needs a <strong>timeout</strong>. Without one, a hung server can freeze your script forever; with one, the failure becomes a catchable exception:</p>
+<pre><code class="language-python">import requests
+
+url = &quot;https://api.openalex.org/works&quot;
+params = {&quot;search&quot;: &quot;solar desalination&quot;, &quot;per-page&quot;: 25}
+headers = {&quot;User-Agent&quot;: &quot;ThesisBot/1.0 (mailto:you@university.edu)&quot;}
+
+try:
+    response = requests.get(url, params=params, headers=headers, timeout=15)
+    response.raise_for_status()
+except requests.exceptions.Timeout:
+    print(&quot;The server took too long — will retry later.&quot;)
+except requests.exceptions.HTTPError as e:
+    print(&quot;HTTP error:&quot;, e)
+except requests.exceptions.RequestException as e:
+    print(&quot;Network problem:&quot;, e)
+else:
+    data = response.json()
+    print(f&quot;Found {data['meta']['count']} works; showing {len(data['results'])}&quot;)
+</code></pre>
+<p><code>requests.exceptions.RequestException</code> is the base class of all <code>requests</code> errors — catching it is your safety net. <code>timeout=15</code> means "give up if the server takes longer than 15 seconds," which keeps scheduled jobs from hanging indefinitely (Chapter 9).</p>
+<h3 id="reading-json-like-a-researcher">Reading JSON like a researcher</h3>
+<p>API responses are nested dictionaries and lists. The skill is navigating them defensively, because real data is messy: fields go missing, lists come back empty, types surprise you. Three habits keep you safe:</p>
+<pre><code class="language-python">work = data[&quot;results&quot;][0]
+
+title   = work.get(&quot;title&quot;) or &quot;Untitled&quot;                       # missing or None-safe
+year    = work.get(&quot;publication_year&quot;)
+doi     = (work.get(&quot;doi&quot;) or &quot;&quot;).replace(&quot;https://doi.org/&quot;, &quot;&quot;)
+journal = (work.get(&quot;primary_location&quot;) or {}).ge

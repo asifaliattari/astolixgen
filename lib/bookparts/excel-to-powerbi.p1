@@ -1,0 +1,678 @@
+td>Rows (matrix) / Axis (charts)</td>
+<td>Use dimension columns, never fact-table text</td>
+</tr>
+<tr>
+<td>Columns</td>
+<td>Columns (matrix) / Legend</td>
+<td>Hierarchies (Year, Quarter, Month) drill naturally</td>
+</tr>
+<tr>
+<td>Values (Sum of Amount)</td>
+<td>Values, powered by measures</td>
+<td>Convert implicit aggregations to explicit measures (see 5.3)</td>
+</tr>
+<tr>
+<td>Filters (report filter)</td>
+<td>Filters pane / Slicers</td>
+<td>Slicers are visible, multi-select, and sync across pages</td>
+</tr>
+<tr>
+<td>Show Values As (percent of total, difference from)</td>
+<td>Quick measures / DAX (Chapter 6)</td>
+<td>More options, and reusable across visuals</td>
+</tr>
+<tr>
+<td>Grouping (dates into months)</td>
+<td>Date hierarchy / DAX date tables</td>
+<td>A proper date table beats right-click grouping</td>
+</tr>
+<tr>
+<td>Calculated Field</td>
+<td>DAX measure</td>
+<td>Calculated Fields were limited; measures are the full language</td>
+</tr>
+<tr>
+<td>Refresh button</td>
+<td>Refresh (one click, all visuals)</td>
+<td>The model refreshes once; every visual follows</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-the-critical-upgrade-implicit-vs-explicit-measures">5.3 The critical upgrade: implicit vs explicit measures</h3>
+<p>When you drag a numeric field into a PivotTable's Values, Excel silently creates an <strong>implicit</strong> aggregation — "Sum of Amount." It works, but it is invisible, uneditable, unreusable, and untestable. Every PivotTable that needs the same number re-derives it independently.</p>
+<p>In Power BI, dragging a raw column into Values does the same implicit thing — and you should break the habit on day one. Instead, define <strong>explicit measures</strong>:</p>
+<pre><code>Total Amount = SUM(Sales[Amount])
+</code></pre>
+<p>An explicit measure is named, defined once, reused in every visual, and — crucially — it is the unit you validate ("does Total Amount match the audited Excel total?"). Chapter 6 is entirely about writing these; the rule to internalize now is: <strong>if a number matters, it is a named measure, not a dragged field.</strong></p>
+<p>Migration habit: for every "Sum of X" / "Count of Y" in your old PivotTables, create one explicit measure with a clear name (Total Responses, Average Score, Response Count). Your future self, validating the migration, will thank you.</p>
+<h3 id="54-migration-walkthrough-your-most-used-pivottable">5.4 Migration walkthrough: your most-used PivotTable</h3>
+<p>Pick the PivotTable you rebuild most often — say, average test score by district by year, with a report filter on gender.</p>
+<ol>
+<li><strong>Build the measures first</strong> (Chapter 6 gives the DAX; preview here): Response Count = COUNTROWS(Responses); Average Score = AVERAGE(Responses[Score]).</li>
+<li><strong>Insert a Matrix visual.</strong> Rows: Districts[DistrictName]. Columns: Dates[Year] (from a date table). Values: the two measures.</li>
+<li><strong>Add a Slicer</strong> on Respondents[Gender] — this replaces the report filter, and it stays visible.</li>
+<li><strong>Format deliberately:</strong> turn on stepped layout under Format, Row headers; set subtotals per your audience (research tables usually want them; dashboards often do not).</li>
+<li><strong>Validate:</strong> compare every cell against the old PivotTable. Start with grand totals, then a sample of rows. Mismatches at this stage are data-model issues (usually a relationship or a duplicate key), not DAX issues — fix the model, not the measure.</li>
+<li><strong>Add what Excel could not:</strong> click a district in the matrix and watch a paired bar chart filter. Add data bars to the Average Score column — now your PivotTable has in-cell visualization without the old conditional-formatting fragility.</li>
+</ol>
+<h3 id="55-beyond-the-matrix-the-visual-family">5.5 Beyond the matrix: the visual family</h3>
+<p>The matrix covers the PivotTable's job. Around it, Power BI offers visuals Excel has no equivalent for:</p>
+<ul>
+<li><strong>Decomposition tree:</strong> click a total and drill into contributing factors interactively — root-cause analysis that took five PivotTables now takes five clicks.</li>
+<li><strong>Key influencers:</strong> built-in machine learning that finds which columns most influence an outcome (great for exploratory survey analysis; document it as exploratory, not confirmatory).</li>
+<li><strong>Small multiples:</strong> one chart repeated per category automatically — the "one chart per district" report builds itself.</li>
+<li><strong>Drillthrough:</strong> right-click a data point to jump to a detail page filtered to it — the "double-click a PivotTable cell to see rows" behavior, but designed.</li>
+</ul>
+<p>You do not need all of these on day one. Learn matrix plus bar/column plus slicer deeply; add the others when a question demands them (Chapter 7).</p>
+<h3 id="56-formatting-the-matrix-for-research-tables">5.6 Formatting the matrix for research tables</h3>
+<p>A thesis results table and a management dashboard want different things from a matrix. Research tables want completeness and precision; dashboards want signal. Format accordingly:</p>
+<ul>
+<li><strong>Stepped layout vs tabular:</strong> stepped (the default) indents subcategories under parents and suits hierarchical exploration. Tabular repeats parent labels on every row — better for exported tables a reader scans linearly, which is most thesis tables.</li>
+<li><strong>Subtotals:</strong> turn them on per row level (Format, Row subtotals, per-level toggles). Examiners expect subtotals; dashboard audiences often find them noisy. Match the audience.</li>
+<li><strong>Word wrap and header size:</strong> long indicator names ("Percentage of households with improved sanitation") need wrapped row headers and generous width, or the matrix becomes unreadable. Set Row headers, Word wrap on, and size generously.</li>
+<li><strong>Value formatting:</strong> set decimal places on the <em>measure</em> (Modeling, Formatting), not per visual — one definition, consistent everywhere. Research tables usually want the same precision as the paper (two decimals, say), applied once.</li>
+<li><strong>Data bars and background scales:</strong> conditional formatting inside matrix values gives in-cell visualization. Use subtle data bars for magnitude columns; avoid red-green (accessibility — see Chapter 7).</li>
+<li><strong>Matrix vs Table visual:</strong> the Table visual has no subtotals or hierarchies — it is a flat grid. Use Table for raw listings (top-20 lists, audit extracts); use Matrix for anything aggregated. Choosing wrong is the most common formatting complaint, and the fix is one click.</li>
+</ul>
+<p>One more habit: <strong>rename visual titles to questions</strong> ("Average score by district, 2026") rather than field dumps ("Districts[DistrictName] by Dates[Year]"). The title is the only part of the visual most readers actually read first.</p>
+<h3 id="57-quick-measures-training-wheels-worth-using">5.7 Quick measures: training wheels worth using</h3>
+<p>Right-click a table in the Fields pane, choose New quick measure, and Power BI generates DAX for common patterns: year-to-date totals, year-over-year change, moving averages, percent of total, and more. For a beginner, quick measures are genuinely useful — but use them as <em>reading material</em>, not as black boxes:</p>
+<ol>
+<li>Generate the quick measure for a pattern you need (say, year-over-year change).</li>
+<li>Open its DAX and read it against Chapter 6's translation table — you will recognize CALCULATE, FILTER, and ALL wearing formal clothes.</li>
+<li>Rename it properly, add a description, and simplify where the generated code is verbose (it often is — generated DAX favors generality over elegance).</li>
+</ol>
+<p>The graduation path: quick measure, then read, then hand-write the next one yourself. Within a month you will write them directly. Never leave a measure named "Average Score year-over-year change" in a production model — names are documentation, and generated names document nothing.</p>
+<h3 id="58-hierarchies-and-drill-down-done-right">5.8 Hierarchies and drill-down done right</h3>
+<p>A <strong>hierarchy</strong> is an ordered drill path: Year to Quarter to Month to Day, or Country to Province to District. In Power BI, right-click a column and create a hierarchy, or use the date table's automatic one. Then the visual grows drill controls: drill down into a bar, drill up out of it, expand all levels at once.</p>
+<p>Done right, hierarchies replace a family of charts: one visual serves the executive (year level) and the analyst (day level). Two practices keep them honest. First, <strong>name hierarchy levels for humans</strong> — "Year," "Quarter," "Month Name" — because the level names appear in the visual's breadcrumb trail. Second, <strong>control the default level</strong>: a line chart defaulting to Day on three years of data is noise; default to Month or Quarter and let users drill.</p>
+<p>The trap: hierarchies imply the levels are cleanly nested, and real data often isn't. Districts that changed provinces mid-study, weeks that straddle years, fiscal vs calendar years — each breaks the neat nesting. When nesting is messy, prefer explicit slicers over drill-down, or build the hierarchy from columns that encode the true nesting (a YearMonth column like "2026-03" sorts and nests correctly where month names don't).</p>
+<h3 id="59-drillthrough-in-practice-building-the-detail-page">5.9 Drillthrough in practice: building the detail page</h3>
+<p>Chapter 5 mentioned drillthrough; here is how to actually build it, because it's the closest Power BI comes to Excel's "double-click a PivotTable cell to see the rows" — except designed instead of accidental.</p>
+<p>Create a new page called "District detail." In the Drillthrough filters well (Filters pane), drag Districts[DistrictName]. The page is now a drillthrough target: right-clicking any district in any visual offers "Drill through to District detail," and the page opens pre-filtered to that district. Add a "Back" button (Insert, Buttons, Back) so users can return — without it, people get lost.</p>
+<p>Design the detail page as the answer to "tell me everything about X": KPI cards for the district, a trend line, a table of the underlying rows (the "show me the data" that auditors love), and a text box stating the filter context ("Showing: Karachi — use Back to return"). Keep it to one page; detail pages that scroll lose their purpose.</p>
+<p>The research payoff is direct: your summary page makes the claim, the drillthrough page shows the evidence behind it, and the interaction is recorded in the report rather than in someone's memory of double-clicking cells. When a supervisor asks "which respondents drove that outlier?", you right-click instead of rebuilding.</p>
+<p><strong>For your research:</strong> Every table in your thesis results chapter can be a validated matrix visual — but better, the <em>measure definitions behind it</em> are your analysis specification. "Average Score by district and year" is no longer a PivotTable you rebuilt by hand; it is two named DAX measures over a documented model. When a reviewer asks "how was Table 3 computed?", you answer with the measure code, not a reconstruction story. And cross-filtering gives you exploratory power Excel never did: click an outlier bar and watch every table re-aggregate — hypothesis generation becomes interactive.</p>
+<p><strong>Key takeaways:</strong>
+- A PivotTable's four panes map directly onto Power BI field wells — you already know the grammar.
+- Convert every implicit "Sum of X" into an explicit named measure: named, reusable, validatable.
+- Slicers replace report filters with visible, multi-select, cross-page controls; visuals cross-filter each other live.
+- Migrate by rebuilding measures first, then the matrix, then validating cell-by-cell against the old PivotTable before adding new interactivity.
+- The matrix is the start: decomposition trees, key influencers, and drillthrough do analysis Excel PivotTables structurally cannot.</p>
+<hr />
+<h2 id="chapter-6-from-cell-formulas-to-dax-measures-translation-guide">Chapter 6: From Cell Formulas to DAX Measures (Translation Guide)</h2>
+<h3 id="61-the-one-idea-that-unlocks-dax">6.1 The one idea that unlocks DAX</h3>
+<p>DAX feels alien for exactly one reason: <strong>Excel formulas reference cells; DAX formulas describe calculations over tables and columns.</strong> In Excel you point at a rectangle of cells. In DAX you write SUM(Sales[Amount]) — "the sum of the Amount column" — and <em>which rows</em> get summed is decided by context, not by the rectangle you drew.</p>
+<p>That context has a name: <strong>evaluation context</strong>, made of two parts:</p>
+<ul>
+<li><strong>Filter context:</strong> the filters active where the measure is evaluated — the slicer selections, the chart axis category, the matrix row. Total Sales = SUM(Sales[Amount]) in a matrix row for "Karachi" automatically sums only Karachi rows. You never wrote the filter; the visual provided it. This is the superpower: one measure, infinite correct slicings.</li>
+<li><strong>Row context:</strong> when a formula iterates row by row (like filling a formula down a column), each row is the context. Calculated columns and the X-functions (SUMX, AVERAGEX) create row context.</li>
+</ul>
+<p>Excel analogy: filter context is AutoFilter applied automatically per visual element; row context is "fill down." The classic beginner error is writing a measure that ignores filter context — for example dividing by a grand total computed over the whole table when the visual already filtered it. This chapter's translation table keeps you out of that trap.</p>
+<h3 id="62-calculated-columns-vs-measures-the-decision-you-must-get-right">6.2 Calculated columns vs measures: the decision you must get right</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Calculated column</th>
+<th>Measure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Computed</strong></td>
+<td>Once, at refresh; stored in the model</td>
+<td>On the fly, at visual render time</td>
+</tr>
+<tr>
+<td><strong>Row context</strong></td>
+<td>Yes — formula evaluated per row</td>
+<td>No (unless an X-function creates it)</td>
+</tr>
+<tr>
+<td><strong>Respects slicers</strong></td>
+<td>No — values are frozen at refresh</td>
+<td>Yes — recalculates with filter context</td>
+</tr>
+<tr>
+<td><strong>Use for</strong></td>
+<td>Categories, flags, bins needed as slicers or axes (Age Group, Pass/Fail)</td>
+<td>Numbers, ratios, totals — everything aggregated</td>
+</tr>
+<tr>
+<td><strong>Cost</strong></td>
+<td>Increases model size (stored)</td>
+<td>Negligible storage; CPU at render</td>
+</tr>
+<tr>
+<td><strong>Excel cousin</strong></td>
+<td>A filled-down formula column</td>
+<td>A PivotTable value that respects filters</td>
+</tr>
+</tbody>
+</table>
+<p>The rule of thumb: <strong>if it will be sliced, filtered, or put on an axis, make it a calculated column. If it will be summed, averaged, or turned into a ratio, make it a measure.</strong> The most expensive beginner mistake is building a calculated column of per-row profit and then summing it — that works, but the better pattern is a measure: Total Profit = SUMX(Sales, Sales[Amount] - Sales[Cost]), or simply [Total Sales] - [Total Cost] reusing measures. Measures compose; columns do not.</p>
+<h3 id="63-the-translation-table-excel-to-dax">6.3 The translation table: Excel to DAX</h3>
+<p>This is the table to print and keep beside your keyboard.</p>
+<table>
+<thead>
+<tr>
+<th>Excel formula</th>
+<th>DAX measure</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SUM over a range</td>
+<td>Total = SUM(Table[Col])</td>
+<td>Filter context replaces the range</td>
+</tr>
+<tr>
+<td>SUMIF for one condition</td>
+<td>CALCULATE(SUM(T[Amount]), Dim[City] = "Karachi")</td>
+<td>CALCULATE modifies filter context — the heart of DAX</td>
+</tr>
+<tr>
+<td>SUMIFS, several conditions</td>
+<td>CALCULATE(SUM(T[A]), D[City] = "Khi", D2[Year] = 2026)</td>
+<td>Comma-separated filters; AND logic</td>
+</tr>
+<tr>
+<td>COUNTIF</td>
+<td>CALCULATE(COUNTROWS(T), T[Result] = "Pass")</td>
+<td>COUNTROWS over the filtered table</td>
+</tr>
+<tr>
+<td>AVERAGEIF</td>
+<td>CALCULATE(AVERAGE(T[A]), D[City] = "Khi")</td>
+<td>Same CALCULATE pattern</td>
+</tr>
+<tr>
+<td>COUNT / COUNTA</td>
+<td>COUNT(T[Col]) / COUNTA(T[Col])</td>
+<td>COUNT counts numbers; COUNTA counts non-blanks</td>
+</tr>
+<tr>
+<td>IF per row</td>
+<td>Calculated column: IF(T[Col] &gt; 100, "High", "Low")</td>
+<td>Row-wise logic belongs in a calculated column</td>
+</tr>
+<tr>
+<td>Nested IF(IF(IF(...)))</td>
+<td>SWITCH(TRUE(), cond1, r1, cond2, r2, "Other")</td>
+<td>SWITCH with TRUE() is the readable nested-IF killer</td>
+</tr>
+<tr>
+<td>Ratio A2/B2 summed afterward</td>
+<td>DIVIDE([Total A], [Total B])</td>
+<td>DIVIDE handles divide-by-zero; ratio of totals is not the total of ratios</td>
+</tr>
+<tr>
+<td>SUMPRODUCT with conditions</td>
+<td>SUMX(FILTER(T, D[City] = "Khi"), T[A])</td>
+<td>SUMX iterates; FILTER sets row context</td>
+</tr>
+<tr>
+<td>VLOOKUP then SUM</td>
+<td>Relationship plus SUM(T[A]) sliced by dimension</td>
+<td>Do not translate the lookup — delete it (Chapter 4)</td>
+</tr>
+<tr>
+<td>YEAR(A2), MONTH(A2)</td>
+<td>In the date table, or YEAR(Dates[Date])</td>
+<td>Build a proper date table; do not scatter date math</td>
+</tr>
+<tr>
+<td>Percent of total</td>
+<td>DIVIDE(SUM(T[A]), CALCULATE(SUM(T[A]), ALL(T)))</td>
+<td>ALL removes filter context, giving the grand-total denominator</td>
+</tr>
+<tr>
+<td>Running total</td>
+<td>CALCULATE(SUM(T[A]), FILTER(ALL(Dates), Dates[Date] &lt;= MAX(Dates[Date])))</td>
+<td>The classic pattern; learn it once, reuse forever</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-calculate-the-one-function-to-master">6.4 CALCULATE: the one function to master</h3>
+<p>If DAX has a center of gravity, it is <strong>CALCULATE</strong>. It evaluates an expression under modified filter context:</p>
+<pre><code>Karachi Sales =
+CALCULATE(
+    SUM(Sales[Amount]),
+    Districts[DistrictName] = &quot;Karachi&quot;
+)
+</code></pre>
+<p>Read it as: "take the Total Sales logic, but first force the filter DistrictName = Karachi." Filters can also <em>remove</em> context: ALL(Sales) strips filters from Sales (the percent-of-total denominator), ALLEXCEPT keeps some, and DATESYTD / SAMEPERIODLASTYEAR do time intelligence over a proper date table.</p>
+<p>Time intelligence deserves its own warning: functions like TOTALYTD and SAMEPERIODLASTYEAR <strong>require a proper date table</strong> — a dimension with one row per day, contiguous dates, marked as a date table. Build it once in Power Query, relate it to every date column, and year-over-year analysis becomes one function call instead of the fragile offset formulas of Excel.</p>
+<h3 id="65-the-five-dax-mistakes-every-excel-migrant-makes">6.5 The five DAX mistakes every Excel migrant makes</h3>
+<ol>
+<li><strong>Summing a calculated column that already aggregated.</strong> If the column holds per-row profit, summing it double-aggregates across filter contexts. Prefer measures built from base columns.</li>
+<li><strong>Forgetting filter context in ratios.</strong> SUM(A)/SUM(B) is a ratio of totals (usually right); a calculated column A/B then summed is a sum of ratios (usually wrong). Know which your research question asks.</li>
+<li><strong>Using VALUES when you meant DISTINCT, or vice versa.</strong> VALUES includes the blank row from unmatched keys (Chapter 4's data-quality signal); DISTINCT does not. For counts of dimension members, this distinction matters.</li>
+<li><strong>Flipping relationships to bidirectional to "fix" a DAX problem.</strong> If a measure needs data from the other side, the answer is almost always CALCULATE with the right filters, not flipping the relationship to Both.</li>
+<li><strong>Treating blank as zero.</strong> DAX distinguishes BLANK() from 0; AVERAGE ignores blanks (like Excel), but adding zero coercion changes results. In survey data, "no response" (blank) versus "score of 0" are different findings — keep them different.</li>
+</ol>
+<h3 id="66-migration-walkthrough-translate-a-kpi-sheet">6.6 Migration walkthrough: translate a KPI sheet</h3>
+<p>Take a KPI sheet with 30 cells: total sales, Karachi sales, percent of total, year-over-year growth, average order value, pass rate.</p>
+<ol>
+<li>List each KPI cell and classify: aggregation becomes a measure; per-row flag becomes a calculated column; lookup gets deleted (Chapter 4).</li>
+<li>Write the measures using the translation table. Reuse: define Total Sales once, then Karachi Sales = CALCULATE([Total Sales], ...) references it. Measures calling measures is the DAX way — it mirrors referencing named cells.</li>
+<li>Validate each measure against the original cell value with all slicers cleared. Mismatch? Check filter context first (is a visual filtering you forgot?), then the model, then the DAX — in that order.</li>
+<li>Document: add descriptions to each measure (right-click, Properties, Description). "Total Sales — sum of Amount over Sales; validated against audited workbook v3, 2026-10-08." Your future self and your supervisor will bless this.</li>
+</ol>
+<h3 id="67-var-write-dax-like-a-grown-up">6.7 VAR: write DAX like a grown-up</h3>
+<p>The moment your measures grow past one line, learn <strong>variables</strong>. VAR lets you name intermediate results, and RETURN says what the measure outputs:</p>
+<pre><code>Pass Rate =
+VAR PassCount =
+    CALCULATE(COUNTROWS(Responses), Responses[Result] = &quot;Pass&quot;)
+VAR TotalCount =
+    COUNTROWS(Responses)
+RETURN
+    DIVIDE(PassCount, TotalCount)
+</code></pre>
+<p>Three reasons this is better than the one-liner: <strong>readability</strong> (a reviewer can follow the logic top to bottom), <strong>single evaluation</strong> (each VAR computes once even if referenced twice — meaningful for expensive filters), and <strong>debuggability</strong> (temporarily RETURN PassCount to see the intermediate value while troubleshooting).</p>
+<p>Two rules about VAR: variables are <strong>immutable</strong> (you cannot reassign them — write a new VAR instead), and each variable is evaluated in the context where it is <em>defined</em>, not where it is <em>used</em>. That second rule bites once, memorably: a VAR holding a filtered table won't "see" filters applied later in RETURN. Define variables after the context is set, or accept the lesson and move on — every DAX practitioner has the scar.</p>
+<p>Adopt the habit now: any measure longer than one CALCULATE gets VARs. Your thesis appendix will thank you.</p>
+<h3 id="68-time-intelligence-cookbook-five-patterns">6.8 Time intelligence cookbook: five patterns</h3>
+<p>All of these require the proper date table from Chapter 6 (one row per day, contiguous, marked as date table, related to the fact). With that in place:</p>
+<ol>
+<li><strong>Year-to-date:</strong> <code>Sales YTD = TOTALYTD(SUM(Sales[Amount]), Dates[Date])</code> — the running total within each year, resetting in January (or your fiscal year start, via the optional third argument).</li>
+<li><strong>Same period last year:</strong> <code>Sales PY = CALCULATE(SUM(Sales[Amount]), SAMEPERIODLASTYEAR(Dates[Date]))</code> — every selected period shifted back one year. The workhorse of "compared to last year" visuals.</li>
+<li><strong>Year-over-year growth:</strong> <code>YoY Growth = DIVIDE([Total Sales] - [Sales PY], [Sales PY])</code> — reusing the two measures above. Measures calling measures keeps each definition small and testable.</li>
+<li><strong>Rolling 12 months:</strong> <code>Rolling 12M = CALCULATE(SUM(Sales[Amount]), DATESINPERIOD(Dates[Date], MAX(Dates[Date]), -12, MONTH))</code> — the trailing-year window that smooths seasonality. Note DATESINPERIOD takes the <em>last date in context</em> as its anchor.</li>
+<li><strong>Month-to-date with a twist:</strong> <code>Sales MTD = TOTALMTD(SUM(Sales[Amount]), Dates[Date])</code> — and the twist is comparing it fairly: MTD this month vs MTD same point last month needs SAMEPERIODLASTYEAR inside, otherwise you compare a partial month against a full one — the classic embarrassing boardroom error.</li>
+</ol>
+<p>Learn these five as patterns, not as magic spells: each is CALCULATE (or its TOTALYTD shorthand) plus a date function shaping the filter context. Once you see that, you can invent the sixth pattern yourself.</p>
+<h3 id="69-reading-other-peoples-dax-a-survival-guide">6.9 Reading other people's DAX: a survival guide</h3>
+<p>You will inherit DAX — from colleagues, forums, and quick measures. Reading it is a separate skill from writing it. The method: <strong>read inside out, and name the contexts.</strong></p>
+<ol>
+<li>Find the outermost function (usually CALCULATE or an X-function like SUMX). It sets the stage.</li>
+<li>Identify each filter argument: is it adding a filter, or removing one with ALL/ALLEXCEPT? Mark each as "narrows" or "widens."</li>
+<li>For X-functions, note the row context: "for each row of this table, compute that."</li>
+<li>Translate to one English sentence: "Sum of Amount, but only for Karachi, ignoring any product filter." If you can't write the sentence, you don't understand the measure yet — and neither, probably, did its author.</li>
+</ol>
+<p>Keep a personal glossary of the twenty functions you'll actually meet: SUM, AVERAGE, COUNTROWS, DISTINCTCOUNT, CALCULATE, FILTER, ALL, ALLEXCEPT, VALUES, DISTINCT, SUMX, AVERAGEX, DIVIDE, IF, SWITCH, AND, OR, NOT, USERELATIONSHIP, and the time-intelligence five from section 6.8. Everything else you can look up per use. Fluency in DAX is not memorizing 200 functions — it's instantly recognizing these twenty and their contexts.</p>
+<p><strong>For your research:</strong> DAX measures are your analysis specification in executable form. In a methods section, "pass rate" defined as DIVIDE(CALCULATE(COUNTROWS(Responses), Responses[Result] = "Pass"), COUNTROWS(Responses)) is unambiguous in a way prose never is — a reviewer can reimplement it exactly. Prefer explicit, named, described measures over clever one-liners; in research, readability is rigor. And the percent-of-total and year-over-year patterns above cover the majority of published descriptive statistics — master them and you can reproduce most results tables in your field's journals.</p>
+<p><strong>Key takeaways:</strong>
+- DAX describes calculations over columns; filter context (from visuals and slicers) decides which rows — one measure, infinite correct slicings.
+- Calculated columns are frozen at refresh, for axes and slicers; measures compute live, for aggregations. Do not mix up their jobs.
+- CALCULATE is the heart of DAX: it modifies filter context. The translation table maps every common Excel formula to its DAX form.
+- Build one proper date table and relate all dates to it — time intelligence (YTD, YoY) then becomes single function calls.
+- Validate each measure against the original Excel cell with slicers cleared; document measures with descriptions for your methods section.</p>
+<hr />
+<h2 id="end-of-chunk-2-chapters-46"><em>End of chunk 2 — Chapters 4–6.</em></h2>
+<h2 id="chapter-7-charts-in-excel-vs-visuals-in-power-bi">Chapter 7: Charts in Excel vs Visuals in Power BI</h2>
+<h3 id="71-what-actually-changes-and-what-does-not">7.1 What actually changes (and what does not)</h3>
+<p>Choosing the right chart is the same skill in both tools: a bar chart compares categories, a line shows change over time, a scatter shows the relationship between two numbers. If your chart instincts are good in Excel, they are good in Power BI. What changes is everything around the chart:</p>
+<ul>
+<li><strong>Charts become interactive.</strong> In Excel, a chart is a picture of the data at the moment you made it. In Power BI, a visual is a live query: click a bar and every other visual on the page filters or highlights in response. This is called cross-filtering (others filter down to the selection) and cross-highlighting (others dim everything except the selection, keeping totals visible). The Format pane's interaction settings let you choose per visual which behavior each click triggers.</li>
+<li><strong>One definition, every page.</strong> An Excel chart's data range is local to its sheet. A Power BI visual draws from the shared model, so the same chart on five pages cannot disagree — a whole class of inconsistent-report bugs disappears.</li>
+<li><strong>Formatting becomes systematic.</strong> Excel chart formatting is per-chart artistry. Power BI themes apply fonts, colors, and styles report-wide in one click — which matters when your supervisor wants all charts in the university's colors the night before a defense.</li>
+</ul>
+<h3 id="72-side-by-side-chart-types-and-their-upgrades">7.2 Side-by-side: chart types and their upgrades</h3>
+<table>
+<thead>
+<tr>
+<th>Excel chart</th>
+<th>Power BI equivalent</th>
+<th>What the upgrade gives you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clustered column or bar</td>
+<td>Clustered bar or column visual</td>
+<td>Cross-filtering, data labels that survive refresh, small multiples</td>
+</tr>
+<tr>
+<td>Line chart over months</td>
+<td>Line chart with date hierarchy</td>
+<td>Automatic Year, Quarter, Month, Day drill-down on the axis</td>
+</tr>
+<tr>
+<td>Pie chart</td>
+<td>Donut or pie visual</td>
+<td>Same cautions apply (see 7.3); treemap often better</td>
+</tr>
+<tr>
+<td>Scatter plot</td>
+<td>Scatter visual with play axis</td>
+<td>Bubble size, details, and an animated time axis</td>
+</tr>
+<tr>
+<td>Twelve charts, one per district (copy-paste)</td>
+<td>Small multiples</td>
+<td>One visual, auto-repeated per category — no copy-paste</td>
+</tr>
+<tr>
+<td>Combo chart (column plus line)</td>
+<td>Combo chart visual</td>
+<td>Shared or independent axes; forecast and trend lines built in</td>
+</tr>
+<tr>
+<td>Hand-built dashboard sheet</td>
+<td>Report page with slicers</td>
+<td>Everything filters together; no manual range updates</td>
+</tr>
+<tr>
+<td>Static map drawn with shapes</td>
+<td>Filled map or Azure maps</td>
+<td>Real geography from place names; drill from country to district</td>
+</tr>
+</tbody>
+</table>
+<p>Two Power BI-only upgrades deserve special attention for researchers:</p>
+<ul>
+<li><strong>Analytics pane:</strong> many visuals get trend lines, forecasts, and anomaly detection with one click. Forecast is genuinely useful for enrollment or sales projections; anomaly detection flags the month that broke the pattern. Treat both as exploratory — document them as such, never as confirmatory findings.</li>
+<li><strong>Error bars and reference lines:</strong> the Analytics pane adds constant lines, minimum and maximum bands, and percentile lines — the visual equivalent of the reference lines you drew by hand in Excel, except they move with the filters.</li>
+</ul>
+<h3 id="73-chart-choice-for-research-questions-a-quick-guide">7.3 Chart choice for research questions: a quick guide</h3>
+<table>
+<thead>
+<tr>
+<th>Your research question</th>
+<th>Right visual</th>
+<th>Excel trap to avoid</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>How do groups compare on one number?</td>
+<td>Bar or column chart, sorted</td>
+<td>Pie chart with nine slices</td>
+</tr>
+<tr>
+<td>How did it change over time?</td>
+<td>Line chart with proper date axis</td>
+<td>Column chart with text months and no real time axis</td>
+</tr>
+<tr>
+<td>What is the composition of a whole?</td>
+<td>Donut (maximum four or five parts) or treemap</td>
+<td>Pie with a legend nobody can match to slices</td>
+</tr>
+<tr>
+<td>Are two measures related?</td>
+<td>Scatter with trend line</td>
+<td>Two side-by-side bar charts you eyeball</td>
+</tr>
+<tr>
+<td>Where are the differences geographically?</td>
+<td>Filled map</td>
+<td>A table of district names sorted alphabetically</td>
+</tr>
+<tr>
+<td>Which factors drive the outcome?</td>
+<td>Decomposition tree, Key influencers</td>
+<td>Five PivotTables and a narrative</td>
+</tr>
+<tr>
+<td>What does the distribution look like?</td>
+<td>Histogram (column on binned values)</td>
+<td>An average that hides a two-peaked split</td>
+</tr>
+</tbody>
+</table>
+<p>The golden rule survives migration unchanged: the visual serves the question, not the data. If you cannot state the question the visual answers, delete the visual.</p>
+<h3 id="74-interactivity-patterns-designing-the-exploration">7.4 Interactivity patterns: designing the exploration</h3>
+<p>A Power BI page should be designed as an exploration, not a poster. Three patterns cover most research reports:</p>
+<ol>
+<li><strong>The KPI strip:</strong> three to five cards across the top (total responses, average score, response rate, districts covered). Cards are DAX measures — always current, always consistent.</li>
+<li><strong>The main comparison:</strong> one bar or column visual answering the headline question, with a slicer panel (year, gender, district) beside it.</li>
+<li><strong>The detail:</strong> a matrix or table visual below for the exact numbers reviewers will check, plus drillthrough to a respondent-level detail page (right-click a district, jump to its rows).</li>
+</ol>
+<p>Add bookmarks to capture states of this exploration: "Figure 3.2 — scores by district, 2026, female respondents" becomes a bookmarked view you can return to exactly, screenshot consistently, and describe precisely in your thesis. Bookmarks plus the selection pane (which controls what appears when) are how you build guided, presentation-ready narratives inside an interactive report.</p>
+<h3 id="75-migration-walkthrough-rebuild-a-results-figure">7.5 Migration walkthrough: rebuild a results figure</h3>
+<p>Take "Figure 3: Average score by district, 2024-2026" — currently an Excel column chart fed by a PivotTable, rebuilt by hand every wave.</p>
+<ol>
+<li>Build the measure: Average Score = AVERAGE(Responses[Score]) (Chapter 6).</li>
+<li>Insert a clustered column visual. Axis: Districts[DistrictName]. Values: the Average Score measure. Legend: Dates[Year].</li>
+<li>Sort descending by value. Excel veterans forget this step; sorted bars are read far faster.</li>
+<li>Add a constant reference line at the overall average (Analytics pane, constant line — use a dedicated Overall Average measure built with ALL so it ignores slicers).</li>
+<li>Add slicers for Gender and Province. Test: select one gender — the reference line stays put while bars re-aggregate.</li>
+<li>Format once and save the choices as a theme: data labels on, gridlines subtle, title stating the question. Keep titles question-based and put filter state in a card or the slicer header, since titles do not update with filters.</li>
+<li>Validate numbers against the Excel original, then bookmark the validated state.</li>
+</ol>
+<h3 id="76-color-and-accessibility-charts-people-can-actually-read">7.6 Color and accessibility: charts people can actually read</h3>
+<p>Most bad charts are not wrong — they are unreadable. Four rules fix the majority:</p>
+<ol>
+<li><strong>Never encode meaning in color alone.</strong> The red-green "bad vs good" bars fail for colorblind readers and for black-and-white printing (still common in theses). Pair color with labels, patterns, or position — the data label carries the meaning; color just hurries the eye.</li>
+<li><strong>Use colorblind-safe palettes.</strong> Blue-orange beats red-green universally. Power BI themes let you set a palette once; do it, and stop hand-picking colors per visual.</li>
+<li><strong>Limit categorical colors to five or six.</strong> A legend with twelve colors is a legend nobody reads. Beyond six categories, group the tail into "Other" or switch to a bar chart where position, not color, does the work.</li>
+<li><strong>Contrast and size.</strong> Axis labels at 8pt gray-on-white may look elegant on your monitor and vanish on a projector or a printed page. Dark text, generous sizes, and high contrast survive every medium your thesis will travel through.</li>
+</ol>
+<p>Add <strong>alt text</strong> to key visuals (Format, General, Alt text): one sentence describing what the visual shows. Screen readers need it, and writing it forces you to articulate the visual's point — if you can't write the sentence, the visual has no point.</p>
+<h3 id="77-exporting-publication-quality-figures">7.7 Exporting publication-quality figures</h3>
+<p>Sooner or later a visual must become a static figure in a paper. The pipeline:</p>
+<ol>
+<li><strong>Fix the state first.</strong> Bookmark the exact filter state (Chapter 7), because the exported figure must match the caption's claimed filters.</li>
+<li><strong>Export from the Service</strong> (Export, PDF or PowerPoint) for the highest fidelity, or screenshot at maximum zoom for raster needs. Service exports render text as text — crisper than screenshots.</li>
+<li><strong>Check the caption contract.</strong> Caption states: what is shown, the filter state ("female respondents, 2026 wave"), the sample size, and the measure definition ("average score, DAX measure"). A figure whose caption doesn't match its filters is a finding you cannot defend.</li>
+<li><strong>Know when to rebuild.</strong> For journal submission, many authors re-draw the final figure in a graphics tool for typographic control. That's fine — the Power BI visual remains the <em>validated source</em>; the redraw is presentation. Never hand-tweak numbers in the graphics tool; if the number is wrong, fix the measure and re-export.</li>
+</ol>
+<p>Keep a "figures" folder with the exported image, the bookmark name, and the caption text together. Six months later, when a reviewer asks for "the same figure for male respondents," you re-bookmark, re-export, and answer in minutes.</p>
+<h3 id="78-report-layout-the-z-pattern-and-mobile-view">7.8 Report layout: the Z-pattern and mobile view</h3>
+<p>Readers scan pages in a Z: top-left to top-right, diagonally to bottom-left, across to bottom-right. Lay out accordingly: <strong>KPI strip across the top</strong> (the answer, first), the main comparison visual in the upper-middle (the evidence), slicers along the left or top edge (the controls), and detail tables at the bottom (the receipts). Anything important hiding bottom-right is effectively invisible.</p>
+<p>Three layout disciplines: <strong>one message per page</strong> (a page answering three questions answers none — split it); <strong>aligned grids</strong> (use the canvas gridlines; misaligned visuals look amateur and slow reading); and <strong>restraint</strong> (five well-chosen visuals beat fifteen — each additional visual taxes the reader's attention and the report's performance).</p>
+<p>Finally, check <strong>mobile layout</strong> (View, Mobile layout) for any report stakeholders open on phones — field coordinators checking their district's numbers live here. Arrange the phone layout deliberately: KPIs first, then the one chart that matters, then the slicer. A report unreadable on mobile is a report half your field team can't use.</p>
+<p><strong>For your research:</strong> Interactive visuals change how you explore, but published figures must be fixed. The workflow: explore interactively (find the story with cross-filtering), then bookmark and export the exact state that becomes your paper's figure, recording slicer selections in the caption. Never screenshot an interactive visual without recording its filter state — an unreproducible figure is a liability in review. Use the decomposition tree and key influencers for the exploratory phase write-up, keeping confirmatory claims for your statistical tests.</p>
+<p><strong>Key takeaways:</strong>
+- Chart-choice instincts transfer unchanged; what changes is interactivity (cross-filtering and highlighting), consistency (one model, every page), and systematic formatting (themes).
+- Small multiples, play-axis scatters, decomposition trees, and key influencers do work that took many hand-built Excel charts.
+- Design pages as explorations: KPI strip, main comparison with slicers, detail matrix with drillthrough — then bookmark exact states for publication.
+- Published figures must record their filter state in the caption; interactivity is for exploration, bookmarks are for evidence.
+- Sort your bars, add reference lines via the Analytics pane, and keep titles question-based.</p>
+<hr />
+<h2 id="chapter-8-refreshable-reports-kill-the-monthly-copy-paste">Chapter 8: Refreshable Reports: Kill the Monthly Copy-Paste</h2>
+<h3 id="81-anatomy-of-the-monthly-ritual">8.1 Anatomy of the monthly ritual</h3>
+<p>Every Excel-based reporting role has the ritual. Yours might be: download the new CSV from the portal, open last month's workbook, paste the new rows at the bottom, re-extend the formulas, fix the dates that pasted as text, rebuild the PivotTable range, update the charts' data ranges, fix the two lookups that broke, retype the title month, save as "Report_2026-10_FINAL_v2.xlsx", email it. Two hours, if nothing goes wrong. It always goes wrong somewhere.</p>
+<p>The ritual has three costs: time (yours, monthly, forever), error risk (every manual step is a chance to corrupt), and delay (the report is stale the day after you finish it). Power BI attacks all three with one concept: refresh.</p>
+<h3 id="82-what-refresh-actually-does">8.2 What refresh actually does</h3>
+<p>A Power BI report is a definition laid over data: queries define how data is fetched and cleaned (Chapter 3), the model defines tables and relationships (Chapters 2 and 4), measures define calculations (Chapter 6), visuals define presentation (Chapter 7). Refresh re-runs the definition against current source data. New file in the folder? Appended. New rows in the database? Included. Cleaning steps? Replayed. Every visual, every measure, every total updates — consistently, because they all read the same refreshed model.</p>
+<p>Refresh comes in flavors:</p>
+<ul>
+<li><strong>Manual refresh</strong> (Power BI Desktop, Home, Refresh): you click, it re-runs. This alone kills most of the ritual — the two-hour rebuild becomes a two-minute click plus validation.</li>
+<li><strong>Scheduled refresh</strong> (Power BI Service): the cloud re-runs your queries on a timetable. Your Monday-morning report is current before you wake up.</li>
+<li><strong>Incremental refresh</strong> (Premium, with some Pro support): for large tables, only new or changed partitions reload instead of the whole history — the difference between a three-minute and a three-hour refresh on multi-year data.</li>
+</ul>
+<h3 id="83-side-by-side-the-ritual-vs-the-pipeline">8.3 Side-by-side: the ritual vs the pipeline</h3>
+<table>
+<thead>
+<tr>
+<th>Monthly ritual step (Excel)</th>
+<th>Refresh pipeline (Power BI)</th>
+<th>Failure mode eliminated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Download CSV, paste into workbook</td>
+<td>Query points at folder, URL, or database</td>
+<td>Paste misalignment, wrong sheet</td>
+</tr>
+<tr>
+<td>Re-extend formulas down new rows</td>
+<td>Measures compute over the model automatically</td>
+<td>Formula not extended; stale ranges</td>
+</tr>
+<tr>
+<td>Fix dates pasted as text</td>
+<td>Type-enforcement step replays</td>
+<td>Silent text-dates breaking sorts</td>
+</tr>
+<tr>
+<td>Rebuild PivotTable source range</td>
+<td>Visuals read the model; nothing to rebuild</td>
+<td>PivotTable pointing at old range</td>
+</tr>
+<tr>
+<td>Update chart data ranges</td>
+<td>Visuals re-query automatically</td>
+<td>Chart showing last month's data</td>
+</tr>
+<tr>
+<td>Fix broken lookups</td>
+<td>Relationships persist; dimensions refresh</td>
+<td>Lookup column drift</td>
+</tr>
+<tr>
+<td>Retype title month</td>
+<td>Title from a measure (maximum date in data)</td>
+<td>Wrong month in the title</td>
+</tr>
+<tr>
+<td>Save as FINAL_v2, email</td>
+<td>Scheduled refresh; stakeholders open the app</td>
+<td>Version chaos (Chapter 9)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="84-designing-for-refresh-four-rules">8.4 Designing for refresh: four rules</h3>
+<p>Refresh only works if the pipeline was built for it. Four rules:</p>
+<ol>
+<li><strong>Never hard-code the source.</strong> File paths, sheet names, and table ranges change. Use parameters for file paths (Chapter 3) and prefer folders over files: point the query at a folder holding all incoming CSVs, and new months are picked up with zero edits.</li>
+<li><strong>Make cleaning generic.</strong> A step that says "remove top 3 rows" breaks when next month's export has two title rows. Prefer robust steps: remove blank rows, promote headers, filter where a key column is null. Design each step to survive the next file, not just this one.</li>
+<li><strong>Separate raw from modeled.</strong> Keep the raw query output faithful to the source; do transformations in explicit steps. When a refresh breaks, the Applied Steps pane tells you exactly which step failed and on which row — debugging a pipeline beats debugging a grid.</li>
+<li><strong>Validate after every refresh.</strong> Build a validation page in your report: row counts by source, maximum date in data, a checksum measure (total responses) compared against the source system's own total. Refresh, glance at the validation page, then trust the rest. This five-second habit is what makes refresh defensible in research.</li>
+</ol>
+<h3 id="85-gateways-and-scheduled-refresh-the-short-version">8.5 Gateways and scheduled refresh: the short version</h3>
+<p>Scheduled refresh needs the Service to reach your data:</p>
+<ul>
+<li><strong>Cloud sources</strong> (OneDrive, SharePoint, web URLs, cloud databases): connect directly; schedule refresh in the dataset settings; done.</li>
+<li><strong>On-premises sources</strong> (a folder on your office PC, a local database): install the on-premises data gateway on a machine that stays on, register the data source in the Service, map your dataset to it. The gateway is a bridge, not a migration — your files stay where they are.</li>
+</ul>
+<p>For a researcher, the sweet spot is simple: keep incoming files in a OneDrive or SharePoint folder, point Power Query at that folder, publish, and schedule a daily or weekly refresh. No gateway, no IT ticket, and your supervisor always sees current data.</p>
+<h3 id="86-migration-walkthrough-convert-one-monthly-report">8.6 Migration walkthrough: convert one monthly report</h3>
+<p>Take the monthly enrollment report: a CSV arrives by email on the 1st; you spend 90 minutes producing the PDF.</p>
+<ol>
+<li>Save the last three CSVs into a OneDrive folder for incoming files.</li>
+<li>In Power BI Desktop, Get data, Folder, point at the incoming folder, combine the CSVs (Power Query writes the combine-and-clean function for you).</li>
+<li>Replay your ritual as steps: remove junk rows, fix types, unpivot if needed, merge the codebook (Chapter 4), add a parameter for the folder path.</li>
+<li>Build the model (one fact, dimensions for student, program, and date), the measures (total enrolled, new admissions, dropout rate), and one report page mirroring the old PDF layout.</li>
+<li>Add the validation page (row counts, maximum date, checksum against the registrar's total).</li>
+<li>Publish to a workspace (Chapter 9), and set scheduled refresh for the 2nd of each month at 7 AM.</li>
+<li>Next month: drop the CSV in the folder. Do nothing else. Check the validation page. Send the link, not the file.</li>
+</ol>
+<p>First-month effort: half a day. Every later month: five minutes of validation. Payback period: month two.</p>
+<h3 id="87-incremental-refresh-the-full-picture">8.7 Incremental refresh: the full picture</h3>
+<p>Full refresh reloads everything, every time. With three years of history and millions of rows, that gets slow and wasteful — most of the old data never changes. <strong>Incremental refresh</strong> partitions the fact table by date and reloads only recent partitions, plus a configurable archive window.</p>
+<p>Setup in Desktop: create two parameters, RangeStart and RangeEnd (date/time type), filter the fact table's date column between them, then define the refresh policy — e.g., archive 3 years, incrementally refresh the last 7 days. On publish, the Service creates the partitions and honors the policy on each scheduled refresh.</p>
+<p>When it matters: tables above a few million rows, or refresh windows that exceed your schedule's patience. When it doesn't: anything under a few hundred thousand rows — full refresh is simpler and fast enough. Researchers hit the threshold with sensor data, transaction logs, and multi-year administrative records; survey waves rarely need it.</p>
+<p>Two gotchas: the date column driving the policy must be a proper date/time type (Chapter 3's type discipline pays off again), and late-arriving data older than the incremental window won't be picked up — size the window to your source's lateness, not your optimism.</p>
+<h3 id="88-when-refresh-fails-the-diagnostics-checklist">8.8 When refresh fails: the diagnostics checklist</h3>
+<p>Refresh failures are loud (Chapter 1's "false friends" — loud is good). Work this checklist in order:</p>
+<ol>
+<li><strong>Did the source move?</strong> Renamed file, moved folder, changed sheet name — the most common cause. Check the Source step; repoint or, better, switch to the folder pattern (Chapter 8).</li>
+<li><strong>Did credentials expire?</strong> In the Service, dataset settings, data source credentials — re-authenticate. Password changes and expired tokens cause most "it worked yesterday" mysteries.</li>
+<li><strong>Did the schema change?</strong> A renamed or removed column upstream breaks every step that references it. The error names the step — open it, see the missing column, decide: rename in the step or fix the source.</li>
+<li><strong>Did new data break a step?</strong> A text value in a numeric column, a new district code, a date in an unexpected format. The step's error rows show the culprits — handle them deliberately, not by blanket removal (Chapter 3).</li>
+<li><strong>Is the gateway offline?</strong> For on-premises sources, check the gateway machine is on and the gateway service is running. Schedule refreshes fail silently-ish here — the refresh history shows gateway errors specifically.</li>
+<li><strong>Privacy levels blocking?</strong> Combining sources (a local file with a web source) can trip privacy-level firewalls. Set levels deliberately in the query options rather than ignoring the warnings.</li>
+</ol>
+<p>Always reproduce in Desktop first: refresh there, see the exact failing step, fix, republish. Debugging in the Service's refresh history is reading tea leaves; debugging in Desktop is reading the error.</p>
+<h3 id="89-dataflows-when-the-pipeline-outgrows-one-report">8.9 Dataflows: when the pipeline outgrows one report</h3>
+<p>Sooner or later, two reports need the same cleaned table — the survey fact table feeds both the monthly performance report and the annual research digest. Copying the queries into both PBIX files means maintaining the cleaning logic twice, and the two copies will drift.</p>
+<p><strong>Dataflows</strong> solve this by moving the Power Query layer into the Service as a shared, refreshable entity. You build the cleaning once as a dataflow; multiple datasets connect to its output tables instead of re-implementing the queries. One definition of "clean responses," many consumers.</p>
+<p>When to adopt them: the moment a second report needs the same source, or when the cleaning logic is complex enough to deserve its own lifecycle (its own refresh schedule, its own owner). For a solo researcher with one report, dataflows are overkill — a well-built PBIX is enough. For a lab producing several reports from shared field data, they're the difference between maintained and decaying. Think of it as the pipeline graduating from a personal script to shared infrastructure.</p>
+<p><strong>For your research:</strong> Longitudinal studies — survey waves, sensor readings, monthly clinic data — are refresh pipelines waiting to happen. Each wave becomes "drop the file, refresh, validate" instead of a rebuild, and the validation page doubles as your data-quality log across waves (row counts per wave, missing-data rates per wave — exactly the numbers your methods section needs). Document the pipeline (query steps, parameters, refresh schedule) as part of your data management plan; funders and ethics boards increasingly ask for exactly this.</p>
+<p><strong>Key takeaways:</strong>
+- A report is a definition over data; refresh re-runs the definition. The two-hour monthly ritual becomes a two-minute click.
+- Manual refresh kills most of the pain; scheduled refresh in the Service and incremental refresh for large data complete the picture.
+- Design for refresh: parameterize sources, prefer folders over files, make cleaning steps generic, and build a validation page you check every time.
+- OneDrive or SharePoint folders plus scheduled refresh give you automation with no gateway and no IT ticket.
+- For longitudinal research, the validation page across waves produces the data-quality numbers your methods section requires.</p>
+<hr />
+<h2 id="chapter-9-sharing-from-email-attachments-to-published-apps-and-workspaces">Chapter 9: Sharing: From Email Attachments to Published Apps and Workspaces</h2>
+<h3 id="91-the-attachment-apocalypse">9.1 The attachment apocalypse</h3>
+<p>The Excel sharing model is the email attachment, and its failure modes are so familiar they feel like weather: Report_FINAL.xlsx, Report_FINAL_v2.xlsx, and Report_FINAL_v2_AsifEdits.xlsx circulating simultaneously; nobody knows which is current; two people edit different copies and someone merges them by hand; a 40 MB file bounces off a mailbox limit; last year's confidential sheet is still sitting in six inboxes. For research, the stakes are higher: an emailed dataset is an uncontrollable copy of potentially sensitive data, and "which version did the analysis in the paper use?" becomes unanswerable.</p>
+<p>Power BI replaces "send the file" with "share the access": one dataset, one report, in a workspace; stakeholders open the current version in a browser. There is nothing to be out of date because there is only one thing.</p>
+<h3 id="92-the-sharing-ladder-from-simplest-to-most-governed">9.2 The sharing ladder: from simplest to most governed</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>How it works</th>
+<th>Best for</th>
+<th>Watch out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OneDrive or SharePoint link</td>
+<td>File lives in cloud; link shared</td>
+<td>Quick collaboration on the file itself</td>
+<td>Still a file; version history helps but it is still a copy-model</td>
+</tr>
+<tr>
+<td>Publish PBIX to My workspace</td>
+<td>Personal cloud space</td>
+<td>Your own drafts and experiments</td>
+<td>Not for sharing — My workspace is private by design</td>
+</tr>
+<tr>
+<td>Workspace with viewer roles</td>
+<td>Team space; members get read-only roles</td>
+<td>Lab group, supervisor, co-authors</td>
+<td>Needs Pro or Premium for sharing beyond the workspace</td>
+</tr>
+<tr>
+<td>App published from a workspace</td>
+<td>Curated package of selected reports with navigation</td>
+<td>Stakeholders, departments, the public-facing cut</td>
+<td>The professional default — update the app, everyone sees it</td>
+</tr>
+<tr>
+<td>Share link to a report</td>
+<td>Direct link with permissions</td>
+<td>One-off sharing with a specific person</td>
+<td>Links proliferate; prefer the app for standing audiences</td>
+</tr>
+<tr>
+<td>Embed in SharePoint or Teams</td>
+<td>Report lives inside a page people already visit</td>
+<td>Committee dashboards, lab wikis</td>
+<td>Permissions still governed by the workspace</td>
+</tr>
+<tr>
+<td>Publish to web (public link)</td>
+<td>Anyone on the internet can view</td>
+<td>Truly public data only</td>
+<td>Irreversible exposure — never for research data with any sensitivity</td>
+</tr>
+</tbody>
+</table>
+<p>The recommended default for a researcher: workspace for the working group, app for the audience. Co-authors and your supervisor get workspace access (they can see the model, the queries, the validation page). Everyone else — committees, stakeholders, the department — gets the app: clean navigation, no model internals, always current.</p>
+<h3 id="93-row-level-security-one-report-many-eyes">9.3 Row-level security: one report, many eyes</h3>
+<p>A common research need: one dataset, but each district coordinator should see only their district; or a teaching dataset where each student group sees only its own rows. Row-level security (RLS) defines roles with DAX filter expressions (for example, a role filtered so that the viewer's email matches the district contact's email via USERPRINCIPALNAME()), and the Service enforces them per viewer. One report, personalized views, no separate files — the thing email attachments structurally cannot do.</p>
+<h3 id="94-what-changes-for-the-excel-native-collaborator">9.4 What changes for the Excel-native collaborator</h3>
+<p>Your co-authors live in Excel. Meet them where they are:</p>
+<ul>
+<li><strong>Analyze in Excel:</strong> from the Service, a workspace dataset opens as a PivotTable connected live to the model. Your co-author gets their beloved PivotTable — but the numbers come from your governed model, not their copy-paste. This single feature converts more Excel holdouts than any training.</li>
+<li><strong>Export to Excel or CSV:</strong> viewers can export visual data (controllable per tenant). Fine for "give me the table behind Figure 3"; not a substitute for sharing the report.</li>
+<li><strong>Subscribe:</strong> stakeholders get emailed snapshots on a schedule — the email habit, but the attachment is replaced by a live link plus a current image.</li>
+</ul>
+<h3 id="95-governance-for-researchers-the-non-negotiables">9.5 Governance for researchers: the non-negotiables</h3>
+<ol>
+<li><strong>Classify before you publish.</strong> Human-subject data, identifiable responses, pre-publication findings: these never go to Publish to web and never into a workspace with broad membership. When in doubt, keep it in a private workspace and share narrowly.</li>
+<li><strong>Separate working from published.</strong> One workspace for messy development (drafts, experiments), one for the validated app the world sees. Promote deliberately; never develop in the published workspace.</li>
+<li><strong>Version your definitions.</strong> The PBIX is a file — keep it in version control or at least dated backups before major changes. Better: keep the M scripts and DAX measures documented (Chapter 6's measure descriptions; Chapter 3's exported steps) so the logic survives even if the file does not.</li>
+<li><strong>Record the provenance chain.</strong> Source files to queries to model to measures to visuals: this chain is your audit trail. A reviewer asking "where did Figure 4 come from?" gets a two-minute answer, not a two-day excavation.</li>
+<li><strong>Plan the afterlife.</strong> When the paper is published, what happens to the report? Archive the PBIX with the paper's supplementary materials, note the data-access conditions, and revoke broader sharing. Research sharing is lifecycle-managed, not fire-and-forget.</li>
+</ol>
+<h3 id="96-migration-walkthrough-retire-the-email-thread">9.6 Migration walkthrough: retire the email thread</h3>
+<p>Take the "Monthly district performance" email thread with fourteen replies and six competing attachments.</p>
+<ol>
+<li>Publish the validated PBIX (Chapters 2 through 8 done) to a new workspace named for the report's working group.</li>
+<li>Add your two co-authors as Members, your supervisor as Viewer. Confirm RLS roles if coordinators need district-scoped views.</li>
+<li>Create the app: include the main report page and the validation page (transparency builds trust), write a one-paragraph description per report, set the app's contact to you.</li>
+<li>Publish the app; send one email with the app link: "This link is always current. The attachments stop here."</li>
+<li>Set a subscription for the one stakeholder who insists on email — they get the snapshot; everyone else gets the link.</li>
+<li>Next month: refresh runs on schedule (Chapter 8); update the app with one click; the same link serves new data. The thread dies of irrelevance.</li>
+</ol>
+<h3 id="97-deployment-pipelines-dev-test-and-prod-for-researchers">9.7 Deployment pipelines: dev, test, and prod for researchers</h3>
+<p>Developing directly in the workspace your audience sees is how embarrassing mistakes get published. <strong>Deployment pipelines</strong> give you three stages — Development, Test, Production — as linked workspaces with a one-click deploy between them.</p>
+<p>The researcher's workflow: build messily in Dev (experiments, half-finished pages). When a version is ready, deploy to Test and run your validation page there, ideally with a colleague looking over it. Only then deploy to Production, where the app your stakeholders open lives. Meanwhile next month's development continues in Dev without touching what the audience sees.</p>
+<p>This solves a problem every thesis student knows: "the defense version must stay frozen while I keep working." Freeze Production at the defended version; keep developing in Dev. If the examiners request corrections, make them in Dev, validate in Test, redeploy. The pipeline is version discipline without the "FINAL_v2" filenames.</p>
+<h3 id="98-licensing-in-plain-language">9.8 Licensing in plain language</h3>
+<p>Pow

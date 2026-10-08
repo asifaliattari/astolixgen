@@ -1,0 +1,118 @@
+>Inline the aggregation; don't reference the measure</td>
+</tr>
+<tr>
+<td>Matrix total ≠ sum of rows</td>
+<td>Total row has different filter context</td>
+<td>Expected — or write SUMX(VALUES(…)) explicitly</td>
+</tr>
+<tr>
+<td>"…not supported in DirectQuery"</td>
+<td>Function can't translate to source SQL</td>
+<td>Switch table to Import or pre-aggregate</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>DAX (Data Analysis Expressions)</strong> — the formula language of Power BI, Power Pivot, and SSAS tabular models.</li>
+<li><strong>Measure</strong> — a DAX formula computed live under the current filter context; the default object for summary numbers.</li>
+<li><strong>Calculated column</strong> — a DAX formula computed once per row at refresh and stored in the model; for row-level values you group or filter by.</li>
+<li><strong>Calculated table</strong> — a DAX expression producing a stored table at refresh (e.g., date tables).</li>
+<li><strong>Filter context</strong> — the set of active filters (slicers, visual groupings, CALCULATE) shaping a calculation.</li>
+<li><strong>Row context</strong> — iteration over rows one at a time (calculated columns, iterators); a column reference means "this row's value."</li>
+<li><strong>Context transition</strong> — CALCULATE converting the current row context into equivalent filter context.</li>
+<li><strong>CALCULATE</strong> — evaluates an expression in a modified filter context; the most important DAX function.</li>
+<li><strong>FILTER</strong> — returns table rows meeting a row-by-row condition; intersects with existing filters.</li>
+<li><strong>ALL / ALLEXCEPT / REMOVEFILTERS</strong> — remove filters from a table, all-but-some columns, or specific columns.</li>
+<li><strong>VALUES / DISTINCT</strong> — one-column table of visible values (VALUES keeps blank; DISTINCT drops it).</li>
+<li><strong>SELECTEDVALUE</strong> — the single visible value of a column, or a default/blank otherwise.</li>
+<li><strong>Iterator (X-function)</strong> — evaluates an expression per row, then aggregates (SUMX, AVERAGEX, COUNTX, …).</li>
+<li><strong>Time intelligence</strong> — DAX functions for period comparisons (DATESYTD, SAMEPERIODLASTYEAR, DATEADD, …).</li>
+<li><strong>Date table</strong> — continuous one-row-per-day table, marked as a date table, required for time intelligence.</li>
+<li><strong>Relationship</strong> — a link between tables (usually one-to-many) along which filter context propagates.</li>
+<li><strong>Cross-filtering</strong> — filters flowing across relationships; single-direction (default) or bidirectional.</li>
+<li><strong>Star schema</strong> — fact table(s) in the center, lookup/dimension tables around; the recommended model shape.</li>
+<li><strong>RELATED / RELATEDTABLE</strong> — fetch related values across a relationship inside row context (many→one / one→many).</li>
+<li><strong>VAR / RETURN</strong> — named, computed-once variables making DAX readable and faster.</li>
+<li><strong>BLANK</strong> — DAX's missing value (NULL); not zero, not empty string.</li>
+<li><strong>DIVIDE</strong> — safe division returning BLANK (or a default) on divide-by-zero.</li>
+<li><strong>SWITCH</strong> — multi-branch conditional; <code>SWITCH(TRUE(), …)</code> replaces nested IFs.</li>
+<li><strong>DAX Studio</strong> — free external tool for running and profiling DAX queries against your model.</li>
+<li><strong>VertiPaq</strong> — Power BI's in-memory columnar storage engine; why columns cost storage and measures don't.</li>
+<li><strong>Cardinality</strong> — number of unique values in a column; high cardinality weakens compression and slows DISTINCTCOUNT.</li>
+<li><strong>Evaluation context</strong> — the umbrella term: row context + filter context together.</li>
+<li><strong>CALCULATETABLE</strong> — CALCULATE's twin: returns a table evaluated under modified filters.</li>
+<li><strong>CROSSFILTER</strong> — per-measure override of a relationship's cross-filter direction.</li>
+<li><strong>USERELATIONSHIP</strong> — per-measure activation of an inactive relationship.</li>
+<li><strong>ISFILTERED / ISCROSSFILTERED</strong> — TRUE when a column is directly (or transitively) filtered.</li>
+<li><strong>KEEPFILTERS</strong> — makes a simple CALCULATE filter intersect instead of overwrite.</li>
+<li><strong>EARLIER</strong> — legacy function reaching an outer row context; modern code uses VAR instead.</li>
+<li><strong>SUMMARIZE / SUMMARIZECOLUMNS</strong> — group a table and compute per-group expressions.</li>
+<li><strong>ADDCOLUMNS / SELECTCOLUMNS</strong> — add or choose columns on a table expression.</li>
+<li><strong>DATESINPERIOD / DATESBETWEEN</strong> — build custom date windows for time intelligence.</li>
+<li><strong>EOMONTH / EDATE</strong> — month-end and month-shift date arithmetic.</li>
+<li><strong>FORMAT</strong> — render a value as text with a format string (display only).</li>
+<li><strong>COALESCE</strong> — first non-blank argument; blank-armor for presentation.</li>
+<li><strong>IFERROR / ERROR</strong> — catch errors with a fallback, or raise a deliberate error.</li>
+<li><strong>HASONEVALUE</strong> — TRUE when exactly one value of a column is visible.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Warm-up.</strong> On the <code>Sales</code> table, write a measure <code>Total Quantity</code> and a calculated column <code>Line Total</code>. State the expected card value of the measure (218) and the column value on row 104 (240.00).</li>
+<li><strong>Types.</strong> <code>SurveyResponses[PostScore]</code> contains blanks for dropouts. Write <code>Avg Post Score = AVERAGE ( SurveyResponses[PostScore] )</code> and hand-compute the expected result (66.17). Explain in one sentence why filling blanks with 0 first would be wrong.</li>
+<li><strong>Column vs measure.</strong> A colleague makes a calculated column <code>North Revenue = IF ( Sales[Region] = "North", Sales[Quantity] * Sales[UnitPrice], 0 )</code> and sums it. Give two reasons a measure with CALCULATE is better.</li>
+<li><strong>Percent of total.</strong> Write <code>Revenue % of Total</code> using DIVIDE, CALCULATE, and ALL. Compute the expected value for the East bar (360/751 = 47.94%).</li>
+<li><strong>Filter functions.</strong> Write <code>Big Order Revenue (Region Ignored)</code> that sums line totals over orders above 100 while ignoring any Region slicer but respecting a Product slicer. Expected with Product=Desk selected: 360.00.</li>
+<li><strong>Date table.</strong> Write the DAX for a <code>Date</code> table covering 2024–2027 with Year, Quarter, Month Number, Month Name, and Year-Month columns. List the three setup steps after creation (relate, mark as date table, sort month names).</li>
+<li><strong>Time intelligence.</strong> Write <code>Revenue YTD</code>, <code>Revenue Last Year</code>, and <code>Revenue YoY %</code>. If a card shows April 2026 and there is no 2025 data, what does <code>Revenue YoY %</code> display, and why is that acceptable?</li>
+<li><strong>Iterators.</strong> Write <code>Average Line Total</code> two ways: with AVERAGEX, and with DIVIDE(SUMX…, COUNTROWS…). Explain when you would prefer a stored calculated column + SUM instead of SUMX.</li>
+<li><strong>Research: attrition.</strong> On <code>SurveyResponses</code>, write <code>Completion Rate</code>, plus <code>Attrition Gap</code> between Treatment and Control. Expected: 75% each, gap 0 pp. Then write <code>N Analyzed</code> assuming a <code>Stage</code> column — and say where that column should be created (Power Query vs DAX) and why.</li>
+<li><strong>Research: treatment effect.</strong> Write <code>Mean Change (Completers)</code>, <code>Treatment Effect (Mean Diff)</code>, and a <code>Change Category</code> calculated column. Hand-compute: Control mean change (0.67), Treatment mean change (16.00), effect (15.33). Write two sentences suitable for a results section, including the per-group n, and state which inferential test (t-test/ANCOVA) you would run outside Power BI to support the claim.</li>
+</ol>
+<hr />
+<h2 id="selected-exercise-answers">Selected Exercise Answers</h2>
+<p><strong>1.</strong> Measure: <code>Total Quantity = SUM ( Sales[Quantity] )</code> → card shows 218. Column: <code>Line Total = Sales[Quantity] * Sales[UnitPrice]</code> → row 104: 2 × 120.00 = 240.00.</p>
+<p><strong>2.</strong> PostScores: 58, 61, 71, 78, 69, 60 (blanks skipped) → 397/6 = 66.17. Filling blanks with 0 first gives 397/8 = 49.63, treating dropouts as zero-scores — a different (and unjustified) estimand; it answers "what if dropouts scored zero," which no protocol claims.</p>
+<p><strong>3.</strong> (a) The column hard-codes "North" — it can't respond to a Region slicer, so one column per region would be needed. (b) It computes at refresh and stores per-row values — wasteful when only the total is needed; a measure computes the same number live with zero storage.</p>
+<p><strong>4.</strong></p>
+<pre><code class="language-dax">Revenue % of Total =
+DIVIDE ( [Total Revenue], CALCULATE ( [Total Revenue], ALL ( Sales ) ) )
+</code></pre>
+<p>East bar: 360.00 / 751.00 = 47.94%.</p>
+<p><strong>5.</strong></p>
+<pre><code class="language-dax">Big Order Revenue (Region Ignored) =
+CALCULATE (
+    [Total Revenue],
+    FILTER ( Sales, Sales[Quantity] * Sales[UnitPrice] &gt; 100 ),
+    ALL ( Sales[Region] )
+)
+</code></pre>
+<p>Big orders are 104 and 108 (both Desks); with Product=Desk selected and Region ignored: 240 + 120 = 360.00.</p>
+<p><strong>6. Hint.</strong> <code>CALENDAR ( DATE(2024,1,1), DATE(2027,12,31) )</code> + ADDCOLUMNS; relate to fact date columns; right-click → Mark as date table; sort Month Name by Month Number. Verify: COUNTROWS = 1461 days (2024 is a leap year).</p>
+<p><strong>7. Hint.</strong> <code>Revenue Last Year</code> = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( 'Date'[Date] ) ) → blank (no 2025 data); <code>Revenue YoY %</code> = DIVIDE ( 751 − blank, blank ) = blank. Acceptable: DIVIDE fails safe — blank honestly signals "no comparison available" instead of erroring or inventing a number.</p>
+<p><strong>8. Hint.</strong> <code>AVERAGEX ( Sales, Sales[Quantity] * Sales[UnitPrice] )</code> = 93.875; the DIVIDE(SUMX…, COUNTROWS…) form is identical. Prefer the stored-column + SUM version when the expression is static and the table is large (pays refresh-time/storage to save query-time CPU — Chapter 8's ladder).</p>
+<p><strong>9. Hint.</strong> Create <code>Stage</code> in Power Query (it's source data about the enrollment process, not a calculation). <code>N Analyzed = CALCULATE ( [Enrolled], SurveyResponses[Stage] = "Analyzed" )</code>.</p>
+<p><strong>10. Hint.</strong> Control changes: 3, 1, −2 → mean 0.67 (n=3). Treatment: 19, 17, 12 → mean 16.00 (n=3). Effect: 15.33. Results sentence: "Mean change was 16.00 points (n=3) in the treatment arm versus 0.67 (n=3) in control, a difference of 15.33 points (completers analysis)." Support with an independent-samples t-test on change scores (or ANCOVA with baseline as covariate) in R/SPSS — DAX gives the descriptives, not the p-value.</p>
+<hr />
+<h2 id="where-to-go-next">Where to Go Next</h2>
+<p>You now hold the complete DAX foundation: contexts, CALCULATE, iterators, time intelligence, and the research-metrics toolkit. Three paths open from here:</p>
+<p><strong>1. Depth in DAX.</strong> Calculation groups (applying the same time-intelligence logic across dozens of measures at once), DAX window functions (INDEX, OFFSET, WINDOW — for running totals without the FILTER/ALL dance), and query-plan reading in DAX Studio. Ferrari and Russo's <em>Definitive Guide</em> [1] is the canonical next book — Chapters 1–4 of it will now read as familiar friends rather than walls of theory.</p>
+<p><strong>2. Breadth in the model.</strong> Book 25 continues with star-schema data modeling for research data; Book 23 (in this series' Power BI track) covers Power Query shaping, which is where half of "DAX problems" are actually solved. The DAX–M boundary from Chapter 2 is a career-long theme: the best DAX is often the DAX you didn't need because the model was shaped right.</p>
+<p><strong>3. Rigor in research.</strong> Rebuild one real analysis end-to-end: import a published dataset (or your own pilot data), write the Chapter 12 metric set, hand-verify on a 20-row sample, cross-check means against R/SPSS, and export the tables. Then write the methods paragraph describing exactly what you did — including the blank-handling decisions. That paragraph, backed by the saved DAX, is what turns a dashboard into evidence.</p>
+<p>A closing rule to carry: <strong>in research, every number must have a lineage</strong> — from source row, through transformation, through formula, to the printed page. DAX measures with clear names, comments, and saved queries give you that lineage almost for free. Use it.</p>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] M. Ferrari and A. Russo, <em>The Definitive Guide to DAX: Business Intelligence for Microsoft Power BI, SQL Server Analysis Services, and Excel</em>, 2nd ed. Redmond, WA, USA: Microsoft Press, 2019.</p>
+<p>[2] M. Ferrari and A. Russo, <em>Analyzing Data with Power BI and Power Pivot for Excel</em>. Redmond, WA, USA: Microsoft Press, 2017.</p>
+<p>[3] Microsoft Learn, "DAX function reference," Microsoft Corporation. [Online]. Available: https://learn.microsoft.com/en-us/dax/</p>
+<p>[4] Microsoft Learn, "DAX basics in Power BI Desktop," Microsoft Corporation. [Online]. Available: https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-quickstart-learn-dax-basics</p>
+<p>[5] SQLBI, "DAX Guide — the online DAX function reference," Ferrari and Russo. [Online]. Available: https://dax.guide/</p>
+<p>[6] M. Allington, <em>Supercharge Power BI: Power BI Is Better When You Learn to Write DAX</em>. Cairns, Australia: Tickling Keys Press, 2021.</p>
+<p>[7] P. Seamark, <em>Beginning DAX with Power BI: The SQLBI Methodology</em>. New York, NY, USA: Apress, 2018.</p>
+<p>[8] R. Rad, <em>Power BI DAX Simplified</em>. RADACAD Systems, 2021.</p>
+<p>[9] G. Deckler, <em>Microsoft Power BI Complete Reference</em>. Birmingham, UK: Packt Publishing, 2022.</p>
+<p>[10] Microsoft Learn, "Use DAX in Power BI Desktop models — training module," Microsoft Corporation. [Online]. Available: https://learn.microsoft.com/en-us/training/modules/dax-power-bi/</p>
+<hr />
+<p><em>End of Book 24. Next: Book 25 — Data Modeling: Star Schemas for Research Data.</em></p>

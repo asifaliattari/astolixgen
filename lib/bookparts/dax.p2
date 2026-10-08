@@ -1,0 +1,899 @@
+ETURN.</strong></li>
+</ol>
+<pre><code class="language-dax">// Mean change (post - pre) for completers in the selected group(s).
+// Dropouts (blank post) are excluded by AVERAGEX blank-skipping.
+Mean Change Score =
+VAR Completers =
+    FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE )
+VAR ChangeScores =
+    ADDCOLUMNS ( Completers, &quot;@Change&quot;, SurveyResponses[PostScore] - SurveyResponses[PreScore] )
+RETURN
+    AVERAGEX ( ChangeScores, [@Change] )
+</code></pre>
+<h3 id="switch-replacing-nested-ifs">SWITCH — replacing nested IFs</h3>
+<pre><code class="language-dax">-- Hard to read:
+IF ( [@Change] &gt; 0, &quot;Improved&quot;, IF ( [@Change] = 0, &quot;Same&quot;, &quot;Declined&quot; ) )
+
+-- Clear:
+SWITCH (
+    TRUE (),
+    [@Change] &gt; 0, &quot;Improved&quot;,
+    [@Change] = 0, &quot;Same&quot;,
+    &quot;Declined&quot;   -- else
+)
+</code></pre>
+<p><code>SWITCH ( TRUE(), cond, result, ... )</code> evaluates conditions in order — the DAX equivalent of if/else-if. Use it for banding, categories, and status flags. (Plain <code>SWITCH ( value, ... )</code> matches exact values, like a lookup.)</p>
+<h3 id="selectedvalue-and-hasonevalue-recap-as-readability-tools">SELECTEDVALUE and HASONEVALUE — recap as readability tools</h3>
+<p>From Chapter 6: <code>SELECTEDVALUE ( Sales[Region], "All regions" )</code> collapses four lines of IF/COUNTROWS/VALUES into one. Whenever you catch yourself writing that IF pattern, replace it.</p>
+<h3 id="organizing-measures">Organizing measures</h3>
+<p>In real models, measures multiply. Tame them:
+- <strong>Display folders</strong>: select measures → Properties → Display folder ("Sales", "Research Metrics", "_Debug"). Leading underscore sorts debug folders last... actually folders sort alphabetically; name debug folders "zDebug" to park them at the bottom.
+- <strong>A dedicated measures table</strong>: create an empty table (<code>Enter Data</code> → one dummy column, or <code>Measures = { BLANK() }</code> as a calculated table) and put all measures in it. Keeps them out of fact tables.
+- <strong>Naming conventions</strong>: <code>[Total Revenue]</code>, <code>[Revenue YTD]</code>, <code>[% Revenue of Total]</code> — group alphabetically by prefix.</p>
+<h3 id="common-errors_7">Common errors</h3>
+<ul>
+<li><strong>VAR after RETURN</strong> — syntax error; all VARs come before the single RETURN.</li>
+<li><strong>Trying to reassign a VAR</strong> — <code>VAR x = 1 VAR x = 2</code> is illegal. Use a new name.</li>
+<li><strong>Expecting CALCULATE to affect a VAR</strong> — <code>VAR v = [Total Revenue] RETURN CALCULATE ( v, ... )</code> ignores the filter for <code>v</code> (already computed). Put the CALCULATE <em>inside</em> the VAR expression if the VAR must respect it.</li>
+<li><strong>VAR name colliding with a column</strong> — <code>VAR Sales = ...</code> shadows confusingly. Prefix: <code>VAR _Sales = ...</code> or descriptive names.</li>
+</ul>
+<h3 id="a-full-formatting-example-before-and-after">A full formatting example — before and after</h3>
+<pre><code class="language-dax">-- BEFORE: correct but hostile
+Treatment Effect = CALCULATE(AVERAGEX(FILTER(SurveyResponses,SurveyResponses[Completed]=TRUE),SurveyResponses[PostScore]-SurveyResponses[PreScore]),SurveyResponses[Group]=&quot;Treatment&quot;)-CALCULATE(AVERAGEX(FILTER(SurveyResponses,SurveyResponses[Completed]=TRUE),SurveyResponses[PostScore]-SurveyResponses[PreScore]),SurveyResponses[Group]=&quot;Control&quot;)
+
+-- AFTER: the same logic, maintainable
+// Difference in mean change score (post - pre) between arms, completers only.
+// Positive = treatment improved more than control.
+Treatment Effect (Mean Diff) =
+VAR Completers =
+    FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE )
+VAR MeanChangeFor =
+    -- helper: mean change within whatever group filter is passed below
+    AVERAGEX ( Completers, SurveyResponses[PostScore] - SurveyResponses[PreScore] )
+VAR TreatMean = CALCULATE ( MeanChangeFor, SurveyResponses[Group] = &quot;Treatment&quot; )
+VAR CtrlMean  = CALCULATE ( MeanChangeFor, SurveyResponses[Group] = &quot;Control&quot; )
+RETURN
+    TreatMean - CtrlMean
+</code></pre>
+<p>Note: <code>MeanChangeFor</code> as a VAR holding an <em>expression</em> that references no group filter — then CALCULATE applies the group filter around it. (Recall: CALCULATE can't change an already-computed VAR, but here the VAR's expression is re-evaluated inside each CALCULATE because the VAR itself contains the <em>unaggregated expression</em>? Careful — actually a VAR is computed once where defined, in the outer context. The pattern above works only if MeanChangeFor is defined as the raw AVERAGEX <em>without</em> group context and CALCULATE wraps the <em>reference</em>... which does NOT re-evaluate. The correct structure computes inside each CALCULATE:)</p>
+<pre><code class="language-dax">-- CORRECT version: CALCULATE wraps the full expression each time
+Treatment Effect (Mean Diff) =
+VAR ChangeExpr =
+    AVERAGEX (
+        FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE ),
+        SurveyResponses[PostScore] - SurveyResponses[PreScore]
+    )
+RETURN
+    CALCULATE ( ChangeExpr, SurveyResponses[Group] = &quot;Treatment&quot; )
+        - CALCULATE ( ChangeExpr, SurveyResponses[Group] = &quot;Control&quot; )
+</code></pre>
+<p>Wait — is this right? <code>ChangeExpr</code> is a VAR = a single number computed once in the outer context. CALCULATE around a VAR reference does not recompute it. <strong>This is the VAR+CALCULATE trap from "Common errors" made concrete.</strong> The genuinely correct form:</p>
+<pre><code class="language-dax">-- TRULY CORRECT: filter inside, or repeat the expression
+Treatment Effect (Mean Diff) =
+VAR TreatMean =
+    CALCULATE (
+        AVERAGEX (
+            FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE ),
+            SurveyResponses[PostScore] - SurveyResponses[PreScore]
+        ),
+        SurveyResponses[Group] = &quot;Treatment&quot;
+    )
+VAR CtrlMean =
+    CALCULATE (
+        AVERAGEX (
+            FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE ),
+            SurveyResponses[PostScore] - SurveyResponses[PreScore]
+        ),
+        SurveyResponses[Group] = &quot;Control&quot;
+    )
+RETURN
+    TreatMean - CtrlMean
+-- = 16.00 - 0.67 = 15.33
+</code></pre>
+<p>Each VAR contains its own CALCULATE, so each computes under its own filter. Verbose but <em>correct</em> — and this is exactly why the "Common errors" section warned you. When a formula must evaluate the same logic under different filters, either repeat the expression per CALCULATE (as here) or use a <strong>calculation group</strong> (advanced feature, beyond this book) — never a shared VAR across CALCULATEs.</p>
+<h3 id="documentation-standards-for-shared-models">Documentation standards for shared models</h3>
+<p>If anyone else will read your model (supervisor, co-author, future you), add:</p>
+<ol>
+<li><strong>Description</strong> on every measure (Properties → Description): "Mean change (post−pre) among completers. Blank-safe. See Ch12."</li>
+<li><strong>A <code>_README</code> measure</strong> in the measures table whose description documents conventions: <code>// Display folder "_README" — naming: [Total X], [% X], [N X]</code>.</li>
+<li><strong>Comments citing decisions</strong>: <code>// Per protocol v2.1: dropouts excluded (completers analysis)</code>.</li>
+</ol>
+<h3 id="naming-conventions-that-scale">Naming conventions that scale</h3>
+<p>Adopt a prefix system and stick to it across every model you ever build:</p>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(none) / Total, Avg</td>
+<td>Base measures</td>
+<td><code>[Total Revenue]</code>, <code>[Avg Post Score]</code></td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>Ratios</td>
+<td><code>[% Completion Rate]</code></td>
+</tr>
+<tr>
+<td><code>N</code> / <code>#</code></td>
+<td>Counts</td>
+<td><code>[N Completers]</code></td>
+</tr>
+<tr>
+<td><code>_</code></td>
+<td>Debug/scratch (delete before sharing)</td>
+<td><code>[_Test Denominator]</code></td>
+</tr>
+</tbody>
+</table>
+<p>Alphabetical sorting then groups related measures automatically. Boolean measures read as questions: <code>[Is Completer]</code>, <code>[Has Post Score]</code>. Time variants suffix consistently: <code>[Revenue YTD]</code>, <code>[Revenue PY]</code> (prior year), <code>[Revenue YoY %]</code> — never mix "Last Year" and "PY" in one model.</p>
+<h3 id="the-measures-table-and-display-folders-concretely">The measures table and display folders, concretely</h3>
+<p>Setup (two minutes, pays off forever):
+1. Home → Enter Data → create table <code>Measures</code> with one column, one row (value 1). Or DAX: <code>Measures = { 1 }</code>.
+2. Move every measure into it (select measure → Properties → Home table).
+3. Hide the dummy column (right-click → Hide).
+4. Assign Display folders: "Sales", "Research", "Time Intelligence", "zDebug".</p>
+<p>Result: name it <code>_Measures</code> with a leading underscore so it sorts to the top of the Fields pane. Anyone opening your model finds every calculation in one place, grouped by purpose — the difference between a model that invites audit and one that resists it.</p>
+<h3 id="the-dax-code-review-checklist">The DAX code-review checklist</h3>
+<p>Before calling any measure "done," run it through this list:</p>
+<ul>
+<li>[ ] <strong>Name</strong>: noun phrase, prefixed consistently, no abbreviations a stranger wouldn't get.</li>
+<li>[ ] <strong>One job</strong>: if the measure computes two different things by branch, split it.</li>
+<li>[ ] <strong>VARs</strong>: every repeated sub-expression extracted; names describe meaning (<code>Completers</code>, not <code>t1</code>).</li>
+<li>[ ] <strong>RETURN isolated</strong>: the final expression reads as the answer, not more computation.</li>
+<li>[ ] <strong>DIVIDE not /</strong>: every division guarded.</li>
+<li>[ ] <strong>Blanks considered</strong>: what does this return when the filter selects nothing? Is blank correct, or should it be 0/ERROR?</li>
+<li>[ ] <strong>Total row checked</strong>: put it in a matrix with totals on — is the total row's value sensible?</li>
+<li>[ ] <strong>Filter-proofed</strong>: test with each slicer at "all," one value, and multiple values.</li>
+<li>[ ] <strong>Commented why</strong>: one comment stating the business/research rule it implements.</li>
+<li>[ ] <strong>Description filled</strong>: Properties → Description, one line for the Fields-pane tooltip.</li>
+</ul>
+<p>Teams that review DAX like code ship dashboards that survive contact with real users. Solo researchers: <em>you</em> are the reviewer — run the list anyway, especially before numbers go into a manuscript.</p>
+<p><strong>For your research:</strong> Your methods section must describe every derived metric precisely enough to reproduce. Well-named VARs <em>are</em> that description: a measure named <code>Mean Change Score (Completers)</code> with commented VARs can be pasted into an appendix or supplementary file verbatim. Reviewers increasingly ask for analysis code — clean DAX with comments is analysis code. Also adopt the measures-table + display-folder habit now; a thesis dashboard with 40 measures in one flat list is unmanageable.</p>
+<p><strong>Key takeaways:</strong>
+- VAR computes once, names the intermediate result, and makes RETURN read like a sentence — use it in every non-trivial measure.
+- CALCULATE cannot change an already-computed VAR; structure accordingly.
+- Format: one clause per line, UPPERCASE functions, comment the <em>why</em>, blank line before RETURN.
+- SWITCH(TRUE(),...) replaces nested IFs; SELECTEDVALUE replaces IF/VALUES guards; display folders and a measures table keep models navigable.</p>
+<hr />
+<h2 id="chapter-10-relationships-row-context-vs-filter-context-and-cross-filtering">Chapter 10: Relationships, Row Context vs Filter Context, and Cross-Filtering</h2>
+<p><img alt="Row context (single row) vs filter context (filtered table)" src="/learn/images/book-24-ch10-context.webp" /></p>
+<p>This chapter assembles the full mental model. Chapters 3, 5, and 8 each showed you one face of <em>context</em>; here you see the whole machine: the two contexts, how relationships carry filters between tables, and the traps where they interact.</p>
+<h3 id="the-two-contexts-side-by-side">The two contexts, side by side</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Row context</th>
+<th>Filter context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Created by</td>
+<td>Iterators (SUMX, FILTER, ADDCOLUMNS), calculated columns</td>
+<td>Visuals, slicers, CALCULATE, relationships</td>
+</tr>
+<tr>
+<td><code>Sales[Quantity]</code> means</td>
+<td>This row's Quantity</td>
+<td>The column, filtered to visible rows</td>
+</tr>
+<tr>
+<td>Iterates</td>
+<td>Yes — one row at a time</td>
+<td>No — it filters</td>
+</tr>
+<tr>
+<td>Aggregation like SUM works</td>
+<td>No (nothing to aggregate — one row)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Converted by</td>
+<td>— (source)</td>
+<td>CALCULATE converts row → filter (context transition)</td>
+</tr>
+</tbody>
+</table>
+<p>The defining experiment. Calculated column on <code>Sales</code>:</p>
+<pre><code class="language-dax">-- Row context: each row evaluated separately
+Line Total = Sales[Quantity] * Sales[UnitPrice]     -- row 101: 50.00 ✓
+</code></pre>
+<p>Measure:</p>
+<pre><code class="language-dax">Total Quantity = SUM ( Sales[Quantity] )            -- needs filter context to aggregate
+</code></pre>
+<p>Put <code>SUM ( Sales[Quantity] )</code> in a calculated column and it errors — SUM needs a filter context, but a column gives it a row context with no aggregation target... actually it returns the row's own value via context transition? No — in a calculated column, <code>SUM ( Sales[Quantity] )</code> performs context transition on the current row, filtering Sales to just that row, summing one value → the row's Quantity. It "works" but is pointless and slow. The lesson: <strong>aggregations belong in measures; row expressions belong in columns/iterators.</strong> When you see an aggregation somewhere odd, ask which context it is in.</p>
+<h3 id="context-transition-the-complete-picture">Context transition — the complete picture</h3>
+<p>CALCULATE inside row context converts the current row into filters on <strong>every column of that row's table</strong>:</p>
+<pre><code class="language-dax">-- Calculated column on a Customers lookup table (CustomerID unique):
+Customer Revenue =
+CALCULATE ( SUMX ( Sales, Sales[Quantity] * Sales[UnitPrice] ) )
+</code></pre>
+<p>For C01's row, transition creates filters <code>CustomerID="C01"</code> AND <code>CustomerName=...</code> AND every other column of that row — then follows the relationship to Sales and sums: 50.00 + 100.00 = <strong>150.00</strong>. Two gotchas: (1) it filters on all columns, so duplicate rows in the lookup produce double-filtering weirdness — keep lookup tables unique; (2) it is expensive inside iterators over large tables (transition per row).</p>
+<p>The classic accidental transition — measure inside a calculated column's row expression:</p>
+<pre><code class="language-dax">-- Column on Sales. [Total Revenue] is a measure.
+Bad Column = Sales[Quantity] * [Total Revenue]
+</code></pre>
+<p>For row 101: transition filters Sales to row 101 only → [Total Revenue] = 50.00 → column value = 10 × 50 = 500. Every row multiplies its Quantity by its own line total. Bizarre numbers, no error message. <strong>Rule: never reference a measure inside a row-level expression unless you mean "evaluate this measure for just this row."</strong></p>
+<h3 id="relationships-and-cross-filtering">Relationships and cross-filtering</h3>
+<p>Add a <code>Customers</code> lookup table: CustomerID (C01–C06, unique), CustomerName, Segment. Relate <code>Customers[CustomerID]</code> → <code>Sales[CustomerID]</code>, one-to-many, <strong>single direction</strong> (filter flows from Customers to Sales). Now:</p>
+<ul>
+<li>A slicer on <code>Customers[Segment]</code> filters Customers rows → the relationship propagates the filter to Sales → all Sales measures respond. This is <strong>cross-filtering</strong>.</li>
+<li>A slicer on <code>Sales[Region]</code> does <em>not</em> filter Customers (single direction stops it).</li>
+</ul>
+<p><strong>Bidirectional</strong> cross-filtering (set in the relationship editor) lets filters flow both ways — then a Sales[Region] slicer would filter the Customers table too. It enables patterns like "customers who bought in the North," but it is dangerous: bidirectional relationships can create <strong>ambiguous filter paths</strong> (two routes between tables), which DAX resolves by refusing or by picking one — producing wrong or blank results that are hard to trace. Guidance: default to single direction; enable bidirectional only for a specific need, and never create loops of bidirectional relationships.</p>
+<p>Cardinality matters too: one-to-many is the norm (lookup → fact). Many-to-many needs a bridge or bidirectional tricks — avoid in your first models.</p>
+<h3 id="related-and-relatedtable-crossing-tables-in-row-context">RELATED and RELATEDTABLE — crossing tables in row context</h3>
+<p>In row context on the many-side, <code>RELATED</code> fetches from the one-side:</p>
+<pre><code class="language-dax">-- Calculated column on Sales:
+Customer Segment = RELATED ( Customers[Segment] )
+</code></pre>
+<p>Row 101 (C01) → C01's segment. <code>RELATEDTABLE</code> goes the other way (one-side row context → many-side table):</p>
+<pre><code class="language-dax">-- Calculated column on Customers:
+Order Count = COUNTROWS ( RELATEDTABLE ( Sales ) )
+</code></pre>
+<p>C01 → 2 (orders 101, 103). In measures you rarely need these — relationships propagate filter context automatically; RELATED is for row-level expressions.</p>
+<h3 id="a-full-worked-scenario">A full worked scenario</h3>
+<p>Tables: <code>Date</code> → <code>Sales</code> ← <code>Customers</code>. Slicers: Year=2026, Segment="Corporate". Visual: bar chart by Region showing <code>[Total Revenue]</code>.</p>
+<p>Evaluation of the North bar:
+1. Filter context = {Date[Year]=2026, Customers[Segment]=Corporate, Sales[Region]=North}.
+2. Year filter flows Date → Sales. Segment filter flows Customers → Sales. Region filter is native to Sales.
+3. <code>[Total Revenue]</code> = SUMX over Sales rows surviving all three filters.
+4. Change any slicer → context changes → measure recomputes. No code changed.</p>
+<p>Now add <code>CALCULATE ( [Total Revenue], ALL ( Customers ) )</code>: step 2's Segment filter is removed (ALL), Year and Region remain. This is how "ignore this slicer but respect the others" works — and why understanding filter <em>flow</em> is prerequisite to writing correct CALCULATE.</p>
+<h3 id="common-errors_8">Common errors</h3>
+<ul>
+<li><strong>Bidirectional ambiguity</strong> — "The relationship cannot be used because it would introduce ambiguity." Remove a bidirectional link or restructure the model (star schema: facts in the center, lookups around — one direction inward).</li>
+<li><strong>RELATED on the wrong side</strong> — RELATED from the one-side to the many-side errors ("multiple values"). Use RELATEDTABLE.</li>
+<li><strong>Filter not propagating</strong> — relationship is inactive (dotted line) or cross-filter direction is wrong. Check Model view; only one active relationship per table pair.</li>
+<li><strong>Many-to-many without a bridge</strong> — distinct counts and sums double-count. Model a proper bridge table or aggregate first in Power Query.</li>
+<li><strong>Assuming slicers on fact tables filter dimensions</strong> — with single direction they don't. If your Customer count doesn't respond to a Region slicer, that's why (and often it's correct behavior).</li>
+</ul>
+<h3 id="inactive-relationships-and-userelationship-full-example">Inactive relationships and USERELATIONSHIP — full example</h3>
+<p>Model: <code>Sales[OrderDate]</code> → <code>Date[Date]</code> (active), <code>Sales[ShipDate]</code> → <code>Date[Date]</code> (inactive, dotted). A Year slicer on <code>Date[Year]</code> filters by OrderDate by default. Measures:</p>
+<pre><code class="language-dax">Revenue (Order Date) = [Total Revenue]
+
+Revenue (Ship Date) =
+CALCULATE (
+    [Total Revenue],
+    USERELATIONSHIP ( 'Date'[Date], Sales[ShipDate] )
+)
+</code></pre>
+<p>USERELATIONSHIP activates the dotted relationship <em>for this calculation only</em>. Combine with time intelligence freely:</p>
+<pre><code class="language-dax">Ship Date Revenue YTD =
+CALCULATE (
+    [Total Revenue],
+    USERELATIONSHIP ( 'Date'[Date], Sales[ShipDate] ),
+    DATESYTD ( 'Date'[Date] )
+)
+</code></pre>
+<p>CALCULATE accepts modifiers (USERELATIONSHIP, CROSSFILTER) alongside filters. Related: <code>CROSSFILTER ( Sales[ShipDate], 'Date'[Date], BOTH )</code> temporarily flips direction — the emergency tool for "why doesn't this slicer reach that table."</p>
+<h3 id="many-to-many-the-bridge-pattern">Many-to-many: the bridge pattern</h3>
+<p>Suppose a <code>Promotions</code> table (PromoID, PromoName) and Sales rows can carry multiple promos via a bridge <code>SalesPromos(SaleID, PromoID)</code>. Direct many-to-many between Sales and Promotions double-counts. The clean shape:</p>
+<pre><code>Promotions (1) → (many) SalesPromos (many) → (1) Sales
+</code></pre>
+<p>with the middle relationships single-direction inward... actually the standard pattern: Promotions 1→<em> SalesPromos, Sales 1→</em> SalesPromos, and a measure that propagates:</p>
+<pre><code class="language-dax">Promo Revenue =
+CALCULATE (
+    [Total Revenue],
+    CROSSFILTER ( Sales[OrderID], SalesPromos[SaleID], BOTH )
+)
+</code></pre>
+<p>Full bidirectional M2M is Chapter-11's ambiguity territory — at this level, know: <strong>M2M needs an explicit bridge and deliberate CROSSFILTER; never enable bidirectional "to make it work" without understanding the paths.</strong></p>
+<h3 id="role-playing-dimensions-and-filter-flow-tracing">Role-playing dimensions and filter flow tracing</h3>
+<p>Tracing exercise — model: <code>Date → Sales ← Customers</code>, <code>Date → Targets</code> (a targets table with monthly goals). Slicer: <code>Date[Year] = 2026</code>. Visual: table by <code>Customers[Segment]</code> showing <code>[Total Revenue]</code> and <code>[Target Amount]</code> (from Targets).</p>
+<ul>
+<li>Year filter flows Date → Sales ✓ and Date → Targets ✓.</li>
+<li>Segment groups the visual: for "Corporate" row, filter <code>Customers[Segment]=Corporate</code> flows → Sales ✓ but does it reach Targets? Only if a relationship path exists — it doesn't (Targets links only to Date). So Target Amount shows the <em>year</em> total on every segment row — correct per the model, surprising per intuition. <strong>When a measure ignores a visual's grouping, trace the relationship path from the grouping table to the measure's table. No path = no filter.</strong></li>
+</ul>
+<h3 id="choosing-cross-filter-direction-decision-guide">Choosing cross-filter direction — decision guide</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Direction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lookup → fact (normal)</td>
+<td>Single (default)</td>
+</tr>
+<tr>
+<td>"Show customers who bought X" (fact → lookup filtering)</td>
+<td>Bidirectional on that relationship only</td>
+</tr>
+<tr>
+<td>Fact-to-fact via shared lookup</td>
+<td>Single; let the lookup be the hub</td>
+</tr>
+<tr>
+<td>Any loop of bidirectional links</td>
+<td>Redesign — ambiguity errors await</td>
+</tr>
+</tbody>
+</table>
+<p>When bidirectional is truly needed, prefer limiting it with CROSSFILTER inside specific measures rather than flipping the model-wide default — surgical beats global.</p>
+<h3 id="bidirectional-lab-seeing-the-difference">Bidirectional lab: seeing the difference</h3>
+<p>Model: <code>Customers ← Sales</code>, single direction. Two measures:</p>
+<pre><code class="language-dax">Customer Count (normal) =
+DISTINCTCOUNT ( Customers[CustomerID] )   -- slicer on Sales[Region]: always 6
+</code></pre>
+<p>A Region slicer can't reach Customers — count stays 6. Now flip the relationship to bidirectional in Model view and watch the same measure: with Region=North selected → customers C01, C02, C04 → <strong>3</strong>. Same formula, different model setting, different answer. <strong>This is why bidirectional is risky: it changes what existing measures mean, silently, model-wide.</strong> The CROSSFILTER-per-measure alternative (Chapter 6) gives the 3 only where you asked for it.</p>
+<p>Legitimate bidirectional uses: "customers who bought X" counts, many-to-many bridges, and ragged hierarchies. Each is a conscious, documented choice — never the default you clicked trying to make a visual work.</p>
+<h3 id="composite-models-and-directquery-a-orientation-note">Composite models and DirectQuery — a orientation note</h3>
+<p>So far we've assumed Import mode (data loaded into VertiPaq). <strong>DirectQuery</strong> leaves data in the source database and translates DAX to SQL per interaction: some functions are unavailable, performance depends on the source, and iterators can generate brutal queries. <strong>Composite models</strong> mix both. For researchers: default to Import (your datasets fit in memory easily); reach for DirectQuery only when data must stay live in a warehouse. When you do, test every measure — the "not supported in DirectQuery" error (Chapter 11) is how you discover the boundary.</p>
+<p><strong>For your research:</strong> Model your study as a star schema: fact <code>SurveyResponses</code> in the center; lookups <code>Participants</code> (demographics), <code>Sites</code>, <code>Date</code> around it, all single-direction inward. Then a Site slicer filters responses automatically, group comparisons stay correct, and <code>RELATED ( Participants[AgeGroup] )</code> gives you per-response demographics for subgroup columns. When your supervisor asks "does the treatment effect hold for rural sites only?" — that's a slicer, not new code, <em>because the relationships are right</em>.</p>
+<p><strong>Key takeaways:</strong>
+- Row context iterates one row; filter context filters many rows. Aggregations need filter context; row expressions need row context.
+- CALCULATE in row context = context transition (current row → filters on all its columns). Never put a measure in a row expression by accident.
+- Relationships propagate filter context (cross-filtering), normally one-to-many, single direction (lookup → fact).
+- Bidirectional filtering is powerful but ambiguity-prone — default to single direction; keep a star schema.
+- RELATED (many→one) and RELATEDTABLE (one→many) cross tables inside row context.</p>
+<hr />
+<h2 id="chapter-11-debugging-dax-common-errors-and-how-to-fix-them">Chapter 11: Debugging DAX — Common Errors and How to Fix Them</h2>
+<p>You will spend real hours staring at red squiggles and blank cards. This chapter is a field manual: the errors you'll actually see, what they really mean, and the systematic way out. Keep it bookmarked.</p>
+<h3 id="the-debugging-workflow">The debugging workflow</h3>
+<ol>
+<li><strong>Read the actual error text</strong> (hover the squiggle; don't guess).</li>
+<li><strong>Reduce</strong>: copy the measure, delete half the logic, see if the error persists. Binary search beats staring.</li>
+<li><strong>Inspect intermediates</strong>: break the formula into VARs and RETURN each one (Chapter 9) to see which step goes wrong.</li>
+<li><strong>Check context</strong>: ask "what filters are active here?" — put the measure in a table visual with the grouping columns visible so you can see the context per row.</li>
+<li><strong>Check types</strong>: Data view → is that column really a number/date? Half of "weird" DAX is a type problem from import.</li>
+</ol>
+<h3 id="error-catalog">Error catalog</h3>
+<p><strong>1. "The syntax for 'X' is incorrect."</strong>
+The parser choked. Usual causes: unbalanced parentheses, a comma where DAX wants a semicolon (locale setting — some regions use <code>;</code> as the list separator; check Options → Regional), or a reserved word as a name. Fix: count parens, check your separator.</p>
+<p><strong>2. "Column 'X' cannot be found or may not be used in this expression."</strong>
+You referenced <code>Quantity</code> instead of <code>Sales[Quantity]</code>, or the column is from an unrelated table in a context where it can't be reached. Fix: pick from IntelliSense; check relationships.</p>
+<p><strong>3. "A table of multiple values was supplied where a single value was expected."</strong>
+You used a table/column where a scalar was needed: <code>IF ( Sales[Quantity] &gt; 5, ... )</code> in a measure (Quantity is many values), or concatenating <code>VALUES()</code> with multiple rows. Fix: aggregate first (<code>SUM(...) &gt; 5</code>), or guard with <code>SELECTEDVALUE</code>/<code>HASONEVALUE</code>.</p>
+<p><strong>4. "The expression refers to multiple columns. Multiple columns cannot be converted to a scalar value."</strong>
+Variant of #3 — often from <code>SELECTCOLUMNS</code> or a bare table reference in a scalar slot. Fix: wrap the table in COUNTROWS/FILTER appropriately.</p>
+<p><strong>5. "A circular dependency was detected."</strong>
+Two calculated columns (or a column and a measure chain) depend on each other. DAX evaluates columns in dependency order; a cycle is impossible. Fix: convert one side to a measure, or inline the logic.</p>
+<p><strong>6. "Function 'X' cannot be used in this context" / "not supported in DirectQuery mode."</strong>
+Some functions (many time-intelligence and iterator patterns) don't translate to SQL for DirectQuery. Fix: switch the table to Import mode, or pre-aggregate in the source.</p>
+<p><strong>7. Blank results (no error at all).</strong>
+The sneakiest category. Checklist:
+- Filters intersect to empty (Chapter 5's FILTER-vs-overwrite trap).
+- Relationship is inactive or wrong direction.
+- DIVIDE returned BLANK on zero denominator (correct behavior — decide if you want the 0 default).
+- Time intelligence without a marked date table.
+- Slicer selection excludes everything the visual needs.</p>
+<p><strong>8. " division by zero" via <code>/</code>.</strong>
+Use DIVIDE (Chapter 4). Always.</p>
+<p><strong>9. Wrong totals in a matrix (totals don't equal the sum of rows).</strong>
+Not a bug — the total row has <em>different filter context</em> (no row filters), so the measure computes fresh. Example: <code>[% of Total]</code> shows 100% in the total row while rows show shares — correct! If you need the total to be the sum of visible rows, that's a different measure: <code>SUMX ( VALUES ( Sales[Region] ), [% of Total] )</code>.</p>
+<p><strong>10. Performance: the visual that never finishes.</strong>
+Suspects: iterators over huge tables, DISTINCTCOUNT on high-cardinality columns, bidirectional relationships, context transition inside big iterators, calculated columns with expensive expressions. Tools: <strong>Performance Analyzer</strong> (View ribbon → record the visual → see DAX query time) and <strong>DAX Studio</strong> (free; shows query plans and timings). Fix order: replace iterators with aggregations, add simple CALCULATE filters before iterating, remove bidirectional links.</p>
+<h3 id="dax-studio-your-lab-bench">DAX Studio — your lab bench</h3>
+<p>DAX Studio (free, by SQLBI) connects to your Power BI model and lets you run DAX queries directly:</p>
+<pre><code class="language-dax">EVALUATE
+SUMMARIZECOLUMNS (
+    Sales[Region],
+    &quot;Revenue&quot;, [Total Revenue],
+    &quot;Orders&quot;, COUNTROWS ( Sales )
+)
+ORDER BY Sales[Region]
+</code></pre>
+<p>This returns a table you can eyeball — the fastest way to verify a measure across groups without building visuals. Every serious DAX practitioner uses it; install it before your model grows.</p>
+<h3 id="defensive-patterns-write-code-that-fails-loudly-or-not-at-all">Defensive patterns — write code that fails loudly or not at all</h3>
+<pre><code class="language-dax">-- Guard against empty selections:
+Orders =
+VAR N = COUNTROWS ( Sales )
+RETURN
+    IF ( N = 0, 0, [Total Revenue] / N )
+
+-- Make assumptions explicit:
+Avg Score Checked =
+IF (
+    HASONEVALUE ( SurveyResponses[Group] ),
+    [Avg Post Score],
+    ERROR ( &quot;Select exactly one group&quot; )
+)
+</code></pre>
+<p><code>ERROR()</code> stops with your message instead of a silently wrong number. A wrong number that looks right is the worst outcome in research — fail loudly.</p>
+<h3 id="common-errors-about-debugging-itself">Common errors (about debugging itself)</h3>
+<ul>
+<li><strong>Changing the visual instead of the formula</strong> — if three visuals disagree, the formula is guilty until proven innocent; test in DAX Studio.</li>
+<li><strong>Debugging with production data only</strong> — keep a tiny test table (like our 8-row Sales) where you can hand-compute every expected value. This book's tables are that fixture.</li>
+<li><strong>Ignoring the formula bar's error position</strong> — the caret usually points near the real problem; start there.</li>
+</ul>
+<h3 id="the-blank-debugging-decision-tree">The blank-debugging decision tree</h3>
+<p>A card shows blank. Walk this tree:</p>
+<ol>
+<li><strong>Is the base measure blank everywhere, or only under some filters?</strong> Everywhere → check the formula's tables/columns exist and relationships. Some filters → go to 2.</li>
+<li><strong>Remove slicers one by one.</strong> Blank disappears when you clear the Region slicer? A filter is intersecting to empty (Chapter 5's FILTER-vs-overwrite trap, or conflicting slicers like Region=North + a visual filter Region=South).</li>
+<li><strong>Check DIVIDE and denominators.</strong> <code>DIVIDE(a, b)</code> → blank means b was blank/0. Is b <em>supposed</em> to be non-zero here? If yes, the filter context feeding b is wrong — trace it.</li>
+<li><strong>Check time intelligence.</strong> Blank from DATESYTD/SAMEPERIODLASTYEAR → date table QA (Chapter 7 checklist).</li>
+<li><strong>Check the relationship path</strong> (Chapter 10 tracing). Put the grouping columns in a table visual next to the measure — see exactly which combinations are blank.</li>
+<li><strong>Test in DAX Studio</strong> with EVALUATE + SUMMARIZECOLUMNS to see all groups at once, outside visual formatting (which can <em>hide</em> values via "show items with no data" settings).</li>
+</ol>
+<h3 id="locale-and-separator-gotchas">Locale and separator gotchas</h3>
+<p>In many locales (including Pakistan's common Excel settings), DAX uses <strong>semicolons</strong> as argument separators: <code>DIVIDE ( a; b )</code> instead of <code>DIVIDE ( a, b )</code>. Power BI follows the OS/Office locale. Symptoms: "The syntax for ',' is incorrect" on formulas copied from US tutorials. Fix: swap separators, or change Windows list separator. Similarly, date literals in <code>DATEVALUE("01/05/2026")</code> parse per locale — prefer <code>DATE(2026,5,1)</code>, which is unambiguous everywhere.</p>
+<h3 id="dax-studio-query-lab-three-diagnostic-queries">DAX Studio query lab — three diagnostic queries</h3>
+<pre><code class="language-dax">-- Q1: What does my measure return per group?
+EVALUATE
+SUMMARIZECOLUMNS (
+    Sales[Region],
+    &quot;Revenue&quot;, [Total Revenue],
+    &quot;Orders&quot;, [Total Orders]
+)
+-- Expected: North 135/3, South 136/2, East 360/2, West 120/1
+
+-- Q2: Which groups are being filtered out? (compare with/without a slicer table)
+EVALUATE
+SUMMARIZECOLUMNS (
+    Sales[Region],
+    FILTER ( Sales, Sales[Product] = &quot;Pen&quot; ),
+    &quot;Pen Revenue&quot;, [Total Revenue]
+)
+
+-- Q3: Is my date table sound?
+EVALUATE
+SUMMARIZECOLUMNS (
+    &quot;Days&quot;, COUNTROWS ( 'Date' ),
+    &quot;Distinct Days&quot;, DISTINCTCOUNT ( 'Date'[Date] ),
+    &quot;Min&quot;, MIN ( 'Date'[Date] ),
+    &quot;Max&quot;, MAX ( 'Date'[Date] )
+)
+-- Days must equal Distinct Days (no duplicates/gaps by construction of CALENDAR)
+</code></pre>
+<p>Run Q1 after writing <em>every</em> non-trivial measure. It takes ten seconds and catches context bugs before they reach your report — or your paper.</p>
+<h3 id="performance-analyzer-walkthrough">Performance Analyzer walkthrough</h3>
+<ol>
+<li>View ribbon → Performance Analyzer → Start recording.</li>
+<li>Interact: change a slicer, watch visuals refresh.</li>
+<li>Expand a slow visual → see <strong>DAX query</strong> time vs <strong>Visual display</strong> vs <strong>Other</strong>.</li>
+<li>DAX query slow → Copy query → paste into DAX Studio → Server Timings to see formula-engine vs storage-engine time.</li>
+<li>Formula-engine heavy → simplify iterators, prefilter with CALCULATE, or precompute a column (Chapter 8's ladder).</li>
+</ol>
+<p>Rule of thumb: under ~500ms per visual feels instant; 1–3s is tolerable; beyond that, optimize. At research scale you'll rarely need this — but "rarely" is not "never" once sensor data arrives.</p>
+<h3 id="tooling-dax-formatter-and-the-formula-bar">Tooling: DAX Formatter and the formula bar</h3>
+<p><strong>DAX Formatter</strong> (daxformatter.com, free) reformats pasted DAX to the standard style (the one Chapter 9 teaches) in one click. Use it on: formulas inherited from colleagues, forum answers you paste in, your own 2 a.m. writing. Standard formatting isn't vanity — misaligned CALCULATE arguments hide logic bugs the way bad indentation hides code bugs.</p>
+<p>Formula-bar power features beginners miss:
+- <strong>Multi-line editing</strong>: the bar expands; write measures across lines from the start.
+- <strong>IntelliSense</strong>: Tab-completes table[column] and function names — always accept the completion rather than typing names freehand.
+- <strong>The "fx" of DAX</strong>: there is none — but the function tooltip shows the signature as you type; read it.</p>
+<h3 id="the-it-worked-yesterday-checklist">The "it worked yesterday" checklist</h3>
+<p>Model worked, now broken, no code changed? Run through:
+1. <strong>Data refreshed with new values?</strong> New regions/products appear — hardcoded <code>="North"</code> filters still fine, but hardcoded <em>lists</em> may miss newcomers. Prefer dynamic patterns (VALUES-driven) over literal lists where the domain grows.
+2. <strong>Relationship edited?</strong> Someone flipped direction or deactivated a link — check Model view.
+3. <strong>Column renamed upstream?</strong> Power Query rename breaks DAX references.
+4. <strong>Locale changed?</strong> Comma/semicolon separators (see above) after moving machines.
+5. <strong>Power BI updated?</strong> Rare, but engine behavior occasionally tightens — check the update notes if breakage coincides with an update.</p>
+<p>Nine times out of ten it's #1 or #2. Check those first, every time.</p>
+<h3 id="asking-for-help-the-minimal-reproducible-example">Asking for help: the minimal reproducible example</h3>
+<p>When you're stuck and turn to a forum, supervisor, or AI assistant, provide:</p>
+<ol>
+<li><strong>Tiny sample data</strong> — 5–10 rows, pasted as text (like this book's tables), with the relevant columns only.</li>
+<li><strong>The model shape</strong> — which tables, the relationships between them (a sentence each).</li>
+<li><strong>The measure</strong> — full DAX, formatted.</li>
+<li><strong>Expected vs actual</strong> — "I expect 135.00 for North; I get blank." Hand-compute the expected value.</li>
+<li><strong>Where it's used</strong> — card? matrix with which rows/columns? which slicers are active?</li>
+</ol>
+<p>This five-part format gets answers in minutes instead of days, because it eliminates the three most common follow-up questions ("what does your model look like?", "what did you expect?", "show the data"). It also frequently solves the problem <em>while you write it</em> — hand-computing the expected value exposes wrong assumptions. Keep a template of it in your DAX journal (Chapter 1).</p>
+<p><strong>For your research:</strong> Your thesis defense may include "how did you compute this number?" Reproduce any reported figure in DAX Studio with an EVALUATE query and save the query text alongside your results — it is your computational audit trail. And adopt the <code>ERROR()</code> guard for measures that are only valid under specific slicer states (e.g., "select exactly one wave"); a loud error beats a quietly wrong subgroup analysis that ends up in print.</p>
+<p><strong>Key takeaways:</strong>
+- Debug systematically: read the error, reduce, RETURN intermediates, check context, check types.
+- "Table of multiple values" and blank results are the two most common mysteries — both are context problems, not syntax problems.
+- Matrix totals compute in their own context; they are not sums of rows unless you write them that way.
+- Use DAX Studio + EVALUATE as your lab bench, and Performance Analyzer for slow visuals.
+- In research, a silently wrong number is worse than an error — use DIVIDE, COALESCE, and ERROR() defensively.</p>
+<hr />
+<h2 id="chapter-12-dax-for-research-metrics-response-rates-prepost-comparisons-survey-scoring">Chapter 12: DAX for Research Metrics — Response Rates, Pre/Post Comparisons, Survey Scoring</h2>
+<p>Everything so far was general DAX. This chapter is the payoff: the complete DAX toolkit for quantitative research reporting, built on <code>SurveyResponses</code> (8 participants: 4 Control, 4 Treatment; 6 completers, 2 dropouts). Every measure here maps to a line in a results section or a CONSORT-style flow diagram.</p>
+<h3 id="setup-helper-column-and-base-measures">Setup: helper column and base measures</h3>
+<p>First, a calculated column — per-participant change is row-level and we will group by it (Chapter 3 says: column is correct here):</p>
+<pre><code class="language-dax">-- Calculated column on SurveyResponses:
+Change Score = SurveyResponses[PostScore] - SurveyResponses[PreScore]
+</code></pre>
+<p>R01: 3, R02: 1, R03: blank (blank − 48 = blank), R04: 19, R05: 17, R06: 12, R07: blank, R08: −2.</p>
+<p>Base measures:</p>
+<pre><code class="language-dax">Enrolled = COUNTROWS ( SurveyResponses )                                   -- 8
+Completers = CALCULATE ( COUNTROWS ( SurveyResponses ), SurveyResponses[Completed] = TRUE )  -- 6
+Dropouts = [Enrolled] - [Completers]                                       -- 2
+</code></pre>
+<h3 id="metric-1-response-and-retention-rates">Metric 1: Response and retention rates</h3>
+<pre><code class="language-dax">Completion Rate = DIVIDE ( [Completers], [Enrolled] )                      -- 6/8 = 75.00%
+</code></pre>
+<p>By group (put Group on rows): Control: 3/4 = 75%; Treatment: 3/4 = 75%. Attrition is balanced — a sentence your methods section needs. Differential attrition check:</p>
+<pre><code class="language-dax">Attrition Gap =
+ABS (
+    CALCULATE ( [Completion Rate], SurveyResponses[Group] = &quot;Treatment&quot; )
+        - CALCULATE ( [Completion Rate], SurveyResponses[Group] = &quot;Control&quot; )
+)
+-- |75% - 75%| = 0 pp — report it; reviewers check.
+</code></pre>
+<h3 id="metric-2-prepost-change-scores">Metric 2: Pre/post change scores</h3>
+<pre><code class="language-dax">Mean Change (Completers) =
+AVERAGEX (
+    FILTER ( SurveyResponses, SurveyResponses[Completed] = TRUE ),
+    SurveyResponses[Change Score]
+)
+-- (3+1+19+17+12-2)/6 = 50/6 = 8.33
+</code></pre>
+<p>By group: Control (3+1−2)/3 = <strong>0.67</strong>; Treatment (19+17+12)/3 = <strong>16.00</strong>. The treatment effect in one table:</p>
+<pre><code class="language-dax">Treatment Effect (Mean Diff) =
+CALCULATE ( [Mean Change (Completers)], SurveyResponses[Group] = &quot;Treatment&quot; )
+    - CALCULATE ( [Mean Change (Completers)], SurveyResponses[Group] = &quot;Control&quot; )
+-- 16.00 - 0.67 = 15.33 points
+</code></pre>
+<p>Report with the per-group n: <code>Completers</code> sliced by Group gives 3 and 3. (Inferential statistics — t-tests, p-values — belong in R/SPSS/Python; DAX reports the descriptives that feed them. Be honest about that boundary in your methods.)</p>
+<h3 id="metric-3-responder-analysis-improved-same-declined">Metric 3: Responder analysis ("improved / same / declined")</h3>
+<p>Using the Change Score column with SWITCH logic in a measure (or a second calculated column for axis use):</p>
+<pre><code class="language-dax">-- Calculated column (for chart axes):
+Change Category =
+SWITCH (
+    TRUE (),
+    ISBLANK ( SurveyResponses[Change Score] ), &quot;Dropout&quot;,
+    SurveyResponses[Change Score] &gt; 0, &quot;Improved&quot;,
+    SurveyResponses[Change Score] = 0, &quot;No change&quot;,
+    &quot;Declined&quot;
+)
+</code></pre>
+<p>Then <code>% Improved = DIVIDE ( CALCULATE ( [Completers], SurveyResponses[Change Category] = "Improved" ), [Completers] )</code> → 5/6 = <strong>83.33%</strong>. A responder bar chart by group is a standard clinical-research visual — now it's one measure.</p>
+<h3 id="metric-4-likert-scale-survey-scoring">Metric 4: Likert-scale survey scoring</h3>
+<p>Suppose an <code>Items</code> table: ResponseID, Item01…Item05 (1–5 Likert), some blanks (skipped items). Per-response mean ignoring skipped items:</p>
+<pre><code class="language-dax">-- Calculated column on a Responses grain table, or measure with iterators:
+Mean Likert =
+AVERAGEX (
+    { Items[Item01], Items[Item02], Items[Item03], Items[Item04], Items[Item05] },
+    Items[Item01]  -- placeholder: real pattern below
+)
+</code></pre>
+<p>Cleaner real pattern — unpivot items in Power Query to (ResponseID, Item, Score) rows, then:</p>
+<pre><code class="language-dax">Mean Item Score = AVERAGE ( ItemScores[Score] )   -- blanks auto-skipped
+Scale Total = SUMX ( VALUES ( ItemScores[ResponseID] ), [Mean Item Score] * 5 )
+</code></pre>
+<p>Reverse-scored items: handle in Power Query (<code>6 - Score</code>) before DAX — document it; reviewers ask. Cronbach's alpha: compute in R/Python, not DAX — know the boundary.</p>
+<h3 id="metric-5-consort-style-enrollment-flow-counts">Metric 5: CONSORT-style enrollment flow counts</h3>
+<p>A participant-flow diagram needs counts at each stage. With a <code>Stage</code> column (Assessed / Randomized / Completed / Analyzed):</p>
+<pre><code class="language-dax">N Assessed   = CALCULATE ( [Enrolled], SurveyResponses[Stage] = &quot;Assessed&quot; )
+N Randomized = CALCULATE ( [Enrolled], SurveyResponses[Stage] = &quot;Randomized&quot; )
+N Analyzed   = CALCULATE ( [Enrolled], SurveyResponses[Stage] = &quot;Analyzed&quot; )
+</code></pre>
+<p>Each is one CALCULATE; together they feed a funnel visual or a flow table. Exclusion reasons: a <code>ExclusionReason</code> column + <code>COUNTROWS ( FILTER ( ... ) )</code> per reason.</p>
+<h3 id="metric-6-baseline-comparability-table-table-1">Metric 6: Baseline comparability table (Table 1)</h3>
+<p>"Table 1" compares groups at baseline — mean age, % female, mean pre-score:</p>
+<pre><code class="language-dax">Mean Pre Score = AVERAGE ( SurveyResponses[PreScore] )   -- Control: 56.25, Treatment: 55.00
+Pct Female =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( SurveyResponses ), Participants[Gender] = &quot;F&quot; ),
+    [Enrolled]
+)
+</code></pre>
+<p>Put Group on columns, these measures on rows: a live Table 1 that updates if exclusion criteria change. When your supervisor says "what if we exclude P08?" — one slicer, whole table recomputes. That is the research superpower of measures.</p>
+<h3 id="putting-it-together-the-analysis-checklist">Putting it together: the analysis checklist</h3>
+<ol>
+<li>Enrolled / completers / dropouts per group (Metric 1).</li>
+<li>Attrition gap between arms (Metric 1).</li>
+<li>Mean change per group + treatment effect (Metric 2).</li>
+<li>Responder categories (Metric 3).</li>
+<li>Table 1 baselines (Metric 6).</li>
+<li>Flow counts for the diagram (Metric 5).</li>
+</ol>
+<p>Six steps, ~15 measures, one consistent pattern: <code>CALCULATE</code> + <code>DIVIDE</code> + iterators. Export the table visuals to CSV for your paper's tables; paste key measure definitions into your supplementary materials.</p>
+<h3 id="common-errors-research-specific">Common errors (research-specific)</h3>
+<ul>
+<li><strong>Averaging change scores including dropouts</strong> — blanks save you in AVERAGEX, but <code>SUM ( Change Score ) / [Enrolled]</code> divides by 8 instead of 6. Use completers as the denominator deliberately and label it.</li>
+<li><strong>Post-only analysis when pre differs</strong> — if Mean Pre differs by group, report change scores (or ANCOVA in R), not raw post means. DAX shows you the descriptives; the design decision is yours.</li>
+<li><strong>Likert items as text</strong> — "Agree" cannot average. Convert to 1–5 in Power Query first (Chapter 2).</li>
+<li><strong>Reporting a DAX mean without n</strong> — every mean in your paper needs its n beside it. <code>Completers</code> by group is that n; put it in the same table.</li>
+</ul>
+<h3 id="metric-7-sensitivity-completers-vs-all-enrolled">Metric 7: Sensitivity — completers vs all-enrolled</h3>
+<p>Reviewers will ask: "Do results hold if dropouts are counted?" Show both analyses side by side. Completers we have (8.33 overall). An all-enrolled version must decide what a missing post-score means — the conservative choice is <strong>no change</strong> (change = 0), not last-observation-carried-forward (which needs longitudinal rows):</p>
+<pre><code class="language-dax">Mean Change (All Enrolled, Zero-Filled) =
+AVERAGEX (
+    SurveyResponses,
+    COALESCE ( SurveyResponses[Change Score], 0 )
+)
+-- (3+1+0+19+17+12+0-2)/8 = 50/8 = 6.25
+</code></pre>
+<p>Report both: completers 8.33, all-enrolled (zero-filled) 6.25. If the conclusion survives, say so — that's a sensitivity analysis, and it preempts the reviewer's objection. <strong>Never silently pick one; report the assumption in words next to the number.</strong> (True multiple imputation belongs in R/Python; DAX shows the transparent simple versions.)</p>
+<h3 id="metric-8-subgroup-forest-plot-data">Metric 8: Subgroup forest-plot data</h3>
+<p>Forest plots need per-subgroup effect + n. Build one summary table (as a DAX query for export, or a matrix visual):</p>
+<pre><code class="language-dax">-- Matrix: rows = Group, values below; or per site with a Sites lookup:
+Site Effect =
+CALCULATE (
+    [Treatment Effect (Mean Diff)],
+    ALLEXCEPT ( SurveyResponses, Sites[SiteName] )
+)
+</code></pre>
+<p>ALLEXCEPT keeps only the site filter — so each site row shows its own treatment effect even with group slicers active. Export the matrix to CSV → draw the forest plot in R/Python/Excel. DAX prepared the numbers; the figure tool draws them. This division of labor (DAX = correct subgroup numbers, stats tool = inference + figures) is the professional workflow.</p>
+<h3 id="metric-9-survey-completeness-per-item-data-quality-table">Metric 9: Survey completeness per item (data-quality table)</h3>
+<p>Before scoring, audit which items were skipped:</p>
+<pre><code class="language-dax">-- With unpivoted ItemScores(ResponseID, Item, Score):
+Item Response Rate =
+DIVIDE (
+    COUNT ( ItemScores[Score] ),          -- non-blank scores
+    COUNTROWS ( ItemScores )
+)
+</code></pre>
+<p>Put <code>Item</code> on rows: any item below ~90% response deserves a methods-section sentence ("Item 4 was skipped by 3 participants; analyses use available items"). Pair with <code>COUNTBLANK</code> per participant to flag straight-liners/sparse responders for exclusion review.</p>
+<h3 id="from-dax-to-manuscript-the-handoff-checklist">From DAX to manuscript — the handoff checklist</h3>
+<ul>
+<li>[ ] Every reported number has a named measure (no one-off visual calculations).</li>
+<li>[ ] Every mean is paired with its n in the same table.</li>
+<li>[ ] Denominators are labeled (completers vs enrolled) wherever they differ.</li>
+<li>[ ] Key measures pasted into supplementary materials with comments.</li>
+<li>[ ] DAX Studio EVALUATE queries saved for each main table (audit trail).</li>
+<li>[ ] Assumption log: how blanks/dropouts/reverse-scores were handled, in words.</li>
+<li>[ ] Inferential stats (p-values, CIs) computed in R/SPSS/Python and cross-checked against DAX descriptives (means must match!).</li>
+</ul>
+<p>That last check — <strong>DAX mean vs R mean agreement</strong> — catches data-pipeline bugs (wrong file version, mis-merged tables) that no single tool can see. If they disagree, stop and find out why before writing a word of the results section.</p>
+<p><strong>For your research:</strong> This chapter is a template for your results section. Build these measures once on your real data, verify each against a hand-computed spreadsheet on a 10-row sample (your "fixture," like our 8 rows here), then scale to the full dataset with confidence. When a reviewer asks "how was the treatment effect computed?" your answer is the <code>Treatment Effect (Mean Diff)</code> measure — precise, re-runnable, and citable in supplementary materials.</p>
+<p><strong>Key takeaways:</strong>
+- Completion/attrition rates: <code>DIVIDE ( completers, enrolled )</code>, sliced by group; report the attrition gap.
+- Change scores: a calculated column for per-participant change, AVERAGEX over completers, CALCULATE for group contrasts.
+- Responder analysis: SWITCH-based categories + share-of-completers measures.
+- Likert scales: unpivot items, AVERAGE skips blanks, reverse-score in Power Query.
+- Every reported mean needs its n; descriptives in DAX, inference in R/SPSS/Python — state the boundary.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="function-quick-reference-by-category">Function quick-reference by category</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Functions</th>
+<th>One-line job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Aggregation</td>
+<td>SUM, AVERAGE, MIN, MAX, COUNT, COUNTBLANK, DISTINCTCOUNT, COUNTROWS</td>
+<td>Collapse a column/table to one number</td>
+</tr>
+<tr>
+<td>Filter modification</td>
+<td>CALCULATE, CALCULATETABLE</td>
+<td>Recompute under changed filters</td>
+</tr>
+<tr>
+<td>Filter shaping</td>
+<td>FILTER, ALL, ALLEXCEPT, REMOVEFILTERS, KEEPFILTERS</td>
+<td>Describe which filters change</td>
+</tr>
+<tr>
+<td>Visible values</td>
+<td>VALUES, DISTINCT, SELECTEDVALUE, HASONEVALUE</td>
+<td>What values survive current filters</td>
+</tr>
+<tr>
+<td>Time intelligence</td>
+<td>DATESYTD/MTD/QTD, TOTALYTD, SAMEPERIODLASTYEAR, DATEADD, DATESINPERIOD, DATESBETWEEN</td>
+<td>Period-to-date, prior-period, rolling windows</td>
+</tr>
+<tr>
+<td>Iterators</td>
+<td>SUMX, AVERAGEX, COUNTX, MINX, MAXX, PRODUCTX, CONCATENATEX, RANKX</td>
+<td>Row-by-row expression, then aggregate</td>
+</tr>
+<tr>
+<td>Logic</td>
+<td>IF, SWITCH, AND/OR/NOT, &amp;&amp;, ||, COALESCE, IFERROR</td>
+<td>Branching and null-handling</td>
+</tr>
+<tr>
+<td>Math &amp; safety</td>
+<td>DIVIDE, ROUND, ABS, INT, MOD</td>
+<td>Safe arithmetic</td>
+</tr>
+<tr>
+<td>Table builders</td>
+<td>ADDCOLUMNS, SUMMARIZE, SUMMARIZECOLUMNS, SELECTCOLUMNS, FILTER, CALENDAR, CALENDARAUTO, DISTINCT</td>
+<td>Shape tables for measures/visuals</td>
+</tr>
+<tr>
+<td>Relationships</td>
+<td>RELATED, RELATEDTABLE</td>
+<td>Cross tables in row context</td>
+</tr>
+<tr>
+<td>Variables</td>
+<td>VAR … RETURN</td>
+<td>Name intermediates; compute once</td>
+</tr>
+<tr>
+<td>Text/Dates</td>
+<td>FORMAT, CONCATENATE, &amp;, YEAR, MONTH, DAY, DATE, DATEDIFF, EDATE</td>
+<td>Labels, dates, parsing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="row-context-vs-filter-context-the-master-comparison">Row context vs filter context — the master comparison</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Row context</th>
+<th>Filter context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who creates it?</td>
+<td>Calculated columns; X-iterators; FILTER/ADDCOLUMNS</td>
+<td>Slicers; visual axes/legends; CALCULATE; relationships</td>
+</tr>
+<tr>
+<td>What does <code>Table[Column]</code> mean?</td>
+<td>The value in <em>this row</em></td>
+<td>The <em>visible set</em> of values</td>
+</tr>
+<tr>
+<td>Can SUM() work here?</td>
+<td>Only via context transition (one row)</td>
+<td>Yes — its natural home</td>
+</tr>
+<tr>
+<td>Can you reference a bare column in an expression?</td>
+<td>Yes</td>
+<td>No — "multiple values" error</td>
+</tr>
+<tr>
+<td>How do you leave it?</td>
+<td>Wrap in CALCULATE → becomes filter context</td>
+<td>ALL()/REMOVEFILTERS remove parts of it</td>
+</tr>
+<tr>
+<td>Typical bug</td>
+<td>Aggregation that ignores the row</td>
+<td>FILTER() intersecting when you meant overwrite</td>
+</tr>
+</tbody>
+</table>
+<h3 id="time-intelligence-function-map">Time-intelligence function map</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Function</th>
+<th>Example result (April 2026 selected)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Year-to-date total</td>
+<td><code>CALCULATE ( [M], DATESYTD ( 'Date'[Date] ) )</code></td>
+<td>Jan–Apr accumulated</td>
+</tr>
+<tr>
+<td>Month-to-date / quarter-to-date</td>
+<td>DATESMTD / DATESQTD</td>
+<td>Same, smaller grain</td>
+</tr>
+<tr>
+<td>Same period last year</td>
+<td><code>CALCULATE ( [M], SAMEPERIODLASTYEAR ( 'Date'[Date] ) )</code></td>
+<td>April 2025</td>
+</tr>
+<tr>
+<td>Shift by N units</td>
+<td><code>CALCULATE ( [M], DATEADD ( 'Date'[Date], -3, MONTH ) )</code></td>
+<td>January 2026</td>
+</tr>
+<tr>
+<td>Rolling window</td>
+<td><code>DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH )</code></td>
+<td>Feb–Apr date set</td>
+</tr>
+<tr>
+<td>Custom range</td>
+<td><code>DATESBETWEEN ( 'Date'[Date], DATE(2026,1,1), DATE(2026,3,31) )</code></td>
+<td>Q1 date set</td>
+</tr>
+<tr>
+<td>YoY growth %</td>
+<td><code>DIVIDE ( [M] - [M Last Year], [M Last Year] )</code></td>
+<td>Growth vs prior year</td>
+</tr>
+<tr>
+<td>Prerequisite for all</td>
+<td>Marked, continuous date table related to facts</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-five-calculate-patterns-pocket-card">The five CALCULATE patterns (pocket card)</h3>
+<ol>
+<li><code>CALCULATE ( [M], Tbl[Col] = "x" )</code> — force/override a filter.</li>
+<li><code>DIVIDE ( [M], CALCULATE ( [M], ALL ( Tbl ) ) )</code> — percent of total.</li>
+<li>Multiple <code>Tbl[Col] = value</code> args — AND conditions.</li>
+<li><code>CALCULATE ( [M], FILTER ( Tbl, &lt;row logic&gt; ) )</code> — complex conditions (intersects).</li>
+<li>Bare <code>CALCULATE ( [M] )</code> in row context — context transition.</li>
+</ol>
+<h3 id="researchers-dax-cookbook-10-copy-paste-patterns">Researcher's DAX cookbook — 10 copy-paste patterns</h3>
+<p>Adapt these to your tables; they cover 90% of research dashboards:</p>
+<pre><code class="language-dax">-- 1. Share of total (any grouping on the visual):
+Share of Total = DIVIDE ( [M], CALCULATE ( [M], ALL ( FactTable ) ) )
+
+-- 2. Subgroup vs overall (e.g., site vs study):
+Vs Overall = [M] - CALCULATE ( [M], ALL ( Sites ) )
+
+-- 3. Completers-only version of any measure:
+[M] (Completers) = CALCULATE ( [M], Responses[Completed] = TRUE )
+
+-- 4. n beside every mean (matrix rows = groups):
+N = COUNTROWS ( Responses )
+
+-- 5. Change from baseline per participant (column):
+Change = Responses[PostScore] - Responses[PreScore]
+
+-- 6. Responder flag (column, then COUNTROWS or DIVIDE over it):
+Improved Flag = IF ( Responses[Change] &gt; 0, 1, 0 )
+
+-- 7. Rolling 3-wave average (with a Wave index column):
+Rolling Avg 3 = AVERAGEX ( DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH ), [M] )
+
+-- 8. Rank within the current filter context:
+Rank = RANKX ( ALL ( Sites[SiteName] ), [M], , DESC, DENSE )
+
+-- 9. Dynamic title showing the slicer selection:
+Title =
+&quot;Results for &quot;
+    &amp; SELECTEDVALUE ( Sites[SiteName], &quot;all sites&quot; )
+    &amp; &quot; (n=&quot; &amp; [N] &amp; &quot;)&quot;
+
+-- 10. Safe rate with explicit zero handling for export:
+Rate (export-safe) = COALESCE ( DIVIDE ( [Numerator], [Denominator] ), 0 )
+</code></pre>
+<p>Pattern 10's COALESCE is export-only: keep the analytic measures blank-safe (blank = no data) and apply COALESCE in the <em>export/display</em> measure. Two measures, two jobs — Chapter 4's rule, applied.</p>
+<h3 id="error-message-decoder-pocket-reference">Error-message decoder (pocket reference)</h3>
+<table>
+<thead>
+<tr>
+<th>You see</th>
+<th>It usually means</th>
+<th>First fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"The syntax for ',' is incorrect"</td>
+<td>Wrong list separator for your locale</td>
+<td>Try <code>;</code> instead of <code>,</code></td>
+</tr>
+<tr>
+<td>"Column 'X' cannot be found"</td>
+<td>Typo, wrong table, or stray space in name</td>
+<td>Pick from IntelliSense</td>
+</tr>
+<tr>
+<td>"A table of multiple values was supplied…"</td>
+<td>Bare column/table where a scalar was needed</td>
+<td>Aggregate or SELECTEDVALUE</td>
+</tr>
+<tr>
+<td>"Cannot convert value 'X' of type Text…"</td>
+<td>Text in numeric math</td>
+<td>Check column type; use VALUE()</td>
+</tr>
+<tr>
+<td>"A circular dependency was detected"</td>
+<td>Columns referencing each other</td>
+<td>Convert one side to a measure</td>
+</tr>
+<tr>
+<td>"Division by zero" (from <code>/</code>)</td>
+<td>Unprotected division</td>
+<td>Use DIVIDE</td>
+</tr>
+<tr>
+<td>Blank card, no error</td>
+<td>Filters intersect to empty / inactive relationship / unmarked date table</td>
+<td>Blank-debugging tree (Ch11)</td>
+</tr>
+<tr>
+<td>Same total repeated on every row</td>
+<td>Measure inside a row expression (context transition)</td>
+<td

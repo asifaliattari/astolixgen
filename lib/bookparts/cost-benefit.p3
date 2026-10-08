@@ -1,0 +1,81 @@
+/li>
+<li><strong>Causal analysis</strong> — why it worked or failed, tied to specific mechanisms (bottleneck? adoption? data quality?).</li>
+<li><strong>Transferable lesson</strong> — one sentence another organization can act on.</li>
+<li><strong>Anonymization note</strong> — if names are changed, say so and why.</li>
+</ol>
+<p>Eight items, two pages. A case study built this way is useful to strangers — which is the test of whether it is worth writing. File yours next to the benefits ledger; in five years you will have authored the most valuable document in the organization: its own evidence base.</p>
+<p>And that is the closing argument of this book: automation done well is not about machines — it is about the discipline of measuring honestly, deciding explicitly, and learning continuously. The organizations that master that discipline do not just save money; they build a compounding advantage no competitor can copy, because it lives in their habits, not their hardware.</p>
+<blockquote>
+<p><strong>For your research:</strong> Case studies are a legitimate research output — many journals publish them — but only when they follow a method. Write your cases with the structure used here: setting, problem (with baseline numbers), intervention (with full costs), measured results (with the review timeline), and analysis of <em>why</em>. Report the failures with the same care as the wins; the field learns more from autopsies than from victory laps, and reviewers reward candor. If you anonymize ("a mid-size dairy lab"), say so and explain why. Four well-documented cases with real numbers outweigh forty pages of unmeasured claims.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Wins come from automating measured bottlenecks (often information plumbing), sizing the prize first, piloting, and naming an owner.</li>
+<li>The costliest failures automate broken processes or buy technology without a defined problem.</li>
+<li>"Free" money (grants, executive sponsorship) must not bypass cost-benefit discipline — it is still scarce resources.</li>
+<li>Adoption risk (training, ownership, trust) kills more projects than technical failure.</li>
+<li>Write cases with setting, baseline, full costs, measured results, and causal analysis — that structure is publishable.</li>
+</ul>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Automation:</strong> using technology to perform tasks with reduced human intervention.</li>
+<li><strong>Break-even point:</strong> the output volume at which total benefits equal total costs; beyond it, the project profits.</li>
+<li><strong>Build vs. buy:</strong> the decision between developing automation in-house, purchasing a commercial product, or outsourcing.</li>
+<li><strong>Capital expenditure (CapEx):</strong> one-time spending on long-lived assets like equipment.</li>
+<li><strong>Cost of poor quality:</strong> the total cost of errors, rework, scrap, and lost trust caused by defects.</li>
+<li><strong>Diminishing returns:</strong> the pattern where each additional unit of input yields progressively less additional output.</li>
+<li><strong>Discount rate:</strong> the percentage used to convert future money into today's dollars, reflecting time value and risk.</li>
+<li><strong>Effectiveness:</strong> doing the right things — achieving the intended goal.</li>
+<li><strong>Efficiency:</strong> doing things right — achieving a goal with minimum waste.</li>
+<li><strong>Expected value:</strong> probability multiplied by impact; used to price risks for budgeting.</li>
+<li><strong>Fixed cost:</strong> a cost that does not change with output volume, such as equipment purchase price.</li>
+<li><strong>Fully loaded labor cost:</strong> wage plus benefits, taxes, insurance, and overhead per hour worked.</li>
+<li><strong>Intangible benefit:</strong> valuable outcomes (morale, trust, safety) that resist exact pricing but must be documented.</li>
+<li><strong>Internal rate of return (IRR):</strong> the discount rate at which a project's NPV equals zero; the project's implied earning rate.</li>
+<li><strong>Lean:</strong> a management philosophy focused on eliminating waste in all its forms.</li>
+<li><strong>Marginal thinking:</strong> evaluating the next unit of input or output rather than the whole project.</li>
+<li><strong>Net present value (NPV):</strong> the sum of discounted future net cash flows minus the initial investment.</li>
+<li><strong>Operating expenditure (OpEx):</strong> recurring spending to run and maintain operations.</li>
+<li><strong>Opportunity cost:</strong> the value of the best alternative given up when a choice is made.</li>
+<li><strong>Optimism bias:</strong> the systematic human tendency to overestimate benefits and underestimate costs and timelines.</li>
+<li><strong>Payback period:</strong> the time required for cumulative benefits to repay the initial investment.</li>
+<li><strong>Pre-mortem:</strong> a structured exercise imagining a project has failed, to surface risks while they are cheap to fix.</li>
+<li><strong>Process map:</strong> a boxes-and-arrows diagram of a workflow's steps, handoffs, waits, and failure points.</li>
+<li><strong>Return on investment (ROI):</strong> (gains − costs) ÷ costs × 100; profit per unit invested.</li>
+<li><strong>Risk register:</strong> a table listing risks with probability, impact, expected cost, and mitigations.</li>
+<li><strong>Sunk cost:</strong> past spending that cannot be recovered and should not influence future decisions.</li>
+<li><strong>Throughput:</strong> the rate at which a system produces finished output.</li>
+<li><strong>Total cost of ownership (TCO):</strong> all costs of an asset over its life: acquisition, operation, maintenance, downtime, end-of-life, minus residual value.</li>
+<li><strong>Variable cost:</strong> a cost that scales with output volume, such as consumables per unit.</li>
+<li><strong>Waste (muda):</strong> any activity consuming resources without creating value — waiting, rework, overprocessing, and others.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Opportunity cost journal.</strong> For one week, log every repetitive task you do (data entry, formatting, email triage) with minutes spent. Price the total at your local loaded hourly rate. Which single task has the highest annual opportunity cost?</li>
+<li><strong>Process map.</strong> Choose one workflow in your lab or workplace (e.g., ordering reagents, preparing a report). Draw the process map with at least 6 steps, time each step 5 times, and identify the bottleneck. Write 200 words on what you found.</li>
+<li><strong>Four-factor scoring.</strong> Score 4 candidate tasks from your process map on volume, frequency, error cost, and rule clarity (1–5 each). Present the ranked table and defend your top pick in 150 words.</li>
+<li><strong>Cost inventory.</strong> For an automation you are considering (real or hypothetical), build the build/run/maintain table from Chapter 3 with at least 12 line items, each with a stated assumption and source. What fraction of Year 1 cost is the purchase price?</li>
+<li><strong>Loaded rate calculation.</strong> Compute your own (or a colleague's) fully loaded hourly cost: salary + benefits % + taxes % + overhead %, divided by productive hours. Compare it to the take-home hourly wage. How large is the gap?</li>
+<li><strong>Error pricing.</strong> Pick a recurring error in your work (typos in data, mislabeled samples, invoice mistakes). Measure its rate over 2 weeks (with denominator), estimate cost per error (rework + materials + downstream), and compute the annual cost. Would a $2,000 fix be justified?</li>
+<li><strong>ROI + payback.</strong> A $12,000 automated system saves 8 hours/week of $30/hour loaded labor and $200/month in error costs. Compute Year-1 ROI and the payback period. Show every step.</li>
+<li><strong>Break-even.</strong> Manual processing costs $4.00/unit in labor; an automated line costs $60,000 fixed (5-year life, ignore discounting) plus $0.90/unit variable. At what annual volume does automation break even? If current volume is 6,000 units/year and growing 20%/year, in which year does it pay?</li>
+<li><strong>Mini-TCO comparison.</strong> Two software tools do the same job. Tool X: $5,000/year subscription, 5 hours/month admin. Tool Y: free open-source, 60 hours setup + 12 hours/month maintenance (admin at $40/hour loaded). Compute 3-year TCO for each. Which wins, and by how much?</li>
+<li><strong>One-page business case.</strong> Write a one-page business case (the six blocks from Chapter 10) for automating one real task from Exercise 1–3. Include the numbers table, three risks with mitigations, and a phased pilot ask. Swap with a peer and critique each other's hidden-cost coverage.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] E. Brynjolfsson and A. McAfee, <em>The Second Machine Age: Work, Progress, and Prosperity in a Time of Brilliant Technologies</em>. New York, NY, USA: W. W. Norton &amp; Company, 2014.</p>
+<p>[2] F. W. Taylor, <em>The Principles of Scientific Management</em>. New York, NY, USA: Harper &amp; Brothers, 1911.</p>
+<p>[3] E. M. Goldratt and J. Cox, <em>The Goal: A Process of Ongoing Improvement</em>, 3rd ed. Great Barrington, MA, USA: North River Press, 2004.</p>
+<p>[4] C. M. Christensen, <em>The Innovator's Dilemma: When New Technologies Cause Great Firms to Fail</em>. Boston, MA, USA: Harvard Business School Press, 1997.</p>
+<p>[5] R. S. Kaplan and D. P. Norton, <em>The Balanced Scorecard: Translating Strategy into Action</em>. Boston, MA, USA: Harvard Business School Press, 1996.</p>
+<p>[6] E. Ries, <em>The Lean Startup: How Today's Entrepreneurs Use Continuous Innovation to Create Radically Successful Businesses</em>. New York, NY, USA: Crown Business, 2011.</p>
+<p>[7] W. E. Deming, <em>Out of the Crisis</em>. Cambridge, MA, USA: MIT Press, 1982.</p>
+<p>[8] M. E. Porter, <em>Competitive Advantage: Creating and Sustaining Superior Performance</em>. New York, NY, USA: Free Press, 1985.</p>
+<p>[9] D. Kahneman, <em>Thinking, Fast and Slow</em>. New York, NY, USA: Farrar, Straus and Giroux, 2011.</p>
+<p>[10] M. Ford, <em>Rise of the Robots: Technology and the Threat of a Jobless Future</em>. New York, NY, USA: Basic Books, 2015.</p>
+<p>[11] T. H. Davenport and R. Ronanki, "Artificial intelligence for the real world," <em>Harvard Business Review</em>, vol. 96, no. 1, pp. 108–116, Jan.–Feb. 2018.</p>
+<p>[12] A. McAfee and E. Brynjolfsson, <em>Machine, Platform, Crowd: Harnessing Our Digital Future</em>. New York, NY, USA: W. W. Norton &amp; Company, 2017.</p>
+<p><em>End of Book 44.</em></p>

@@ -1,0 +1,456 @@
+ng contingency honestly</h3>
+<p>Chapter 3 suggested 10–40% contingency by feel. The risk register lets you <em>compute</em> it: sum the expected costs of unmitigated risks, add the cost of planned mitigations, and hold that sum as the risk budget. For the farm irrigation case: expected risk costs $7,800/year, mitigations $7,600 one-time + $900/year. The honest Year-1 risk budget ≈ $7,600 + ($7,800 − $4,900 mitigated away) ≈ $10,500 on a $35,000 project — 30%, which correctly signals "novel project, hold serious reserve." As mitigations complete, release the reserve back: contingency is a <em>loan from the budget</em>, not spending. Report it as a separate line ("risk reserve: $10,500, released as risks retire") so stakeholders see prudence, not padding.</p>
+<h3 id="the-risk-burndown-chart-watching-risk-retire">The risk burndown chart: watching risk retire</h3>
+<p>Plot total expected risk cost over time — it should fall as mitigations land: sensors calibrated (risk 1 retires), spare pump installed (risk 3 retires), training complete (risk 5 halves). A burndown that is <em>not</em> falling by Day 90 is an early warning the project is drifting: mitigations are slipping, and the business case's risk-adjusted numbers are decaying. Review the burndown at each 30-60-90 checkpoint (Chapter 11) alongside the benefit metrics. Teams that watch risk retire catch problems while fixes are cheap; teams that file the register and forget it rediscover every risk as an incident.</p>
+<h3 id="transferring-risk-insurance-warranties-and-contracts">Transferring risk: insurance, warranties, and contracts</h3>
+<p>Not every risk must be mitigated — some can be <em>transferred</em> to someone better placed to bear them. Extended warranties transfer repair-cost risk to the vendor (price the warranty against the expected repair bill: a $5,700/year service contract versus $3,000/year expected repairs is insurance, not savings — buy it for budget certainty, not profit). Fixed-price integration contracts transfer overrun risk to the contractor. Business-interruption insurance transfers downtime risk for critical systems. And penalty clauses transfer delay risk: "$500 per week late, capped at 10%" focuses a vendor's mind wonderfully.</p>
+<p><strong>Walkthrough.</strong> Lina's lab faces integration-overrun risk: three-point estimate $5,000 / $8,167 / $14,000. A contractor offers fixed-price $9,500. Expected cost of time-and-materials: $8,167 — so the fixed price carries a ~$1,330 premium. Worth it? The lab's grant timeline has zero slack — a 6-week overrun would delay a publication. They pay the premium: $1,330 buys schedule certainty, which the expected-value math alone undervalues. <strong>Rule:</strong> transfer risk when the <em>consequence</em> of the bad outcome (missed grant, failed audit) exceeds what the expected value suggests. Price the transfer, name what it buys beyond the number, and record it in the register as "transferred" — a legitimate, complete mitigation.</p>
+<blockquote>
+<p><strong>For your research:</strong> Risk analysis is often the missing section that separates funded proposals from rejected ones. Grant reviewers ask "what could go wrong?" — a risk register with expected costs and mitigations answers before they ask, and signals project maturity. In papers, a limitations/failure-modes section built from real risk-register items ("sensor drift required monthly recalibration; two of 40 sensors failed in month 4") is far more credible than a generic "future work" paragraph. If you ran a pre-mortem, say so in the methods — it is a legitimate, citable qualitative technique. And when reporting results, include the failures: a paper that reports "the first controller firmware corrupted timestamps; we mitigated by…" teaches the field more than a paper pretending everything worked first time.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Build a risk register: risk, probability, impact, expected cost, mitigation — in a workshop with operators.</li>
+<li>Check all seven categories: technical, integration, operational, financial, human/adoption, strategic, safety/compliance.</li>
+<li>Price risk as expected value (probability × impact); hold 10–40% contingency depending on novelty.</li>
+<li>Compute risk-adjusted benefits; if risk wipes out the margin, the project was a gamble.</li>
+<li>Run best/base/worst scenarios; positive NPV in the worst case means a genuinely safe bet.</li>
+<li>Run a 30-minute pre-mortem before finalizing — it surfaces the killer risk while it is still cheap.</li>
+</ul>
+<hr />
+<h2 id="chapter-9-build-vs-buy-vs-outsource-decisions">Chapter 9: Build vs Buy vs Outsource Decisions</h2>
+<p>So the numbers say automate. One question remains: <em>who</em> builds it? Three paths — build it yourself, buy a commercial product, or outsource the work entirely — have radically different cost structures, risks, and strategic implications. This chapter gives you a fair comparison framework, because the most expensive mistake in automation is not choosing wrongly between vendors; it is comparing options on different terms (purchase price vs. salary vs. a quote) and declaring a winner from mismatched numbers.</p>
+<h3 id="the-three-paths-honestly-described">The three paths, honestly described</h3>
+<p><strong>Build (in-house development).</strong> Your team designs and builds the automation — a Python pipeline, a custom jig, an Arduino-based monitor. <em>Strengths:</em> perfect fit to your workflow, no license fees, full control, builds internal capability. <em>Weaknesses:</em> slow, consumes your scarcest people, maintenance is yours forever, quality depends on whoever built it (and they might leave). The true cost is staff time at loaded rates plus the opportunity cost of what they did not do instead.</p>
+<p><strong>Buy (commercial product).</strong> You purchase software or equipment from a vendor. <em>Strengths:</em> fast deployment, vendor support, tested by other users, predictable cost. <em>Weaknesses:</em> never a perfect fit (you adapt your process to the tool), license/subscription fees forever, vendor lock-in, the vendor's roadmap may abandon your needs.</p>
+<p><strong>Outsource (pay someone else to do the work).</strong> You do not automate at all — you hand the workflow to a service provider. <em>Strengths:</em> zero capital, zero maintenance, instant scale up or down, converts fixed cost back to variable. <em>Weaknesses:</em> per-unit cost highest at scale, less control over quality and timing, dependency, your process knowledge walks out the door with the contract.</p>
+<p>Note the deep pattern: <strong>build maximizes control, buy balances speed and cost, outsource maximizes flexibility.</strong> There is no universally best path — only the best fit for your volume, expertise, and strategy.</p>
+<h3 id="the-fair-comparison-tco-per-unit-same-horizon-same-scope">The fair comparison: TCO per unit, same horizon, same scope</h3>
+<p>The golden rule: compare all three as <strong>total cost per unit of output over the same time horizon</strong>, with identical scope (who handles exceptions? who maintains? whose quality standard?).</p>
+<p><strong>Full walkthrough — payroll processing for a 60-person company.</strong> Current: HR manager spends 12 hours/month on payroll ($38/hour loaded = $456/month = $5,472/year), plus $800/year in error corrections. Total manual baseline: <strong>$6,272/year</strong>.</p>
+<p><em>Option A — Build:</em> HR software developer (contractor) builds a payroll module integrated with attendance: 200 hours × $85/hour = $17,000 build; maintenance 40 hours/year × $85 = $3,400/year; server/cloud $600/year. 5-year TCO = $17,000 + 5 × $4,000 = $37,000 → <strong>$7,400/year</strong>. Worse than manual! The build only wins at much larger scale.</p>
+<p><em>Option B — Buy:</em> commercial payroll SaaS at $8/employee/month: 60 × $8 × 12 = $5,760/year; implementation $2,000 one-time; HR time drops to 3 hours/month ($1,368/year); errors drop to ~$100/year. 5-year TCO = $2,000 + 5 × ($5,760 + $1,368 + $100) = $2,000 + $36,140 = $38,140 → <strong>$7,628/year</strong>. Hmm — also above manual? Wait: compare against the <em>full</em> manual baseline fairly. Manual = $6,272/year → 5-year $31,360. Both automation options look worse!</p>
+<p>This is where honest analysis earns its keep. The missing piece: <strong>growth and risk.</strong> The company plans to grow to 150 employees in 3 years. Manual cost scales linearly: at 150 employees ≈ $14,000/year. Recompute at realistic volumes:
+- Manual (avg ~105 employees over 5 years): ≈ $55,000
+- Buy (scales to 150 × $8 × 12 = $14,400/year by year 5; average ≈ $10,000/year + implementation): ≈ $52,000 — plus error reduction and compliance updates the vendor handles (payroll tax rules change yearly; the vendor tracks them, the HR manager currently spends 20 hours/year on updates = $760/year avoided).
+- Outsource: payroll bureau quotes $22/employee/month all-inclusive: at 60 → $15,840/year; clearly pricier per unit, but zero implementation effort and the bureau absorbs compliance risk.</p>
+<p>With growth and compliance counted, <strong>Buy wins</strong>: ~$52,000 vs. manual ~$58,000 (with tax-update labor) vs. build ~$45,000?? Let me recompute build at scale: build cost is fixed $17,000; maintenance grows modestly ($4,000 → $5,500/year). 5-year ≈ $17,000 + $23,750 = $40,750 — actually cheapest! But build carries concentration risk (one contractor's code, payroll is legally sensitive) and slow delivery (4 months). The framework does not decide for you — it lays out the trade: build is cheapest but riskiest and slowest; buy is balanced; outsource is priciest per unit but zero-effort. For payroll — a non-core, compliance-heavy function — most advisors would recommend <strong>buy</strong>: the small premium over build buys legal safety and speed. That judgment call, made with full numbers visible, is what this chapter teaches.</p>
+<h3 id="the-core-competence-test">The core-competence test</h3>
+<p>Beyond numbers, ask: <em>is this workflow core to what we are?</em> A genomics lab's sequencing pipeline is core — build or buy-with-deep-customization, because the capability <em>is</em> the competitive edge. The same lab's payroll is not core — buy or outsource without guilt. Automating non-core work in-house is how research groups end up maintaining a janky internal tool for a decade while their science stalls. Christensen's work on disruption adds a warning from the other side: today's non-core capability can become tomorrow's advantage, so revisit the classification every few years [4].</p>
+<h3 id="the-decision-matrix">The decision matrix</h3>
+<p>Score each option 1–5 on the factors below (weights in parentheses reflect a typical small organization; adjust to yours):</p>
+<table>
+<thead>
+<tr>
+<th>Factor (weight)</th>
+<th>Build</th>
+<th>Buy</th>
+<th>Outsource</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5-yr TCO per unit (×3)</td>
+<td>4</td>
+<td>4</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Speed to deploy (×2)</td>
+<td>2</td>
+<td>5</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Fit to workflow (×2)</td>
+<td>5</td>
+<td>3</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Control &amp; data ownership (×2)</td>
+<td>5</td>
+<td>3</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Maintenance burden (×2)</td>
+<td>2</td>
+<td>4</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Strategic capability built (×1)</td>
+<td>5</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Exit flexibility (×1)</td>
+<td>4</td>
+<td>3</td>
+<td>5</td>
+</tr>
+<tr>
+<td><strong>Weighted total</strong></td>
+<td><strong>57</strong></td>
+<td><strong>57</strong></td>
+<td><strong>48</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A tie between build and buy (57 each) is a <em>useful</em> result — it says the decision hinges on judgment factors (risk tolerance, available talent, timeline), not cost. Present the matrix, name the tie-breaker explicitly ("we choose Buy because payroll accuracy is legally sensitive and we lack in-house expertise"), and move on. Outsourcing loses on cost at this volume but would win on flexibility if headcount were volatile — note that conditional conclusion for the record.</p>
+<h3 id="hybrid-paths">Hybrid paths</h3>
+<p>Reality is rarely pure. Common hybrids: <strong>buy + customize</strong> (commercial core, small custom integrations — captures 80% of build's fit at 20% of its cost); <strong>build the prototype, buy the production system</strong> (prototype proves the concept cheaply, commercial product provides reliability); <strong>outsource now, build later</strong> (outsource while volume is low and uncertain; bring in-house when volume crosses the break-even you computed in Chapter 5). Name the hybrid explicitly in your analysis — "we recommend Buy with a $3,000 integration budget" beats a false binary.</p>
+<h3 id="the-cost-of-delay-every-month-you-wait-has-a-price">The cost of delay: every month you wait has a price</h3>
+<p>Analysis takes time, and time has a cost. <strong>Cost of delay</strong> = net monthly benefit forgone while you decide. Sana's labeling machine nets ~$19,315/year after ongoing costs — about <strong>$1,610/month</strong>. A three-month delay "to think about it" costs $4,830 in forgone benefit — nearly the machine's entire purchase price, burned for nothing. This does not mean rushing; it means <em>time-boxing</em> the decision. Set a decision date when you start the analysis ("we decide by the 30th"), because the most expensive option is usually the unmade decision. Present it explicitly: "delaying one quarter costs ~$4,800 — more than the price difference between our top two vendors." That sentence ends many stalled discussions.</p>
+<h3 id="switching-costs-the-price-of-changing-your-mind-later">Switching costs: the price of changing your mind later</h3>
+<p>Choosing Buy or Outsource creates <strong>switching costs</strong> — what you pay to change vendors or bring the work back in-house later: data migration, retraining, contract termination fees, rebuilding integrations. Estimate them upfront and include them in the TCO comparison:</p>
+<ul>
+<li>Data export: is your data in open formats, or held hostage? (Ask for a sample export <em>before</em> signing.)</li>
+<li>Contract terms: termination notice period, early-exit fees, who owns customizations.</li>
+<li>Knowledge: if the vendor's consultant configured everything, you cannot operate it alone — budget knowledge transfer.</li>
+</ul>
+<p>A fair Buy-vs-Build comparison adds the <em>expected</em> switching cost (probability of switching × cost) to the Buy column. Vendors with open APIs, standard formats, and month-to-month terms earn a lower switching-cost adjustment — which is a legitimate, quantifiable reason to prefer them beyond the sticker price.</p>
+<h3 id="the-vendor-negotiation-checklist-use-tco-as-leverage">The vendor negotiation checklist: use TCO as leverage</h3>
+<p>Walk into negotiation with your TCO model, not the vendor's quote. Seven items to press:</p>
+<ol>
+<li><strong>Cap annual increases.</strong> Subscription uplifts of 5–8%/year compound brutally over a 5-year TCO — negotiate a cap in writing.</li>
+<li><strong>Bundle the hidden lines.</strong> Training, implementation, and first-year support folded into the purchase price beat "free" quotes with expensive add-ons.</li>
+<li><strong>Get reliability in writing.</strong> MTBF, guaranteed response times, and penalty credits for downtime — verbal promises are worthless in a TCO.</li>
+<li><strong>Secure your exit.</strong> Data export format and assistance, termination terms, and escrow of critical software — priced before you need them.</li>
+<li><strong>Tie payment to acceptance.</strong> Hold 15–25% of the price until measured acceptance criteria pass (throughput, error rate) — Chapter 11's metrics become contract terms.</li>
+<li><strong>Ask for the reference customer.</strong> Not the logo slide — a phone call with a customer of similar size. Ask them what broke and what it really cost.</li>
+<li><strong>Negotiate the consumables.</strong> For instrument vendors, proprietary reagent pricing is where the real margin hides — lock pricing for 3 years or get the per-test cost guaranteed.</li>
+</ol>
+<p>Vendors negotiate hardest on the purchase price because that is what buyers compare. You now compare TCO — negotiate where the money actually is.</p>
+<h3 id="the-decision-log-writing-down-why-for-your-future-self">The decision log: writing down why, for your future self</h3>
+<p>Six months later, nobody remembers why you chose Buy over Build — and when the vendor raises prices, the debate restarts from zero. A <strong>decision log</strong> prevents this: one page recording the options, the weighted scores, the deciding factors ("chose Buy: payroll compliance risk outweighed $11,000 TCO advantage of Build"), the date, and who decided. Revisit it only when a <em>revisit trigger</em> fires — predefined conditions like "volume exceeds 150 employees," "vendor raises prices &gt;10%," or "in-house expertise hired." Triggers convert second-guessing into discipline: no trigger, no reopening; trigger fires, re-run the matrix with fresh numbers. Organizations that keep decision logs stop relitigating old choices and start learning from them — the log plus the benefits ledger (Chapter 11) is the complete feedback loop.</p>
+<h3 id="always-keep-do-nothing-on-the-table-and-price-it">Always keep "do nothing" on the table — and price it</h3>
+<p>Every build-vs-buy analysis should include a fourth option: <strong>do nothing</strong> (keep the manual process), priced as the status-quo TCO from Chapter 6. This is not filler — it is the baseline against which all three automation paths must beat, and sometimes it wins honestly. The RPA bot case (Chapter 6) is the proof: at 400 documents/month, "do nothing" at $12,000/year beat the bot's $20,447/year TCO. Including it forces the uncomfortable but valuable conclusion "not yet" — paired with the revisit trigger ("re-evaluate when volume exceeds 560 documents/month"). A decision framework that can say "don't automate" is trustworthy; one that always recommends automation is a sales pitch. Decision makers notice which one you brought them.</p>
+<blockquote>
+<p><strong>For your research:</strong> Build-vs-buy analysis is a standard section in systems and instrumentation papers, and reviewers probe it: "why did you build a custom controller instead of using instrument X?" Your answer should be this chapter in miniature — TCO per unit at your scale, fit to the experimental need, and the core-competence argument ("the control algorithm is the research contribution; the chassis is not"). If you built, publish the design (open hardware/software) so the field benefits; if you bought, name the product and version so others can replicate. Either way, the decision matrix with weights is excellent supplementary material.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Compare build, buy, and outsource as TCO per unit over the same horizon and identical scope — mismatched comparisons decide wrongly.</li>
+<li>Build = control, buy = balance, outsource = flexibility; no universal winner.</li>
+<li>Recompute at realistic future volumes; growth often flips the ranking.</li>
+<li>Apply the core-competence test: build what makes you <em>you</em>; buy or outsource the rest.</li>
+<li>Use a weighted decision matrix; ties are informative — name the tie-breaker explicitly.</li>
+<li>Consider hybrids: buy + customize, prototype-then-buy, outsource-now-build-later.</li>
+</ul>
+<hr />
+<h2 id="chapter-10-presenting-the-business-case-to-decision-makers">Chapter 10: Presenting the Business Case to Decision Makers</h2>
+<p>The best analysis in the world changes nothing if the person with the budget does not understand it — or does not trust it. This chapter is about the final mile: turning your cost inventories, benefit math, and risk registers into a business case a busy dean, director, or owner can read in ten minutes and approve with confidence.</p>
+<h3 id="know-your-audience">Know your audience</h3>
+<p>Three audiences, three languages:</p>
+<ul>
+<li><strong>The financial decision maker</strong> (CFO, grants committee, business owner) speaks <em>numbers</em>: NPV, payback, cost per unit, budget impact by year. Lead with money; keep technology to one paragraph.</li>
+<li><strong>The technical decision maker</strong> (lab director, CTO, senior researcher) speaks <em>feasibility</em>: will it work, integrate, and be maintainable? Lead with the pilot plan, vendor track record, and risk mitigations.</li>
+<li><strong>The people decision maker</strong> (department head, team lead) speaks <em>impact on humans</em>: whose work changes, who needs training, what happens to headcount. Lead with the redeployment plan and address job anxiety directly — silence on this topic reads as a hidden layoff plan.</li>
+</ul>
+<p>Most real decisions involve all three. Structure the case so each finds their language within two pages.</p>
+<h3 id="the-one-page-business-case">The one-page business case</h3>
+<p>If they read nothing else, they read this. One page, six blocks:</p>
+<p><strong>1. The ask.</strong> "We request $59,500 to purchase and install an automated sample preparation station." One sentence, with the number. Never bury the ask.</p>
+<p><strong>2. The problem (3 lines).</strong> "Manual sample prep consumes 6.7 technician-hours daily, error rates drive $12,000/year in rework, and throughput caps the contract work we can accept."</p>
+<p><strong>3. The numbers (a small table).</strong></p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total investment (Year 1, all-in)</td>
+<td>$59,500</td>
+</tr>
+<tr>
+<td>Annual net benefit (risk-adjusted)</td>
+<td>$52,000</td>
+</tr>
+<tr>
+<td>Payback period</td>
+<td>13 months</td>
+</tr>
+<tr>
+<td>5-year NPV (10% discount)</td>
+<td>$150,737</td>
+</tr>
+<tr>
+<td>5-year ROI</td>
+<td>118%</td>
+</tr>
+<tr>
+<td>Break-even volume</td>
+<td>3,575 samples/year (we run 8,000)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>4. What could go wrong (3 bullets, with mitigations).</strong> "Sensor drift → dual sensors + monthly calibration. Adoption risk → operators co-designed the workflow; manual fallback retained. Volume drop → break-even is 45% of current volume."</p>
+<p><strong>5. Alternatives considered (2 lines).</strong> "Cheaper semi-automated station: NPV $74,351 — half the value. Status quo: costs $47,000/year more in labor and rework."</p>
+<p><strong>6. The recommendation and next step.</strong> "Approve $59,500. Next step: 30-day pilot on one workflow before full rollout."</p>
+<p>That is the whole page. Everything else — the full TCO table, the risk register, vendor quotes — goes in appendices for those who want to verify.</p>
+<h3 id="charts-that-persuade-and-dont-mislead">Charts that persuade (and don't mislead)</h3>
+<p>Two charts carry most business cases:</p>
+<ul>
+<li><strong>Cumulative cash flow over time:</strong> a line starting negative (the investment), crossing zero at payback, rising thereafter. One glance shows payback <em>and</em> long-term value. Always start the y-axis at a sensible zero — truncated axes exaggerate.</li>
+<li><strong>Before/after comparison bars:</strong> manual vs. automated cost per unit, or hours per week by task. Keep to 3–5 bars; label values directly on the bars.</li>
+</ul>
+<p>One chart to avoid: the 3D pie chart of cost breakdowns — hard to read, easy to manipulate. A simple horizontal bar of the TCO components, sorted largest to smallest, is more honest and more persuasive.</p>
+<h3 id="handling-objections-before-they-are-raised">Handling objections before they are raised</h3>
+<p>Every business case faces the same five objections. Answer each in the document, briefly:</p>
+<ol>
+<li><strong>"What if the benefits don't materialize?"</strong> → Show the worst-case scenario (Chapter 8): "NPV stays positive at +$69,824 even if benefits fall 30% short."</li>
+<li><strong>"Can't we do it cheaper manually/with interns?"</strong> → Show the loaded-cost math (Chapter 4) and the error/rework costs interns do not avoid. "Manual costs $7.20/test vs. $3.86 automated — and interns turn over every semester."</li>
+<li><strong>"What about the people?"</strong> → Name the redeployment plan: "No headcount change; 6.7 hours/day redeploys to assay development, currently backlogged 3 months."</li>
+<li><strong>"Why now?"</strong> → Name the cost of delay: "Every month of delay costs ~$4,600 in net benefits forgone; the vendor quote expires in 60 days."</li>
+<li><strong>"What if we wait for better/cheaper technology?"</strong> → Acknowledge and bound it: "Next-generation models arrive roughly every 4 years; waiting 2 years forfeits ~$110,000 in net benefits to save an estimated 10–15% on price. The math favors acting now with a 5-year TCO horizon."</li>
+</ol>
+<h3 id="the-ask-make-saying-yes-easy">The ask: make saying yes easy</h3>
+<p>End with a concrete, low-friction next step — not "let us know what you think" but "approve $59,500 by the 30th so we can begin the pilot in November; the pilot costs $8,000 and is cancellable." Phased asks (pilot → full rollout) dramatically raise approval rates because they convert a big irreversible decision into a small reversible one. Chapter 11's tracking plan is the natural companion: "we will report pilot results against these three metrics on this date."</p>
+<h3 id="the-5-minute-verbal-pitch-for-when-there-is-no-document">The 5-minute verbal pitch: for when there is no document</h3>
+<p>Sometimes you get five minutes in a corridor, not a committee slot. Memorize this structure — one minute per block:</p>
+<ol>
+<li><strong>Minute 1 — the pain, in their language.</strong> "We're spending $47,000 a year in technician time on manual sample prep, and errors cost us another $12,000." (Finance hears money; operations hears waste.)</li>
+<li><strong>Minute 2 — the proposal, with the number.</strong> "A $59,500 automated station eliminates most of that. All-in first-year cost, not just the sticker price."</li>
+<li><strong>Minute 3 — the return.</strong> "Payback in 13 months, $150,000 net value over five years. Break-even needs less than half our current volume."</li>
+<li><strong>Minute 4 — the risks, pre-answered.</strong> "Two risks: sensor drift — handled with dual sensors; adoption — the technicians helped design the workflow."</li>
+<li><strong>Minute 5 — the ask.</strong> "I'm asking for approval of a $8,000 pilot on one workflow next month. If the numbers hold, we go full. Can I send you the one-pager?"</li>
+</ol>
+<p>End by <em>asking for the next step</em>, never by trailing off. "Can I send you the one-pager?" beats "so, yeah, let me know what you think" every time.</p>
+<h3 id="the-appendix-pack-what-verifiers-want">The appendix pack: what verifiers want</h3>
+<p>Attach to the one-pager, in order: (1) the full cost inventory with sources and assumptions; (2) the benefit inventory with the same; (3) the TCO table and per-unit comparison; (4) the risk register; (5) vendor quotes (at least two, to show you shopped); (6) the baseline memo or measurement plan; (7) the pilot plan with Day-30/90/180 metrics. Seven appendices sounds like a lot — but each is one page or one table, most already built in earlier chapters. The pack's real function is psychological: it says "every number here can be checked," which is what converts a skeptical finance reviewer into an ally.</p>
+<h3 id="after-the-meeting-follow-up-and-handling-no">After the meeting: follow-up and handling "no"</h3>
+<p>Send a 5-line follow-up within 24 hours: thanks, the decision requested, the deadline, the one-pager attached, and the offer to answer questions. If the answer is <strong>"not now,"</strong> ask for the conditions of "yes": "What would need to be true for this to be approved next quarter?" — often it is one missing number, which you can supply. If the answer is <strong>"no,"</strong> ask for the reason in writing and record it; reasons like "no capital budget until Q3" are just delayed yeses with a date. And if the answer is <strong>"yes, but cheaper,"</strong> resist the reflex to cut the TCO lines that make it work (training, service contract) — instead, propose the phased pilot: same diligence, smaller commitment. A yes to the pilot, tracked per Chapter 11, becomes the easiest full approval you will ever request.</p>
+<h3 id="the-10-slide-deck-when-they-want-a-presentation">The 10-slide deck: when they want a presentation</h3>
+<p>Sometimes the one-pager is the pre-read and the meeting is slides. Ten slides, no more:</p>
+<ol>
+<li><strong>Title + ask</strong> ("Automated sample prep station — requesting $59,500")</li>
+<li><strong>The problem</strong> (one vivid example + the annual cost)</li>
+<li><strong>Current state</strong> (process map excerpt: where the hours and errors live)</li>
+<li><strong>The proposal</strong> (what it is, in one diagram)</li>
+<li><strong>The numbers</strong> (the six-row table: investment, net benefit, payback, NPV, ROI, break-even)</li>
+<li><strong>Cash flow chart</strong> (cumulative line crossing zero at payback)</li>
+<li><strong>Alternatives considered</strong> (cheaper station, status quo — with their NPVs)</li>
+<li><strong>Risks + mitigations</strong> (top 3 from the register)</li>
+<li><strong>Pilot plan</strong> (scope, cost, Day-30/90/180 metrics and dates)</li>
+<li><strong>Ask + next step</strong> (repeat slide 1's number; name the date you need it by)</li>
+</ol>
+<p>Rules: no slide with more than 25 words (tables and charts excepted); every number on slides also appears in the appendix pack; rehearse to 15 minutes for a 30-minute slot — the discussion is the point, not the slides. End every meeting by confirming the decision and date in the room: "So we're agreed — $8,000 pilot, decision on full rollout at the Day-90 review on March 15th?" Verbal agreements evaporate; confirmed ones get minuted.</p>
+<h3 id="the-pre-read-email-getting-the-decision-before-the-meeting">The pre-read email: getting the decision before the meeting</h3>
+<p>Send the one-pager 48 hours ahead with a 6-line email: what you're asking, the headline numbers, the meeting's purpose ("decision on the pilot"), and the one question you need answered ("is the $8,000 pilot within your approval authority, or do we need the full committee?"). Decision makers who arrive informed decide faster; meetings that start with "so what is this about?" rarely end with yes. If a key stakeholder can't attend, the pre-read plus a 10-minute call beforehand beats presenting to an empty chair.</p>
+<h3 id="the-one-slide-version-for-the-executive-who-has-60-seconds">The one-slide version: for the executive who has 60 seconds</h3>
+<p>Sometimes the entire case must fit one slide — a steering-committee pack, a hallway conversation with the CEO. Six boxes, nothing else:</p>
+<table>
+<thead>
+<tr>
+<th>We spend today</th>
+<th>We propose</th>
+<th>It costs (all-in)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$47k/yr labor + $12k/yr rework</td>
+<td>Automated prep station</td>
+<td>$59,500 Year 1</td>
+</tr>
+<tr>
+<td><strong>Payback</strong></td>
+<td><strong>5-yr value (NPV)</strong></td>
+<td><strong>Risk if we wait</strong></td>
+</tr>
+<tr>
+<td>13 months</td>
+<td>$150,737</td>
+<td>~$4,600/month forgone</td>
+</tr>
+</tbody>
+</table>
+<p>Below the boxes, one line: "Ask: approve $8,000 pilot by the 30th; full decision at Day-90 review." If they want detail, the one-pager and appendix pack exist — the slide's job is only to earn the next conversation. Practice delivering it in 60 seconds; if you cannot explain the case in a minute, you do not understand it well enough yet.</p>
+<h3 id="handling-the-deep-diver-the-stakeholder-who-questions-everything">Handling the deep-diver: the stakeholder who questions everything</h3>
+<p>Every committee has one — the person who interrogates your discount rate, your loaded-cost assumptions, your vendor's MTBF claim. Do not fear them; <em>recruit</em> them. Before the meeting, send them the appendix pack early and invite the critique: "I'd value your scrutiny on the TCO assumptions before Thursday." Deep-divers who feel heard become your strongest validators ("I checked her numbers — they hold up"), while ambushed ones become opponents. In the meeting, answer with the assumption, not just the number: "We used 10% because that's the university's standard; at 12% the NPV is still $128,000 — here's the sensitivity table." People who question everything are doing your risk analysis for free. Thank them.</p>
+<blockquote>
+<p><strong>For your research:</strong> This chapter <em>is</em> grant writing. A grant proposal's budget justification is a business case whose decision maker is a review panel: lead with the problem, show the numbers (cost per sample, throughput gain), name risks with mitigations, and state alternatives considered ("we evaluated commercial system X; building is justified because…"). Panels fund proposals that make saying yes easy — clear ask, phased plan, measurable milestones. The one-page structure above maps directly onto a proposal's one-page project summary. Practice it here on equipment decisions and your proposals will carry the same clarity.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Speak three languages: money for finance, feasibility for technical reviewers, human impact for people leaders.</li>
+<li>The one-page case: the ask, the problem, the numbers table, risks + mitigations, alternatives, recommendation + next step.</li>
+<li>Use cumulative cash-flow and before/after bar charts; avoid chart tricks like truncated axes.</li>
+<li>Pre-answer the five classic objections: benefit shortfall, cheaper manual, people impact, timing, waiting for better tech.</li>
+<li>Make yes easy: a phased, cancellable pilot as the immediate ask, with a reporting date.</li>
+</ul>
+<hr />
+<h2 id="chapter-11-tracking-results-after-implementation">Chapter 11: Tracking Results After Implementation</h2>
+<p>Approval is the halfway point, not the finish line. Most automation projects are never audited — the business case promised $150,000 in NPV, the machine was installed, everyone moved on, and nobody knows whether the benefits arrived. This chapter closes the loop: how to measure baselines <em>before</em> you start, track results <em>after</em>, and respond honestly when reality differs from the projection.</p>
+<h3 id="measure-the-baseline-first-before-you-touch-anything">Measure the baseline first (before you touch anything)</h3>
+<p>You cannot prove improvement without a "before" picture. In the 2–4 weeks before implementation, record:</p>
+<ul>
+<li><strong>Time per task:</strong> time each step of the workflow over at least 10 cycles (more than Chapter 2's scouting sample — this is the official record).</li>
+<li><strong>Error/defect rates:</strong> with denominators (errors per 1,000 units).</li>
+<li><strong>Throughput:</strong> units per day/week, turnaround times, queue lengths.</li>
+<li><strong>Costs:</strong> current labor hours, consumables, rework, outsourcing spend.</li>
+<li><strong>Qualitative baselines:</strong> a short staff survey (workload, tedium, confidence in data quality), complaint counts.</li>
+</ul>
+<p>Write these into a one-page "baseline memo" and get it acknowledged by stakeholders. This single document prevents the most common post-implementation argument: "was it really that bad before?" Memories inflate; memos do not.</p>
+<h3 id="define-35-success-metrics-in-writing-in-advance">Define 3–5 success metrics, in writing, in advance</h3>
+<p>Pick a small set of metrics directly tied to the business case's promised benefits, each with a target and a measurement method:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Baseline</th>
+<th>Target (6 months)</th>
+<th>How measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Technician time on sample prep</td>
+<td>6.7 h/day</td>
+<td>≤ 2.0 h/day</td>
+<td>Weekly timesheet code, 4-week rolling avg</td>
+</tr>
+<tr>
+<td>Rework rate</td>
+<td>2.0% (50/2,500 samples)</td>
+<td>≤ 0.3%</td>
+<td>LIMS rework flag</td>
+</tr>
+<tr>
+<td>Throughput</td>
+<td>200 samples/day</td>
+<td>≥ 260/day</td>
+<td>Instrument logs</td>
+</tr>
+<tr>
+<td>Cost per sample (all-in)</td>
+<td>$7.20</td>
+<td>≤ $4.50</td>
+<td>Monthly cost ÷ samples</td>
+</tr>
+<tr>
+<td>Staff satisfaction (tedium score)</td>
+<td>3.8/10</td>
+<td>≥ 6/10</td>
+<td>Quarterly 3-question pulse survey</td>
+</tr>
+</tbody>
+</table>
+<p>Note the discipline: every metric has a baseline, a target, and a method. "Improve efficiency" is not a metric; "technician hours per day on prep, from timesheet code PREP" is.</p>
+<h3 id="the-30-60-90-review-rhythm">The 30-60-90 review rhythm</h3>
+<ul>
+<li><strong>Day 30:</strong> Is it installed, running, and safe? Are operators trained? Fix installation issues; do not judge benefits yet (the learning curve from Chapter 3 is in effect).</li>
+<li><strong>Day 90:</strong> First real benefit reading. Compare metrics to baseline. Expect 50–70% of target — the system is still being tuned and people are still learning.</li>
+<li><strong>Day 180:</strong> The verdict review. Benefits should be at or near target. Decide: expand, adjust, or exit.</li>
+<li><strong>Annually:</strong> Recompute TCO actuals vs. projection; update the cost-per-unit; feed lessons into the next business case.</li>
+</ul>
+<p>Put these dates in the calendar at approval time, with named owners. Reviews that are not scheduled do not happen.</p>
+<h3 id="when-results-miss-the-target-the-honest-playbook">When results miss the target: the honest playbook</h3>
+<p>Suppose at Day 180, technician time fell only to 3.5 h/day (target 2.0). Do not hide it — diagnose it:</p>
+<ol>
+<li><strong>Was the baseline wrong?</strong> (The 6.7 h/day included tasks the automation was never meant to touch.)</li>
+<li><strong>Is adoption incomplete?</strong> (Two of five technicians still do the old manual steps "to be safe" — a training/trust problem, fixable.)</li>
+<li><strong>Is the system underperforming?</strong> (The vendor's throughput claim assumed ideal samples; invoke the acceptance-test clause.)</li>
+<li><strong>Did the world change?</strong> (Sample mix shifted to harder matrices; re-baseline fairly.)</li>
+</ol>
+<p>Each diagnosis has a different fix: re-scope, train, enforce the contract, or update targets transparently. What you must not do is quietly move the goalposts — stakeholders forgive missed targets explained honestly; they do not forgive discovered spin. Document the variance analysis in a one-page memo: target, actual, diagnosis, action, new target date.</p>
+<h3 id="the-benefits-ledger-keeping-score-over-years">The benefits ledger: keeping score over years</h3>
+<p>Maintain a simple running ledger — a spreadsheet with one row per quarter: projected benefit, actual benefit, variance, notes. Over two years this becomes institutional gold: your <em>next</em> business case will use <em>your own</em> measured data instead of vendor claims, and your estimates will get sharper every cycle. Organizations that keep benefits ledgers systematically outperform those that do not, for the simple reason that they learn. This is the "ongoing improvement" discipline at the heart of Goldratt's <em>The Goal</em> [3] and Deming's quality philosophy [7]: measure, compare, adjust, repeat.</p>
+<h3 id="knowing-when-to-exit">Knowing when to exit</h3>
+<p>Not every automation earns its keep. Set exit criteria in advance: "If cost per sample exceeds $6.00 for two consecutive quarters, we decommission and revert." Pre-committed exit rules prevent the sunk-cost fallacy (Chapter 1) from keeping zombie systems alive. Exiting is not failure — it is the system working: you made a measured bet, tracked it, and redeployed the resources. Write a one-page post-mortem capturing <em>why</em> (wrong volume forecast? vendor failure? process changed?) so the lesson compounds.</p>
+<h3 id="cheap-instrumentation-measuring-without-a-measurement-budget">Cheap instrumentation: measuring without a measurement budget</h3>
+<p>Tracking does not require expensive software. Use what already exists:</p>
+<ul>
+<li><strong>Instrument logs.</strong> Most analyzers, servers, and software tools already timestamp every run — export the logs monthly instead of buying a dashboard. A CSV export and a spreadsheet compute throughput, uptime, and error rates for free.</li>
+<li><strong>Timesheet codes.</strong> Add one project code per automated workflow ("PREP-AUTO") to the existing timesheet system. Fifteen seconds per entry buys you the labor metric forever.</li>
+<li><strong>The tally sheet.</strong> For error rates, a paper sheet on the bench where operators mark each defect with a stroke works embarrassingly well — it is how quality pioneers measured before computers, and it still works when computers are overkill. Transfer to a spreadsheet weekly.</li>
+<li><strong>Free survey tools.</strong> The quarterly pulse survey (Chapter 7) runs on any free form tool; keep the same five questions so quarters are comparable.</li>
+<li><strong>Calendar discipline.</strong> The tracking calendar from this chapter costs nothing: Day-30/90/180 reviews booked at approval time, with the metric owner named in the invite.</li>
+</ul>
+<p>Total instrumentation budget for most small projects: $0 and one hour a month. "We can't measure it" is almost never true; "we didn't set up the tally sheet" is the usual truth.</p>
+<h3 id="the-quarterly-one-pager-a-reporting-template">The quarterly one-pager: a reporting template</h3>
+<p>Each quarter, the metric owner produces one page:</p>
+<p><strong>Automation benefits review — Q3 (sample prep station)</strong>
+- Technician time on prep: baseline 6.7 h/day → target ≤2.0 → actual 2.3 (▲ improving; two technicians still on old steps — retraining scheduled)
+- Rework rate: 2.0% → target ≤0.3% → actual 0.4% (▲ near target)
+- Throughput: 200/day → target ≥260 → actual 285 (✔ exceeded)
+- Cost per sample: $7.20 → target ≤$4.50 → actual $4.10 (✔ exceeded)
+- Cumulative net benefit vs. projection: projected $41,500 → actual $44,200 (✔ +6.5%)
+- Decision: continue; expand pilot learnings to the evening shift next quarter.</p>
+<p>Six lines, honest arrows, one decision. File it where the business case lives — in two years this folder is the benefits ledger, the audit trail, and the evidence base for the next proposal.</p>
+<h3 id="benchmarking-are-we-good-or-just-better-than-before">Benchmarking: are we good, or just better than before?</h3>
+<p>Internal before/after is necessary but not sufficient — maybe everyone in your industry automated years ago and your "improvement" merely reaches average. Benchmark cheaply: vendor case studies (discount their numbers 30%, per optimism bias), published papers reporting cost-per-sample or throughput (Chapter 12's structure makes these findable), peer labs (a 20-minute call trades your numbers for theirs — most managers love comparing), and industry surveys from professional associations. Record one external benchmark per metric in your ledger ("industry median: $3.90/sample; we are at $4.10 — within 5%"). Benchmarks turn "we improved" into "we are competitive," which is what the next funding round actually asks.</p>
+<h3 id="variance-thresholds-when-to-escalate-vs-when-to-watch">Variance thresholds: when to escalate vs. when to watch</h3>
+<p>Not every miss deserves a fire drill. Set <strong>variance thresholds</strong> in advance: green (within 10% of target — watch), yellow (10–25% off — investigate and report), red (beyond 25% or two consecutive yellows — escalate with a recovery plan). Apply to both benefits and costs. Example: technician time target ≤2.0 h/day; actual 2.3 (15% over) → yellow: the owner investigates (found: two technicians on old steps), reports the fix and a re-check date. Without thresholds, every variance becomes either a panic or is ignored — thresholds make the response proportional and automatic. Put the threshold table on the same page as the metrics so nobody argues about what "off track" means mid-quarter.</p>
+<h3 id="the-annual-automation-audit-reviewing-the-whole-portfolio">The annual automation audit: reviewing the whole portfolio</h3>
+<p>Once a year, review <em>all</em> automations together — not just the new one. For each: actual vs. projected benefit, actual TCO vs. estimate, still the right tool (or has the process changed?), and the decision-log revisit triggers (Chapter 9). The audit routinely finds: a zombie system to retire (frees its maintenance budget), an underused capability to extend (the labeler can also date-stamp — a second benefit for near-zero cost), and calibration data for estimators (Chapter 3's post-project review, portfolio-wide). One page per system, one meeting, once a year — this is how an organization compounds its automation wisdom instead of relearning it project by project. File the audit summary with the year's budget papers; next year's business cases will cite it.</p>
+<h3 id="communicating-wins-the-internal-press-release">Communicating wins: the internal press release</h3>
+<p>Good results that nobody hears about might as well not have happened — the next automation proposal starts from zero credibility. After each successful review, publish a short internal note: what was automated, the before/after numbers, who did the work (name them — credit is the currency of future cooperation), and what is next. One page, plain language, with the chart. This does three things: it builds organizational appetite for the <em>next</em> project, it rewards the team publicly (morale — Chapter 7), and it creates a written record of competence that outlasts staff turnover. The dairy lab from Chapter 12 framed its Day-180 one-pager and hung it in the break room; two other departments requested automation assessments within a month. Success, advertised honestly, is contagious.</p>
+<h3 id="linking-tracking-to-performance-reviews">Linking tracking to performance reviews</h3>
+<p>Metrics nobody owns die; metrics tied to reviews live. When the business case names a metric owner, write the Day-90 and Day-180 targets into that person's objectives for the review cycle — not as a threat, but as recognition that delivering the benefit is real work deserving real credit. The operator who shepherds adoption, retrains colleagues, and hits the throughput target has done something promotable; the review should say so. Conversely, if targets are missed for reasons outside the owner's control (vendor failure, volume collapse), the variance analysis — not the person — takes the hit. Fair attribution keeps good people willing to own the next automation instead of hiding from accountability.</p>
+<p>One final habit separates mature automation programs from one-off projects: the <strong>annual benefits retrospective</strong> — a single meeting where metric owners present their ledgers side by side, the group identifies which estimation assumptions were systematically wrong, and the calibration table (Chapter 3) gets updated. Ninety minutes, once a year, turns twelve months of tracking into institutional learning that makes every future business case sharper than the last.</p>
+<blockquote>
+<p><strong>For your research:</strong> This chapter describes a longitudinal study design, and you should treat it as one. Baseline memo = pre-intervention measurement; 30-60-90 reviews = follow-up waves; variance analysis = results; benefits ledger = dataset. If you publish an automation intervention, this structure gives you a methods section ("baseline measured over n=40 cycles across 4 weeks; outcomes assessed at 90 and 180 days") that reviewers recognize as rigorous. Keep the raw logs — timesheets, instrument exports, survey responses — as supplementary data. Reproducibility applies to cost-benefit claims too, and a paper with open before/after datasets gets cited by everyone who follows.</p>
+</blockquote>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Record baselines (time, errors, throughput, cost, qualitative) in a memo <em>before</em> implementation.</li>
+<li>Define 3–5 success metrics with targets and measurement methods, in writing, in advance.</li>
+<li>Run 30-60-90 reviews plus annual TCO actuals; schedule them at approval time.</li>
+<li>When targets miss, diagnose honestly (baseline? adoption? system? changed world?) — never quietly move goalposts.</li>
+<li>Keep a quarterly benefits ledger; your own measured data beats vendor claims for the next decision.</li>
+<li>Set exit criteria in advance; decommissioning a failing automation is discipline, not defeat.</li>
+</ul>
+<hr />
+<h2 id="chapter-12-case-studies-automation-wins-and-hard-lessons">Chapter 12: Case Studies: Automation Wins and Hard Lessons</h2>
+<p>Theory is verified by stories. This chapter walks through four realistic composite cases — drawn from common patterns in small businesses and research labs — two wins and two hard lessons. Names and some details are illustrative composites, but the numbers follow the methods of Chapters 3–6, and each case ends with transferable principles. Read them as worked examinations of everything the book taught.</p>
+<h3 id="case-1-win-the-dairy-lab-that-stopped-drowning-in-paperwork">Case 1 (Win): The dairy lab that stopped drowning in paperwork</h3>
+<p><em>Setting:</em> a 12-person dairy quality lab testing 300 milk samples daily for a regional cooperative. <em>Problem:</em> results were transcribed from three analyzers into spreadsheets, then into certificates — 2.5 staff-hours daily, 1.8% transcription error rate, certificates routinely 2 days late, and two major customers threatening to leave over delays.</p>
+<p><em>What they did:</em> instead of buying new analyzers, they spent $18,000 on a LIMS integration: barcode-labeled sample cups, automatic instrument data capture, and one-click certificate generation. Build $18,000; annual run $4,800 (license + support); operator time 20 min/day.</p>
+<p><em>Measured results (Day 180 review):</em> transcription time fell from 2.5 to 0.3 hours/day (saving ~550 hours/year × $26/h = $14,300); errors fell from 1.8% to 0.1%, eliminating ~$9,000/year in rework and credits; certificate turnaround went from 2 days to same-day — and both threatening customers stayed, representing $120,000/year in retained revenue. Payback: under 4 months. Five-year NPV strongly positive.</p>
+<p><em>Why it worked:</em> they automated the <em>bottleneck</em> (Chapter 2's process map found it in data handling, not analysis); they sized the prize first; they measured baselines. The lesson: <strong>the highest-ROI automation is usually information plumbing, not shiny machinery.</strong></p>
+<h3 id="case-2-win-the-machine-shops-overnight-shift">Case 2 (Win): The machine shop's overnight shift</h3>
+<p><em>Setting:</em> a 20-person precision machine shop. Its CNC mills sat idle 14 hours a day. <em>Problem:</em> skilled machinists were the bottleneck; hiring more was slow and expensive.</p>
+<p><em>What they did:</em> $95,000 for robotic part loaders on two mills plus fixturing — enabling unattended overnight runs. Build $95,000; annual maintenance $11,000; operator time 1 hour/day loading.</p>
+<p><em>Measured results:</em> each mill gained ~9 productive hours/day. At $85/hour machine rate and 60% utilization of the new hours, incremental margin ≈ $85 × 9 × 0.6 × 250 days × 2 mills = $229,500/year. Even after discounting for imperfect utilization (they achieved ~45%, not 60%), the payback was under 8 months. The shop took on aerospace work it previously had to refuse — a strategic benefit (Chapter 7) worth more than the direct margin.</p>
+<p><em>Why it worked:</em> they bought <em>throughput they could sell</em> (demand existed); marginal thinking (Chapter 1) — the robots did not replace machinists, they multiplied them; and they piloted on two mills before equipping all six. The lesson: <strong>automate to multiply scarce talent, and let unmet demand — not enthusiasm — justify capacity.</strong></p>
+<h3 id="case-3-hard-lesson-the-warehouse-that-automated-the-wrong-process">Case 3 (Hard lesson): The warehouse that automated the wrong process</h3>
+<p><em>Setting:</em> a mid-size e-commerce fulfillment warehouse, 2,000 orders/day. <em>Problem:</em> packing errors (wrong items) at 2.5%, costing $6/order in reshipping — $50,000/year.</p>
+<p><em>What they did:</em> management bought a $220,000 automated pick-to-light system to speed picking, assuming faster picking would cut errors. Build $220,000; integration $45,000; annual maintenance $28,000.</p>
+<p><em>What happened:</em> picking got 30% faster — but errors <em>rose</em> to 3.1%, because the root cause was upstream: purchase orders with ambiguous SKUs and a receiving process that mislabeled inbound stock. The automation faithfully and rapidly picked the wrong items. At the Day 180 review, error costs had grown to $62,000/year. The system was eventually kept (the speed helped during peak season), but the payback stretched past 5 years and the error problem required a separate $30,000 data-cleanup project — the project that should have come first.</p>
+<p><em>The lesson:</em> <strong>never automate a broken process</strong> (Chapters 1–2). The process map would have shown errors originating in receiving, not picking. Effectiveness before efficiency: fix the data, then automate the motion. The team now runs a "fix-first" rule: no automation budget until the process owner certifies the underlying process is sound.</p>
+<h3 id="case-4-hard-lesson-the-research-groups-beautiful-robot-nobody-used">Case 4 (Hard lesson): The research group's beautiful robot nobody used</h3>
+<p><em>Setting:</em> a university analytical chemistry group won a $150,000 equipment grant and bought a state-of-the-art robotic sample handler. <em>Problem it was meant to solve:</em> vaguely, "increase throughput."</p>
+<p><em>What happened:</em> the robot required samples in a specific rack format; the group's diverse projects used six different formats. Converting formats took longer than manual handling. The PhD student assigned to "own" the robot graduated; no one else learned the software. Within 18 months it was a $150,000 drying rack. TCO analysis after the fact: $150,000 + $22,000/year service contract + ~$18,000 in wasted staff time = roughly $200,000 for zero benefit.</p>
+<p><em>The autopsy (what the risk register would have caught):</em> no measured baseline or defined problem (Chapter 11 violated); adoption risk unaddressed — single point of expertise, no training plan (Chapter 8, risk #5); the purchase was technology-led, not process-led (Chapter 2 violated — no process map, no scoring); and grant money felt "free," short-circuiting the cost-benefit discipline (sunk-cost and mental-accounting biases, Chapter 1).</p>
+<p><em>The lesson:</em> <strong>grants and budgets do not suspend economics.</strong> The group now requires every equipment purchase over $10,000 to include a one-page business case (Chapter 10) with baseline metrics and a named owner responsible for Day-90 results — a policy other departments have copied.</p>
+<h3 id="patterns-across-the-cases">Patterns across the cases</h3>
+<p>Winners share four traits: (1) they started from a mapped, measured process and attacked the bottleneck; (2) they sized the prize before spending; (3) they piloted and tracked against baselines; (4) a named human owned the outcome. Failures share four mirror traits: (1) technology-led rather than process-led; (2) no baseline, so no accountability; (3) the real problem (bad data, no adoption plan) sat outside the automation's scope; (4) "free" money or executive enthusiasm bypassed analysis.</p>
+<p>Put differently: the methods in this book are not bureaucratic overhead. They are the difference between Case 1 and Case 4.</p>
+<h3 id="case-5-win-the-clinic-that-automated-its-reminders">Case 5 (Win): The clinic that automated its reminders</h3>
+<p><em>Setting:</em> a 6-dentist practice, 40 appointments/day, 15% no-show rate. <em>Problem:</em> empty chairs — 6 per day at $120 average visit value — plus a receptionist spending 90 minutes daily on reminder calls.</p>
+<p><em>What they did:</em> a $2,400/year automated SMS reminder system plus online rescheduling. Build cost under $1,000 (setup + staff training); no hardware.</p>
+<p><em>Measured results (Day 180 review):</em> no-shows fell from 15% to 8%; recovered appointments averaged 2.5 filled slots/day × $120 × 300 days = $90,000/year in revenue (Chapter 4's walkthrough, now confirmed with real data — actual came in at $83,000, within 8% of projection); receptionist phone time fell from 90 to 20 minutes/day, redeployed to insurance follow-ups that recovered another $12,000/year in denied claims. Total first-year benefit ≈ $95,000 against ~$3,400 cost. Payback: under two weeks.</p>
+<p><em>Why it worked:</em> the process was already sound (scheduling worked; patients just forgot) — automation amplified a healthy process rather than accelerating a broken one. The benefit was measured against a clean baseline (appointment logs), the cost was trivially small, and the revenue side — not labor savings — carried the case. The lesson: <strong>when the process is healthy and the volume is high, even the simplest automation can be the highest-ROI project in the building.</strong> The clinic now applies the same before/after discipline to every software purchase.</p>
+<h3 id="case-6-hard-lesson-the-startup-that-automated-everything-at-once">Case 6 (Hard lesson): The startup that automated everything at once</h3>
+<p><em>Setting:</em> a 15-person logistics startup, growing fast, drowning in manual coordination. <em>Problem:</em> real — dispatchers working 12-hour days, error rates climbing.</p>
+<p><em>What they did:</em> everything, simultaneously. Over six months they bought a routing optimizer ($45,000/year), built a custom driver app ($120,000 in contractor fees), automated customer notifications ($18,000/year), and installed warehouse sensors ($35,000) — four projects, no pilots, no baselines, one overwhelmed operations manager "owning" all of them.</p>
+<p><em>What happened:</em> the routing optimizer fought the driver app (conflicting instructions to drivers); the notification system sent customers ETAs from the old manual estimates, now wrong more often; sensor data had no dashboard, so nobody looked at it. Support tickets tripled. Two dispatchers quit — the humans who had held the manual process together. Eighteen months and ~$280,000 later, the company ripped out two systems, kept two, and rebuilt the manual dispatch board as the fallback nobody had kept.</p>
+<p><em>The autopsy:</em> every method in this book was violated at once — no process map (they automated four interacting workflows blind), no sequencing (Chapter 2: attack the bottleneck <em>first</em>), no pilots (Chapter 10's phased ask), no baselines (Chapter 11), change overload (Chapter 8's adoption risk, multiplied by four), and sunk-cost escalation kept all four alive months past the point of evident failure (Chapter 1). Any <em>one</em> of these projects, done alone with a pilot and metrics, might have succeeded; together they interfered.</p>
+<p><em>The lesson:</em> <strong>automation is a portfolio, not a shopping spree — sequence it.</strong> One bottleneck, one pilot, one set of metrics, then the next. The constraint is never the technology budget; it is the organization's capacity to absorb change. Size your automation program to your change capacity, and the wins compound; exceed it, and the projects eat each other.</p>
+<h3 id="patterns-across-the-cases-revisited">Patterns across the cases (revisited)</h3>
+<p>Six cases, one meta-pattern: <strong>the winners managed the human and process side with the same rigor as the financial side, and the losers treated automation as a purchase instead of a change.</strong> Cases 1, 2, and 5 mapped the process, measured the baseline, piloted, and named an owner. Cases 3, 4, and 6 bought technology into broken processes, unmeasured workflows, or overloaded organizations. The spreadsheet never saved a bad change plan, and a good change plan never needed a perfect spreadsheet. Do both — that is what the twelve chapters were for.</p>
+<h3 id="your-turn-the-case-study-checklist">Your turn: the case-study checklist</h3>
+<p>When you write up your own automation project — for a report, a paper, or the next business case — run this checklist:</p>
+<ol>
+<li><strong>Setting</strong> — organization type and size, the workflow, why it mattered. (2–3 sentences)</li>
+<li><strong>Baseline</strong> — measured before-state with sample sizes and dates. No baseline, no case.</li>
+<li><strong>Intervention</strong> — what was built/bought, full costs (build/run/maintain), timeline.</li>
+<li><strong>Results</strong> — measured after-state at defined review points; targets vs. actuals.</li>
+<li><strong>Variance analysis</strong> — where reality differed from projection, and why (diagnosed honestly).<

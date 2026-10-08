@@ -1,0 +1,538 @@
+<h1 id="iot-fundamentals-devices-sensors-networks">IoT Fundamentals: Devices, Sensors, Networks</h1>
+<p><strong>Book 29 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover — connected IoT devices" src="/learn/images/book-29-cover.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>This book is a deep, practical introduction to the Internet of Things (IoT) for MS and PhD students and early researchers. Many theses today — in agriculture, environment, health, energy, and smart cities — depend on sensor data. Yet most students learn IoT in fragments: a sensor here, a protocol there, a dashboard somewhere else. This book connects the fragments into one coherent picture: how a physical quantity becomes an electrical signal, how that signal becomes a number inside a microcontroller, how the number travels over a network, and how it finally becomes a decision or a published result.</p>
+<p>You do not need electronics experience to follow this book. Every concept is explained in plain language first, then tied to real components you can actually buy and to research questions you can actually publish on. The book is deliberately hardware-grounded: it names the parts (ESP32, DHT22, LoRa modules, relays, MQTT brokers), compares them honestly, and shows you how to reason about trade-offs — range versus power, cost versus accuracy, edge versus cloud — the way reviewers and supervisors expect a researcher to reason.</p>
+<p><strong>Learning objectives.</strong> By the end of this book, you will be able to:</p>
+<ol>
+<li>Define IoT precisely and describe its standard architecture layers, from perception to application.</li>
+<li>Explain how common sensors (temperature, humidity, motion, gas, light) convert physical quantities into electrical signals.</li>
+<li>Select an appropriate sensor for a research experiment using accuracy, cost, and interface criteria.</li>
+<li>Describe how actuators (relays, DC motors, servos) are driven from a microcontroller and why power isolation matters.</li>
+<li>Compare ESP32, Arduino boards, and Raspberry Pi on processing power, networking, power consumption, and use case.</li>
+<li>Evaluate connectivity options (Wi-Fi, Bluetooth/BLE, LoRa/LoRaWAN, Zigbee, cellular) using range, power, and data-rate trade-offs.</li>
+<li>Explain MQTT publish/subscribe in depth and contrast it with HTTP and CoAP.</li>
+<li>Decide where computation should happen (edge vs cloud) for a given research scenario.</li>
+<li>Trace a complete IoT data pipeline from sensor reading to dashboard, including timestamping, buffering, and storage.</li>
+<li>Design a complete, budgeted IoT research prototype — parts list, wiring plan, and data plan — suitable as a thesis proposal appendix.</li>
+</ol>
+<hr />
+<h2 id="chapter-1-what-is-the-internet-of-things">Chapter 1: What Is the Internet of Things?</h2>
+<h3 id="11-a-working-definition">1.1 A working definition</h3>
+<p>The <strong>Internet of Things (IoT)</strong> is the network of physical objects — "things" — that are embedded with sensors, software, and connectivity so they can collect data and exchange it with other systems over the internet. The crucial word is <em>things</em>: not laptops and phones, but thermostats, soil probes, street lamps, water meters, door locks, industrial motors, and livestock tags. What makes them "IoT devices" is that they <em>sense the physical world</em>, <em>communicate digitally</em>, and usually <em>act on it</em> in some way.</p>
+<p>A narrower definition used in research papers is helpful because it sets a boundary: an IoT system is a system in which <strong>physical-world measurements are digitized at the source, transmitted over a network, and used for monitoring, analysis, or automated control</strong>, with human intervention optional. Keep this definition in mind — it distinguishes genuine IoT from a device that merely has Wi-Fi (like a connected toothbrush app, which is really just Bluetooth telemetry).</p>
+<h3 id="12-a-brief-history">1.2 A brief history</h3>
+<p>IoT did not arrive suddenly; it is the convergence of several older threads.</p>
+<ul>
+<li><strong>1980s–1990s: embedded systems and machine-to-machine (M2M).</strong> Industrial controllers (PLCs), vending machines, and SCADA systems already exchanged data with central servers, usually over wired or dial-up links. This was IoT without the internet ubiquity.</li>
+<li><strong>1999: the term "Internet of Things."</strong> Kevin Ashton of Procter &amp; Gamble coined the phrase while working on RFID supply-chain tracking — he argued that computers needed their own way to "see" the world through sensors, rather than relying on data typed in by humans.</li>
+<li><strong>2000s: RFID and wireless sensor networks.</strong> Researchers built "motes" — tiny battery-powered sensor nodes that formed mesh networks. Projects like Great Duck Island (2002, habitat monitoring) showed that low-power wireless sensing worked in the field, but batteries and fragile radios were the pain points.</li>
+<li><strong>2008–2014: the smartphone dividend.</strong> MEMS sensors (accelerometers, gyroscopes), cheap microcontrollers, and cheap wireless radios became abundant because phones drove their prices down. The Arduino ecosystem made prototyping accessible to non-engineers, and the ESP8266 (released 2014) put Wi-Fi on a board costing a few dollars — arguably the single event that made hobbyist and research IoT practical.</li>
+<li><strong>2015–2020: cloud IoT platforms.</strong> Major cloud providers offered managed IoT services (device registration, MQTT brokers, time-series storage), which let researchers deploy at scale without building infrastructure.</li>
+<li><strong>2020s: edge AI and LPWAN maturity.</strong> LoRaWAN networks matured for long-range low-power sensing; tiny machine-learning models ("TinyML") started running directly on microcontrollers; 5G and NB-IoT addressed industrial and wide-area needs.</li>
+</ul>
+<h3 id="13-scale-why-researchers-care">1.3 Scale — why researchers care</h3>
+<p>Industry analysts have repeatedly estimated tens of billions of connected IoT devices worldwide, with forecasts in the range of 30 billion+ devices by 2030 (estimates vary by source, so always cite the specific forecast you use). The exact number matters less than the trend: sensing is becoming the cheapest way to obtain ground-truth data about the physical world. For a researcher, this changes the economics of data collection. A decade ago, a year of hourly soil-moisture readings from a farm meant manual visits or expensive data loggers. Today it means a €/$30 node and a spreadsheet of 8,760 timestamped rows. When data collection becomes cheap, the research bottleneck moves from <em>collecting data</em> to <em>asking the right questions about it</em> — which is exactly where you, as a researcher, add value.</p>
+<h3 id="14-the-standard-architecture-layers-of-an-iot-system">1.4 The standard architecture: layers of an IoT system</h3>
+<p>Nearly every IoT paper and system diagram uses some version of a <strong>layered architecture</strong>. The four-layer model below is the one most textbooks and papers use; learn it, because it gives you a vocabulary for your methodology chapter.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Perception (device) layer</strong></td>
+<td>Senses the physical world and performs physical actions</td>
+<td>Temperature sensors, soil probes, cameras, relays, motors</td>
+</tr>
+<tr>
+<td><strong>Network (transport) layer</strong></td>
+<td>Moves data between devices and the rest of the system</td>
+<td>Wi-Fi, LoRa, BLE, Zigbee, cellular, MQTT, CoAP</td>
+</tr>
+<tr>
+<td><strong>Processing (middleware/edge-cloud) layer</strong></td>
+<td>Stores, cleans, aggregates, and analyzes data; runs rules and models</td>
+<td>Gateways, MQTT brokers, time-series databases, cloud functions, ML models</td>
+</tr>
+<tr>
+<td><strong>Application layer</strong></td>
+<td>Delivers value to users: dashboards, alerts, automation rules, reports</td>
+<td>Web dashboards, mobile apps, SMS alerts, automated irrigation schedules</td>
+</tr>
+</tbody>
+</table>
+<p>Some models split the processing layer into <strong>edge</strong> (processing on or near the device) and <strong>cloud</strong> (processing on remote servers) — Chapter 7 covers that decision in depth. Others add a <strong>business layer</strong> on top (billing, analytics-as-a-service). For your thesis, the four-layer model is usually sufficient, and drawing your system on it shows the reviewer you understand the full stack.</p>
+<h3 id="15-iot-vs-related-concepts">1.5 IoT vs related concepts</h3>
+<ul>
+<li><strong>IoT vs M2M (machine-to-machine):</strong> M2M is device-to-device communication, often closed and proprietary. IoT adds internet protocols, interoperability, and data analytics.</li>
+<li><strong>IoT vs WSN (wireless sensor networks):</strong> A WSN is the <em>networking layer</em> of an IoT system — the nodes and radios. IoT is the full stack from sensor to application.</li>
+<li><strong>IoT vs cyber-physical systems (CPS):</strong> CPS emphasizes tight feedback loops between computation and physical processes (e.g., an autonomous drone). All CPS are IoT-adjacent, but not all IoT has real-time control.</li>
+<li><strong>IoT vs embedded systems:</strong> An embedded system is a computer inside a device (a washing-machine controller). It becomes IoT when it connects to a network and participates in a larger data system.</li>
+</ul>
+<h3 id="16-why-iot-is-a-research-goldmine-for-students">1.6 Why IoT is a research goldmine for students</h3>
+<p>IoT sits at the intersection of <em>cheap hardware</em> and <em>hard problems</em>: calibration, reliability, power, security, and scale are all unsolved in practice. This means a student with a few hundred dollars of hardware can produce a publishable contribution — a better calibration method for low-cost sensors, an energy-saving transmission schedule, a comparison of two protocols on real hardware. Your advantage over industry is not budget; it is the patience to measure carefully and the obligation to report honestly, including failures. Reviewers value that.</p>
+<h3 id="17-iot-verticals-where-the-research-lives">1.7 IoT verticals: where the research lives</h3>
+<p>IoT is not one market but many, each with its own constraints and publication venues:</p>
+<ul>
+<li><strong>Smart agriculture:</strong> soil sensing, irrigation control, livestock tracking, greenhouse automation. Constraints: no power, no connectivity, harsh weather, cost per node critical. This is the most accessible vertical for student research — a farm is a willing testbed and the problems are real.</li>
+<li><strong>Environmental monitoring:</strong> air quality, water quality, noise, flood detection. Constraints: calibration against reference instruments, long unattended durations, public-data credibility. Strong fit for thesis work because the data has civic value.</li>
+<li><strong>Smart buildings/cities:</strong> occupancy, energy metering, HVAC optimization, street lighting, waste management. Constraints: working around existing infrastructure, stakeholder permissions, privacy.</li>
+<li><strong>Industrial IoT (IIoT):</strong> predictive maintenance (vibration, temperature of machinery), asset tracking, process control. Constraints: reliability demands, safety certification, legacy equipment integration. Harder for students to access, but case studies with a local factory are gold.</li>
+<li><strong>Healthcare/wearables:</strong> vital-sign monitoring, fall detection, medication adherence. Constraints: medical accuracy requirements, ethics approval, privacy regulation. High impact, high bar.</li>
+<li><strong>Smart home:</strong> the most crowded space — thermostats, locks, energy plugs. Fine for learning, weak for novel research unless you address security or energy.</li>
+</ul>
+<p>Pick a vertical early. It determines your test site, your reference instruments, and which journals will care about your results.</p>
+<h3 id="18-standards-and-governance-know-the-names">1.8 Standards and governance (know the names)</h3>
+<p>IoT's alphabet soup of standards bodies matters when you write related work:</p>
+<ul>
+<li><strong>oneM2M:</strong> a global partnership developing a common service layer for M2M/IoT — the "write once, run on any network" vision.</li>
+<li><strong>W3C Web of Things (WoT):</strong> describes devices with machine-readable "Thing Descriptions" so different ecosystems interoperate. If your thesis touches interoperability, cite WoT.</li>
+<li><strong>ITU-T:</strong> the UN telecom agency's IoT work (notably the Y.4000 series recommendations defining IoT reference models).</li>
+<li><strong>IETF:</strong> maintains CoAP, 6LoWPAN, and other constrained-device protocols (RFCs you can cite directly).</li>
+<li><strong>LoRa Alliance / CSA (Connectivity Standards Alliance, formerly Zigbee Alliance):</strong> industry alliances behind LoRaWAN and Matter/Zigbee.</li>
+</ul>
+<p>You don't need to master these, but dropping the right standard into your related-work section signals literacy to reviewers.</p>
+<h3 id="19-architecture-variants-3-layer-vs-5-layer">1.9 Architecture variants: 3-layer vs 5-layer</h3>
+<p>The four-layer model in §1.4 is the teaching standard, but papers vary:</p>
+<ul>
+<li><strong>3-layer (perception / network / application):</strong> the simplest; fine for small systems where processing is trivial.</li>
+<li><strong>5-layer (perception / transport / processing / application / business):</strong> adds an explicit business layer (billing, user management, analytics products) — common in commercial IoT platform papers.</li>
+</ul>
+<p>Choose the model that fits your system and <em>say which one you use</em>. A methodology sentence like "We adopt the four-layer IoT architecture (perception, network, processing, application)…" costs nothing and prevents reviewer confusion.</p>
+<h3 id="110-iot-data-volume-velocity-variety">1.10 IoT data: volume, velocity, variety</h3>
+<p>IoT data has the classic "big data" traits, and naming them helps you design for them:</p>
+<ul>
+<li><strong>Volume:</strong> a single vibration sensor at 1 kHz produces 86 million samples a day. You cannot store everything raw — aggregation and retention policies (Chapter 8) are mandatory, not optional.</li>
+<li><strong>Velocity:</strong> readings arrive continuously; your ingestion must keep up in real time. Design for peak rate, not average.</li>
+<li><strong>Variety:</strong> numeric time series, images, audio, event logs, GPS tracks — your storage and schema must handle mixed types.</li>
+<li><strong>Veracity:</strong> sensors lie (drift, noise, failures) — data-quality pipelines (Chapter 11) exist because of this trait.</li>
+<li><strong>Value:</strong> most raw readings are boring; the value is in the exceptions and aggregates. "Send insights, not raw streams" (Chapter 7) is the design response.</li>
+</ul>
+<p>A thesis methodology that names these traits for its own data ("our deployment generates ~2.7 M readings; we retain raw for 90 days…") shows the reviewer you understand scale.</p>
+<h3 id="111-the-economics-that-make-iot-research-possible">1.11 The economics that make IoT research possible</h3>
+<p>Put numbers on why this book's approach works for students: a research-grade sensing point (ESP32 + digital sensor + enclosure + power) costs roughly $15–40 in parts. A 20-node deployment is $300–800 — within a typical MS thesis budget. The expensive parts of research IoT are not the parts: they're your time (firmware, calibration, field visits) and the reference instruments (borrowed, rented, or accessed via public data). Budget your <em>time</em> the way Chapter 12 budgets parts: 2–4 weeks build, 1–2 weeks bench calibration, deployment, then months of mostly-automated collection while you read literature and write. The hardware works while you sleep — that is the economic miracle of IoT research.</p>
+<p><strong>For your research:</strong> IoT papers in indexed journals typically contribute in one of these ways: (1) a novel low-cost sensing setup validated against reference instruments; (2) an energy-efficiency improvement with measured battery life; (3) a comparative evaluation of protocols/platforms on real hardware; (4) a dataset collected over weeks/months and released publicly; (5) a deployed system in a real environment (farm, hospital ward, building) with lessons learned. Before you start, pick which lane your work will be in — it shapes everything from your parts list to your literature review.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>IoT = physical things that sense, communicate, and act, connected through internet protocols.</li>
+<li>The field grew from M2M/SCADA through RFID, wireless sensor networks, cheap Wi-Fi microcontrollers, and cloud platforms.</li>
+<li>Learn the four-layer architecture (perception → network → processing → application); it structures every IoT paper and thesis.</li>
+<li>Cheap hardware moved the research bottleneck from data collection to good questions — your comparative advantage.</li>
+</ul>
+<hr />
+<h2 id="chapter-2-sensors-the-eyes-and-ears">Chapter 2: Sensors — The Eyes and Ears</h2>
+<p><img alt="Common sensor types" src="/learn/images/book-29-ch2-sensors.webp" /></p>
+<h3 id="21-what-a-sensor-actually-does">2.1 What a sensor actually does</h3>
+<p>A sensor converts a <strong>physical quantity</strong> (temperature, pressure, light, motion) into an <strong>electrical signal</strong> (usually a voltage or current) that electronics can process. That signal is then converted to a <strong>digital number</strong> by an <strong>analog-to-digital converter (ADC)</strong>, and the microcontroller turns the number into a measurement using a calibration formula.</p>
+<p>This chain — <em>physical → electrical → digital → calibrated value</em> — is the foundation of every IoT measurement. Whenever a reading looks wrong, walk the chain backwards: Is the physical stimulus reaching the sensor (blocked vent? sensor in sunlight?)? Is the electrical signal sane (check with a multimeter)? Is the digital conversion configured correctly (ADC resolution, reference voltage)? Is the calibration formula right? Roughly 80% of "broken sensor" problems are in the physical setup, not the chip.</p>
+<p>Two sensor families matter most:</p>
+<ul>
+<li><strong>Analog sensors</strong> output a continuously varying voltage. Example: a TMP36 temperature sensor outputs 750 mV at 25 °C, changing by 10 mV per °C. You read it with the ADC and compute temperature from the voltage. Analog sensors are cheap but sensitive to electrical noise and supply-voltage drift.</li>
+<li><strong>Digital sensors</strong> contain their own ADC and signal conditioning, and report numbers over a digital interface (I²C, SPI, UART, or a one-wire protocol). Example: the DHT22 reports temperature and humidity as digital values. They cost slightly more but are far easier to use reliably, and most research prototypes should prefer them.</li>
+</ul>
+<h3 id="22-how-the-common-sensors-work">2.2 How the common sensors work</h3>
+<h4 id="temperature-sensors">Temperature sensors</h4>
+<ul>
+<li><strong>Thermistors (NTC/PTC):</strong> resistors whose resistance changes strongly with temperature. NTC thermistors drop in resistance as they heat up. They are cheap and sensitive, but the resistance–temperature curve is nonlinear, so you need a lookup table or the Steinhart–Hart equation to convert. Common in 3D printers and HVAC.</li>
+<li><strong>RTDs (e.g., PT100):</strong> platinum resistors with a nearly linear, very stable response. The reference standard for accurate temperature measurement (industrial, laboratory). More expensive and need careful analog circuitry.</li>
+<li><strong>Thermocouples:</strong> two joined dissimilar metals produce a small voltage proportional to the temperature difference (Seebeck effect). They measure very high temperatures (furnaces, engines) but need a "cold-junction compensation" circuit and an amplifier.</li>
+<li><strong>Digital temperature ICs (DS18B20, DHT22, SHT-series):</strong> a temperature-sensing element plus ADC and digital interface in one package. The <strong>DS18B20</strong> (±0.5 °C accuracy, one-wire bus, waterproof probe versions exist) is the workhorse for research fieldwork because you can put many on one wire and dunk them in water or soil.</li>
+</ul>
+<h4 id="humidity-sensors">Humidity sensors</h4>
+<p>Most humidity sensors are <strong>capacitive</strong>: a polymer film absorbs water vapor, changing its capacitance, which an on-chip circuit converts to relative humidity (RH). The <strong>DHT11</strong> (cheap, ±5% RH, slow) and <strong>DHT22/AM2302</strong> (±2–5% RH, wider range) are the common hobbyist parts; the <strong>SHT31/SHT35</strong> family offers better accuracy (±2% RH) and an I²C interface. Key research fact: humidity sensors drift over time and are contaminated by dust, condensation, and some gases — budget for periodic recalibration against a reference.</p>
+<h4 id="motion-and-presence-sensors">Motion and presence sensors</h4>
+<ul>
+<li><strong>PIR (passive infrared):</strong> detects changes in infrared radiation from warm bodies moving across its field of view. The classic white-domed sensor on security lights. Cheap and very low power, but it only detects <em>movement</em>, not presence — a person sitting still eventually becomes invisible to it. Range is typically several meters.</li>
+<li><strong>Ultrasonic (HC-SR04):</strong> emits sound pulses above human hearing and times the echo to measure distance (like a bat). Good for liquid-level measurement and parking sensors; accuracy suffers with soft or angled surfaces.</li>
+<li><strong>Microwave/Radar:</strong> emits radio waves and detects Doppler shift from movement. Sees through non-metallic walls — useful for occupancy detection but raises privacy considerations in human studies.</li>
+<li><strong>Accelerometers (MPU6050, ADXL345):</strong> MEMS chips that measure acceleration along axes, used for vibration monitoring, fall detection, and tilt sensing. Most modern ones report digitally over I²C.</li>
+</ul>
+<h4 id="gas-and-air-quality-sensors">Gas and air-quality sensors</h4>
+<ul>
+<li><strong>MQ-series (MQ-2, MQ-135, etc.):</strong> metal-oxide semiconductor sensors whose resistance changes in the presence of target gases (smoke, LPG, CO, general "air quality"). Very cheap and widely used in student projects — but they are <strong>not selective</strong> (MQ-135 responds to many gases), need a <strong>burn-in/warm-up period</strong> (the heater must stabilize, often 24–48 hours for stable baseline, minutes for rough readings), and give only <em>relative</em> readings unless carefully calibrated against a reference instrument. A common research contribution: characterizing and calibrating an MQ sensor against a reference for a specific environment.</li>
+<li><strong>NDIR CO₂ sensors (MH-Z19, SCD30):</strong> use nondispersive infrared absorption — CO₂ absorbs specific IR wavelengths, so measuring absorption gives a selective CO₂ reading. Far more trustworthy than MQ-series for CO₂; the SCD30 also reports temperature and humidity.</li>
+<li><strong>Particulate matter (PMS5003, SDS011):</strong> laser-scattering sensors that count particles to estimate PM2.5/PM10. Hugely popular for low-cost air-quality networks; research consistently shows they need humidity correction and collocation calibration against reference monitors.</li>
+</ul>
+<h4 id="light-sensors">Light sensors</h4>
+<ul>
+<li><strong>LDR (photoresistor):</strong> resistance falls as light increases. Extremely cheap, very nonlinear, slow — fine for "is it day or night" decisions, useless for precise lux measurement.</li>
+<li><strong>Photodiodes/phototransistors:</strong> faster, more linear; used with an amplifier circuit.</li>
+<li><strong>Digital ambient-light sensors (BH1750, TSL2561):</strong> report illuminance in lux over I²C with good linearity. Use these when your research needs real numbers.</li>
+</ul>
+<h3 id="23-sensor-selection-the-researchers-decision-table">2.3 Sensor selection: the researcher's decision table</h3>
+<table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>What to ask</th>
+<th>Why it matters for research</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Accuracy &amp; precision</strong></td>
+<td>What is the datasheet accuracy? What did independent tests find?</td>
+<td>Defines your error bars; reviewers will challenge uncalibrated claims</td>
+</tr>
+<tr>
+<td><strong>Range</strong></td>
+<td>Does it cover your expected conditions (e.g., −10 to 50 °C)?</td>
+<td>Out-of-range readings are silently wrong</td>
+</tr>
+<tr>
+<td><strong>Interface</strong></td>
+<td>Analog, I²C, SPI, UART, one-wire?</td>
+<td>Determines wiring complexity and how many sensors share a microcontroller</td>
+</tr>
+<tr>
+<td><strong>Power</strong></td>
+<td>Active current, sleep current, warm-up time</td>
+<td>Battery-life math (Chapter 10) depends on this</td>
+</tr>
+<tr>
+<td><strong>Response time</strong></td>
+<td>Seconds or minutes to react?</td>
+<td>Matters for control loops and event detection</td>
+</tr>
+<tr>
+<td><strong>Stability/drift</strong></td>
+<td>How fast does calibration degrade?</td>
+<td>Sets your recalibration schedule</td>
+</tr>
+<tr>
+<td><strong>Cost</strong></td>
+<td>Unit price × number of nodes</td>
+<td>Multi-node deployments multiply every dollar</td>
+</tr>
+<tr>
+<td><strong>Form factor</strong></td>
+<td>Waterproof? Probe-style?</td>
+<td>Field deployment reality check</td>
+</tr>
+</tbody>
+</table>
+<p>Golden rule: <strong>the datasheet is a starting claim, not a fact.</strong> For any measurement your paper depends on, collocate your sensor with a reference instrument (a calibrated thermometer, a borrowed data logger, a government air-quality station's public data) for at least a few days, and report the comparison. That single paragraph — "we validated against X, mean absolute error was Y" — is what separates a student demo from a research contribution.</p>
+<h3 id="24-a-data-flow-walkthrough-reading-a-dht22">2.4 A data-flow walkthrough: reading a DHT22</h3>
+<ol>
+<li><strong>Wire it:</strong> DHT22 has power (3.3–5 V), ground, and a single data pin connected to a microcontroller GPIO (with a pull-up resistor on many boards this is built into the module).</li>
+<li><strong>Request:</strong> the microcontroller pulls the data line low for ~1 ms, then releases it — this "wakes" the sensor.</li>
+<li><strong>Respond:</strong> the DHT22 sends 40 bits: 16 bits humidity, 16 bits temperature, 8 bits checksum.</li>
+<li><strong>Validate:</strong> the microcontroller checks the checksum; if it fails, the reading is discarded (never log failed checksums as data).</li>
+<li><strong>Convert:</strong> divide the raw integers by 10 → e.g., 456 → 45.6% RH, 231 → 23.1 °C.</li>
+<li><strong>Timestamp and store:</strong> attach the reading time (from an RTC or NTP) before sending or logging.</li>
+</ol>
+<p>Note the failure modes a researcher must handle: the DHT22 cannot be read more often than about once every 2 seconds; reading faster returns stale or failed data. Its humidity element is slow to respond to rapid changes. Document these limits in your methodology — they bound what your data can claim.</p>
+<h3 id="25-deep-dive-adc-resolution-and-quantization">2.5 Deep dive: ADC resolution and quantization</h3>
+<p>When an analog sensor meets a microcontroller, the ADC decides how finely the voltage is sliced. An <strong>n-bit ADC</strong> divides its reference voltage into 2ⁿ steps:</p>
+<table>
+<thead>
+<tr>
+<th>ADC resolution</th>
+<th>Steps</th>
+<th>Step size (3.3 V ref)</th>
+<th>Typical found in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10-bit</td>
+<td>1,024</td>
+<td>3.22 mV</td>
+<td>Arduino Uno</td>
+</tr>
+<tr>
+<td>12-bit</td>
+<td>4,096</td>
+<td>0.81 mV</td>
+<td>ESP32, most ARM MCUs</td>
+</tr>
+</tbody>
+</table>
+<p>For a TMP36 (10 mV/°C), a 12-bit ADC resolves ~0.08 °C per step — plenty. But resolution is not accuracy: electrical noise, reference-voltage drift, and the ESP32's known ADC nonlinearity mean the <em>usable</em> accuracy is worse than the step size suggests. Practical rules: average multiple readings (oversampling + averaging 16 samples buys ~2 extra bits of effective resolution and kills random noise), keep analog traces short and away from the Wi-Fi antenna, add a small capacitor at the ADC input to shunt high-frequency noise, and calibrate the ADC against known voltages at least at two points. If your paper's conclusions rest on analog readings, describe this signal chain — reviewers in instrumentation venues expect it.</p>
+<h3 id="26-deep-dive-digital-interfaces-i2c-spi-uart-1-wire">2.6 Deep dive: digital interfaces — I²C, SPI, UART, 1-wire</h3>
+<p>Digital sensors speak one of four languages; choosing among them is a wiring and scalability decision:</p>
+<ul>
+<li><strong>I²C (Inter-Integrated Circuit):</strong> two wires (SDA data, SCL clock) shared by many devices, each with a 7-bit address. Strengths: only 2 pins for dozens of sensors; weaknesses: short distances (centimeters to ~1 m reliably), address collisions (two identical sensors may share an address — check for address-select jumpers or use an I²C multiplexer). The default choice for on-board sensor clusters (SHT31 + BH1750 + pressure sensor on one bus).</li>
+<li><strong>SPI (Serial Peripheral Interface):</strong> four wires (MOSI, MISO, SCK, plus one chip-select per device). Faster than I²C, full-duplex, no address collisions — but each device costs a chip-select pin. Best for high-speed devices (SD cards, displays, fast ADCs).</li>
+<li><strong>UART (serial):</strong> two wires (TX/RX), point-to-point, the simplest to debug (you can watch it with a USB-serial adapter). Common for "smart" modules: GPS, PMS5003, MH-Z19, LoRa modules. Downside: one UART per device (most MCUs have 2–3).</li>
+<li><strong>1-wire (e.g., DS18B20):</strong> one data wire (+ power/ground) for many devices, each with a unique 64-bit factory ID. Brilliant for temperature probes distributed over meters of cable (soil profiles, building risers). Slower, and parasitic-power mode is finicky — power the probes properly in research deployments.</li>
+</ul>
+<p><strong>Pull-up resistors</strong> (typically 4.7 kΩ on I²C SDA/SCL and 1-wire data) are the #1 wiring gotcha: without them the bus floats and nothing works; many sensor modules include them, but stacking three modules can put pull-ups in parallel and overload the bus. When a sensor "isn't detected," check pull-ups and addresses with an I²C scanner sketch before anything else.</p>
+<h3 id="27-signal-conditioning-and-sensor-placement">2.7 Signal conditioning and sensor placement</h3>
+<p>Between the sensing element and the ADC often sits <strong>signal conditioning</strong>: amplification (tiny thermocouple voltages need ×100+ gain), filtering (RC low-pass to remove noise above your sampling rate), and protection (series resistors, clamping diodes against overvoltage). Digital modules hide this from you; analog designs expose it — another reason research prototypes favor digital sensors.</p>
+<p><strong>Placement is a measurement decision, not an afterthought:</strong> a temperature sensor in direct sun reads 10–15 °C high (use a radiation shield — a ventilated white enclosure); a humidity sensor near a heat source reads artificially low; a soil probe at the surface tracks evaporation, not root-zone moisture (bury at root depth, typically 15–30 cm for crops); a PM sensor next to a kitchen exhaust measures the kitchen, not the neighborhood. Photograph every placement and record heights, depths, and orientations — this metadata belongs in your thesis appendix and in the released dataset.</p>
+<p><strong>For your research:</strong> Pick one sensor your thesis will depend on. Find three independent sources (datasheet, a comparison article, a published paper that used it) and record: stated accuracy, measured accuracy in practice, known drift/failure modes, and calibration approach. This one-page "sensor dossier" becomes the measurement subsection of your methodology chapter and preempts the reviewer's hardest questions.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>Sensors convert physical → electrical → digital → calibrated value; debug failures by walking that chain backwards.</li>
+<li>Prefer digital sensors (I²C/one-wire) over analog for research prototypes — they are more reliable and easier to validate.</li>
+<li>MQ-series gas sensors are cheap but non-selective and need burn-in; NDIR and laser-scattering sensors are the trustworthy options for CO₂ and PM.</li>
+<li>Always validate against a reference instrument and report the error — that is what makes sensor work publishable.</li>
+</ul>
+<hr />
+<h2 id="chapter-3-actuators-making-things-move">Chapter 3: Actuators — Making Things Move</h2>
+<h3 id="31-sensing-is-only-half-the-story">3.1 Sensing is only half the story</h3>
+<p>An <strong>actuator</strong> converts an electrical signal back into physical action: switching a pump on, opening a valve, turning a motor, sounding an alarm. IoT systems that only <em>sense</em> are monitoring systems; systems that also <em>act</em> are control systems. Most impactful research deployments — automated irrigation, smart incubators, ventilation control — are control systems, and control is where the interesting research problems live (stability, timing, safety, energy trade-offs).</p>
+<p>The golden rule of actuation: <strong>a microcontroller's GPIO pins are signal sources, not power sources.</strong> A typical GPIO pin can safely supply on the order of 10–20 mA at 3.3 V — enough to light an LED, nowhere near enough to run a motor or a mains-powered pump. Every actuator circuit is therefore a two-part design: the microcontroller sends a <em>control signal</em>, and a separate <em>power stage</em> (relay, transistor, motor driver) switches the actual load current from its own power supply. Beginners who wire a motor directly to a GPIO pin destroy boards; researchers who understand the signal/power split design reliable systems.</p>
+<h3 id="32-relays-switching-the-big-stuff-safely">3.2 Relays: switching the big stuff safely</h3>
+<p>A <strong>relay</strong> is an electrically operated switch: a small current through its coil (or, in a relay <em>module</em>, a small signal to its driver circuit) magnetically closes contacts that can switch a much larger load — including mains AC (230 V) appliances like pumps, heaters, and lamps.</p>
+<ul>
+<li><strong>Electromechanical relay modules</strong> (the common blue "sugar-cube" boards) are cheap, handle AC and DC, and provide physical isolation between the control side and the load side. Downsides: mechanical wear (rated for ~100,000 operations), slow (tens of milliseconds), and they click audibly.</li>
+<li><strong>Solid-state relays (SSRs)</strong> switch with semiconductors: silent, fast, no wear, but they generate heat at high currents, have small leakage current, and cost more.</li>
+</ul>
+<p><strong>Safety — non-negotiable.</strong> Mains voltage can kill. Research prototypes switching AC must: use a proper relay module rated above the load current, keep AC wiring physically separated and enclosed, add a fuse, never leave mains prototypes running unattended, and follow your institution's electrical safety rules. If your experiment only needs low-voltage DC (a 12 V pump, a 5 V fan), prefer that — it removes the entire mains-safety problem. State your safety measures in the thesis; ethics/safety reviewers look for them.</p>
+<h3 id="33-motors-three-kinds-you-will-meet">3.3 Motors: three kinds you will meet</h3>
+<table>
+<thead>
+<tr>
+<th>Motor type</th>
+<th>How it works</th>
+<th>Control</th>
+<th>Typical IoT use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DC motor</strong></td>
+<td>Current through coils in a magnetic field spins the shaft; reverse polarity reverses direction</td>
+<td>Speed via PWM (pulse-width modulation), direction via an H-bridge driver (e.g., L298N, TB6612FNG)</td>
+<td>Pumps, fans, conveyors, simple robots</td>
+</tr>
+<tr>
+<td><strong>Servo motor</strong></td>
+<td>DC motor + gearbox + position feedback, sealed in one case; moves to a commanded angle</td>
+<td>PWM signal where pulse width encodes angle (typically 1–2 ms pulses → 0–180°)</td>
+<td>Valve positions, camera pan/tilt, door locks, robot joints</td>
+</tr>
+<tr>
+<td><strong>Stepper motor</strong></td>
+<td>Moves in discrete steps (commonly 200 steps/revolution) by energizing coils in sequence</td>
+<td>Step/direction pulses from a driver (e.g., A4988, DRV8825)</td>
+<td>Precise positioning: 3D printers, CNC, automated sampling arms</td>
+</tr>
+</tbody>
+</table>
+<p><strong>PWM</strong>, the control technique behind DC motor speed and servos, deserves a clear explanation: instead of lowering the voltage (wasteful and weak), the microcontroller switches the full voltage on and off rapidly — hundreds to thousands of times per second. The <em>duty cycle</em> (percentage of time ON) sets the average power: 50% duty cycle ≈ half speed. The motor's inertia smooths the pulses into continuous motion. This is efficient and precise, and it is implemented in hardware on most microcontrollers.</p>
+<h3 id="34-a-data-flow-walkthrough-automated-irrigation-node">3.4 A data-flow walkthrough: automated irrigation node</h3>
+<p>Here is how sensing and actuation combine in a classic research prototype — a soil-moisture-triggered irrigation node:</p>
+<ol>
+<li><strong>Sense:</strong> a capacitive soil-moisture probe (analog output) is read by the ESP32's ADC every 10 minutes. Capacitive probes are preferred over resistive ones because resistive probes corrode in soil within weeks.</li>
+<li><strong>Decide:</strong> the firmware compares the reading against a threshold (with <em>hysteresis</em> — e.g., turn pump ON below 30% moisture, OFF above 45% — so the pump doesn't chatter on and off at the boundary).</li>
+<li><strong>Actuate:</strong> the GPIO drives a relay module, which switches a 12 V DC water pump powered by a separate supply. An optoisolated relay module keeps the pump's electrical noise away from the microcontroller.</li>
+<li><strong>Report:</strong> each state change (pump ON/OFF, with timestamp and moisture value) is published over MQTT so the dashboard shows irrigation events.</li>
+<li><strong>Failsafe:</strong> a maximum run-time timer (e.g., 5 minutes) forces the pump off even if the sensor fails — because a stuck ON pump floods the field and ruins the experiment. Every actuator in a research deployment needs a failsafe; reviewers ask about them.</li>
+</ol>
+<h3 id="35-actuator-pitfalls-that-ruin-experiments">3.5 Actuator pitfalls that ruin experiments</h3>
+<ul>
+<li><strong>Power supply sag:</strong> motors and pumps draw large startup (inrush) currents that can brown-out the microcontroller, causing mysterious resets exactly when the pump starts. Fix: separate supplies (or a beefy shared one), thick wires, and capacitors near the motor driver.</li>
+<li><strong>Back-EMF:</strong> when a motor or relay coil switches off, its magnetic field collapses and generates a voltage spike that can damage electronics. Relay modules include protection; when driving raw coils or motors, use flyback diodes / proper driver ICs.</li>
+<li><strong>No feedback:</strong> open-loop control ("run pump for 60 seconds") assumes the world cooperates. Closed-loop control ("run until moisture reaches 45%") verifies the result. Research systems should be closed-loop wherever feasible, and should <em>log</em> both the command and the observed outcome.</li>
+<li><strong>Mechanical wear:</strong> relays, pumps, and valves have finite lives; log actuation counts so you can report duty statistics and replace parts before they fail mid-experiment.</li>
+</ul>
+<h3 id="36-deep-dive-switching-loads-with-transistors">3.6 Deep dive: switching loads with transistors</h3>
+<p>Relays are not the only power stage. For DC loads, a <strong>MOSFET</strong> (transistor) switch is cheaper, silent, faster, and longer-lived than a relay:</p>
+<ul>
+<li><strong>Low-side switching</strong> is the standard pattern: the load's positive terminal connects to the supply, its negative terminal connects to the MOSFET's drain, the MOSFET's source goes to ground, and the GPIO drives the gate. When the GPIO goes high, the MOSFET conducts and current flows through the load.</li>
+<li>Use <strong>logic-level N-channel MOSFETs</strong> (e.g., IRLZ44N type) that fully turn on at 3.3–5 V gate voltage — ordinary power MOSFETs need 10 V and will half-conduct (and overheat) on a GPIO signal.</li>
+<li>Add a <strong>gate resistor</strong> (~100 Ω) to limit inrush current into the gate capacitance, and a <strong>pull-down resistor</strong> (~10 kΩ) so the MOSFET stays off while the MCU boots (GPIOs float during boot — without the pull-down, motors can twitch on at power-up).</li>
+<li>For high-side switching or reversing DC motors, an <strong>H-bridge</strong> (four switches in an "H" arrangement, packaged in driver ICs like the TB6612FNG) lets current flow either direction through the motor — direction control plus PWM speed in one chip, with built-in flyback protection.</li>
+</ul>
+<p>Rule of thumb: MOSFET for DC loads under ~10 A where silence and speed matter; relay where you need AC switching or galvanic isolation; H-bridge driver IC for bidirectional motors.</p>
+<h3 id="37-deep-dive-servo-timing-and-pwm-details">3.7 Deep dive: servo timing and PWM details</h3>
+<p>Servo control is a precise timing protocol disguised as simplicity: every ~20 ms the MCU sends a pulse; a <strong>1.0 ms pulse commands 0°, 1.5 ms commands 90°, 2.0 ms commands 180°</strong> (conventions vary slightly by manufacturer — verify yours). The servo's internal circuitry measures the pulse width and drives its motor to the matching angle, holding position against load. Key facts for reliable use:</p>
+<ul>
+<li><strong>Power:</strong> even "micro" servos draw 500+ mA when moving against load and spike higher at stall. Power servos from a separate 5–6 V supply capable of several amps, never from the MCU's regulator — brown-out resets during servo moves are a classic beginner failure.</li>
+<li><strong>Jitter:</strong> software-generated PWM (bit-banging) jitters under interrupt load; use the MCU's <strong>hardware PWM/timer peripherals</strong> (ESP32's LEDC/MCPWM, Arduino's Servo library which uses hardware timers) for rock-steady positioning.</li>
+<li><strong>Range limits:</strong> commanding beyond a servo's mechanical range strains gears; calibrate min/max pulse widths for your specific servo and clamp commands in software.</li>
+<li><strong>Continuous-rotation servos</strong> trade position control for velocity control (1.5 ms = stop, wider/narrower = spin) — useful for wheels, useless for valves.</li>
+</ul>
+<h3 id="38-sizing-actuators-torque-current-and-duty">3.8 Sizing actuators: torque, current, and duty</h3>
+<p>Three numbers size every actuator choice:</p>
+<ol>
+<li><strong>Torque/force:</strong> the valve's required torque, the pump's head pressure, the robot arm's load — measure or estimate the real mechanical demand, then choose an actuator rated at <strong>2×</strong> that (the engineering margin covers friction, aging, and your estimation error).</li>
+<li><strong>Current:</strong> stall current (the maximum the actuator draws when blocked) sizes the power supply and driver — not the running current. A "12 V, 1 A" motor may draw 5 A at stall; size for stall.</li>
+<li><strong>Duty cycle:</strong> a pump rated for intermittent use will overheat in continuous service. Check the datasheet's duty rating against your control law's expected ON-time.</li>
+</ol>
+<p>Document all three in your methodology with the 2× margin stated explicitly — it shows the reviewer you engineered rather than guessed.</p>
+<h3 id="39-pumps-valves-and-the-fluid-control-toolkit">3.9 Pumps, valves, and the fluid-control toolkit</h3>
+<p>Most student control projects move fluids (irrigation, dosing, cooling). The standard parts:</p>
+<ul>
+<li><strong>Solenoid valves:</strong> electrically opened/closed valves for water/air lines. They come in <strong>normally-closed</strong> (safe default — power loss stops flow; use these) and normally-open variants, and need a minimum pressure differential on some models — check the specs against your gravity-fed vs pumped setup. Drive via relay or MOSFET like any DC load; add a flyback diode.</li>
+<li><strong>Peristaltic pumps:</strong> squeeze a tube to move liquid — the fluid never touches the pump mechanism, so they're ideal for dosing fertilizers or chemicals precisely and hygienically. Slow but accurate; great for research dosing rigs.</li>
+<li><strong>Diaphragm/submersible pumps:</strong> for moving larger volumes (irrigation, drainage). Size by <strong>head</strong> (vertical lift) and <strong>flow rate</strong> at that head — a pump rated 5 L/min at zero head may deliver 1 L/min lifting 2 meters.</li>
+<li><strong>Water hammer:</strong> suddenly closing a valve in a long pipe spikes pressure and can burst fittings. In larger rigs, close valves slowly (PWM ramp on a proportional valve) or add an arrestor. Even at student scale, mount plumbing securely.</li>
+</ul>
+<p><strong>Leak discipline:</strong> every fluid connection is a future leak. Use proper barbed fittings with hose clamps (not press-fit hope), put a drip tray with a water-leak sensor under indoor rigs, and for unattended operation add a <strong>flow meter or leak detector wired as an interlock</strong> — if flow occurs when no valve is commanded open, shut everything down and alert. A flooded lab is a memorable but unpublishable result.</p>
+<p><strong>For your research:</strong> If your thesis involves actuation, your methodology must describe: what is actuated, the control law (thresholds, hysteresis, timing), the failsafes, and the power architecture (separate supplies, driver ratings). "The pump turns on when soil is dry" is a demo description; "the pump activates when the 10-minute median moisture falls below 30% RH-equivalent, deactivates at 45%, with a 5-minute hardware watchdog and logged actuation events" is a research description.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>GPIO pins carry signals, not power: always use a relay/transistor/driver stage between the microcontroller and any real load.</li>
+<li>Relays switch big loads (including mains — with strict safety discipline); DC motors give speed, servos give angle, steppers give precise steps; PWM is the universal control language.</li>
+<li>Every actuator needs a failsafe and logged feedback: command + observed outcome, not just command.</li>
+<li>Closed-loop control (act, then verify with a sensor) is what makes an IoT deployment a research system rather than a demo.</li>
+</ul>
+<hr />
+<p><em>End of chunk 1 of 4 — continues with Chapters 4–6.</em></p>
+<hr />
+<h2 id="chapter-4-microcontrollers-and-single-board-computers">Chapter 4: Microcontrollers and Single-Board Computers</h2>
+<h3 id="41-the-brain-of-the-node">4.1 The brain of the node</h3>
+<p>Every IoT device needs a "brain" that reads sensors, makes decisions, and talks to the network. Two families of brains dominate IoT, and confusing them is the most common beginner mistake:</p>
+<ul>
+<li>A <strong>microcontroller (MCU)</strong> is a single chip containing a processor, memory (RAM and flash), and peripherals (ADC, timers, GPIO, radios) — everything needed to run one program, forever, on milliwatts of power. It has no operating system; your program runs directly on the hardware ("bare metal" or with a tiny real-time OS). Examples: ESP32, Arduino boards (ATmega328P-based Uno), STM32.</li>
+<li>A <strong>single-board computer (SBC)</strong> is a complete computer on one board: a much faster processor, hundreds of MBs to GBs of RAM, and a full operating system (usually Linux). Examples: Raspberry Pi, Orange Pi, BeagleBone.</li>
+</ul>
+<p>The rule of thumb: <strong>MCUs sense and act at the edge; SBCs compute, aggregate, and serve.</strong> An MCU wakes up, reads a sensor, sends the data, and sleeps — for months on a battery. An SBC runs a database, hosts a dashboard, or processes camera images — but needs continuous watts of power. Research prototypes often use both: MCU nodes in the field, an SBC as a local gateway or edge server.</p>
+<h3 id="42-the-big-three-compared-honestly">4.2 The big three, compared honestly</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>ESP32 (e.g., ESP32-DevKitC)</th>
+<th>Arduino Uno (ATmega328P)</th>
+<th>Raspberry Pi (e.g., Pi 4 / Pi 5)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Class</strong></td>
+<td>Microcontroller with built-in Wi-Fi + Bluetooth</td>
+<td>Microcontroller, no native wireless</td>
+<td>Single-board computer, full Linux</td>
+</tr>
+<tr>
+<td><strong>Processor</strong></td>
+<td>Dual-core 32-bit, up to 240 MHz</td>
+<td>Single-core 8-bit, 16 MHz</td>
+<td>Quad-core 64-bit ARM, 1.5–2.4 GHz</td>
+</tr>
+<tr>
+<td><strong>Memory</strong></td>
+<td>~520 KB RAM, 4 MB flash (typical module)</td>
+<td>2 KB RAM, 32 KB flash</td>
+<td>2–8 GB RAM, microSD storage</td>
+</tr>
+<tr>
+<td><strong>Wireless</strong></td>
+<td>Wi-Fi + Bluetooth/BLE on-chip</td>
+<td>None (needs add-on shields)</td>
+<td>Wi-Fi, Bluetooth, Ethernet, USB</td>
+</tr>
+<tr>
+<td><strong>Power</strong></td>
+<td>~100–200 mA active; deep sleep ~10 µA</td>
+<td>~50 mA active; sleep in the mA range without mods</td>
+<td>2–5 W+ continuous (no true deep sleep)</td>
+</tr>
+<tr>
+<td><strong>Analog inputs</strong></td>
+<td>ADC on many pins (12-bit, nonlinear at extremes — calibrate)</td>
+<td>6 analog inputs (10-bit ADC)</td>
+<td>None natively (needs external ADC)</td>
+</tr>
+<tr>
+<td><strong>Programming</strong></td>
+<td>Arduino IDE, MicroPython, ESP-IDF</td>
+<td>Arduino IDE (C/C++)</td>
+<td>Python, any Linux language</td>
+</tr>
+<tr>
+<td><strong>Typical price</strong></td>
+<td>A few USD</td>
+<td>~USD 20+ (genuine); clones cheaper</td>
+<td>USD 35+ (board only)</td>
+</tr>
+<tr>
+<td><strong>Best for</strong></td>
+<td>Battery/Wi-Fi sensor nodes, the default research choice</td>
+<td>Teaching, simple wired prototypes, huge tutorial base</td>
+<td>Gateways, image processing, dashboards, edge ML</td>
+</tr>
+</tbody>
+</table>
+<p>A few honest caveats researchers should know:</p>
+<ul>
+<li>The <strong>ESP32's ADC is nonlinear</strong> near the top and bottom of its range, and its Wi-Fi radio draws large current spikes. Both are manageable (calibrate the ADC; use adequate power supply decoupling), but papers that treat ESP32 ADC readings as precision measurements without calibration get challenged.</li>
+<li>The <strong>Arduino Uno</strong> is electrically 5 V while most modern sensors are 3.3 V — level shifting matters, and its lack of wireless makes it a poor fit for IoT specifically (though fine for wired lab instruments).</li>
+<li>The <strong>Raspberry Pi</strong> is a real computer: it corrupts its SD card if power is yanked mid-write, it needs orderly shutdowns, and it cannot sleep like an MCU. For field deployments, budget for a UPS or use read-only filesystems. Its strength is software: you can run Python, Node-RED, InfluxDB, and a web dashboard on one $50 board.</li>
+</ul>
+<p><strong>Other notable MCUs:</strong> the <strong>ESP8266</strong> (older, cheaper, single-core, Wi-Fi only — still fine for simple nodes), <strong>STM32</strong> family (excellent peripherals and low power, steeper learning curve), <strong>RP2040</strong> (Raspberry Pi's own MCU, cheap and capable, Wi-Fi only on the Pico W variant), and <strong>nRF52</strong> series (the BLE/low-power champion for battery devices).</p>
+<h3 id="43-how-firmware-works-the-loop">4.3 How firmware works: the loop</h3>
+<p>MCU programs follow a simple eternal pattern:</p>
+<ol>
+<li><strong>Setup (runs once):</strong> configure pins, start the Wi-Fi connection, initialize sensors, sync the clock.</li>
+<li><strong>Loop (runs forever):</strong> read sensors → process → transmit → sleep → repeat.</li>
+</ol>
+<p>For battery nodes, step "sleep" is where the magic happens (Chapter 10): an ESP32 in deep sleep draws roughly 10 µA — effectively off — wakes on a timer, does 2 seconds of work, and sleeps again. A node that wakes for 2 seconds every 10 minutes is <em>awake</em> 0.3% of the time, which is why years of battery life are possible.</p>
+<p><strong>Interrupts</strong> let the MCU react to events without polling: a PIR motion sensor can wake a sleeping ESP32 instantly via a GPIO interrupt. <strong>Timers</strong> schedule periodic work. Understanding sleep + interrupts + timers is 90% of embedded firmware for IoT research.</p>
+<h3 id="44-choosing-the-brain-a-decision-walkthrough">4.4 Choosing the brain: a decision walkthrough</h3>
+<p>Ask these questions in order:</p>
+<ol>
+<li><strong>Does it need Wi-Fi?</strong> → ESP32 is the default. No wireless need and simple I/O? → Arduino-class is fine.</li>
+<li><strong>Does it run Linux software</strong> (database, web server, camera/OpenCV, ML inference)? → Raspberry Pi.</li>
+<li><strong>Battery for months?</strong> → MCU with deep sleep (ESP32, nRF52). A Pi cannot do this.</li>
+<li><strong>How many sensors, and which interfaces?</strong> Count I²C/SPI/UART/analog needs against the board's pins.</li>
+<li><strong>Operating voltage?</strong> 3.3 V sensors pair naturally with ESP32; 5 V legacy sensors pair with Uno (with level shifting either way where mixed).</li>
+</ol>
+<p>Document this decision in your thesis ("we selected the ESP32 because…") — it shows engineering judgment, and "why this board" is a standard reviewer question.</p>
+<h3 id="45-deep-dive-the-esp32-family-and-arduino-ecosystem-variants">4.5 Deep dive: the ESP32 family and Arduino ecosystem variants</h3>
+<p>"ESP32" is a family, not one chip — knowing the variants prevents buying the wrong board:</p>
+<ul>
+<li><strong>ESP32 (classic):</strong> dual-core, Wi-Fi + Bluetooth/BLE. The default; the largest tutorial and library base.</li>
+<li><strong>ESP32-S3:</strong> adds native USB, vector instructions for ML acceleration, and more GPIO — the current best pick for TinyML and camera (ESP32-S3-EYE) projects.</li>
+<li><strong>ESP32-C3:</strong> single-core RISC-V, Wi-Fi + BLE 5, cheaper and lower power — excellent for simple sensor nodes.</li>
+<li><strong>ESP32-C6:</strong> adds 802.15.4 (Zigbee/Thread) support — the future-proof choice for Matter/Thread experiments.</li>
+</ul>
+<p>Similarly, "Arduino" spans the <strong>Uno</strong> (teaching classic), <strong>Nano</strong> (compact, breadboard-friendly), <strong>Mega</strong> (many pins for complex wired rigs), and modern 32-bit boards like the <strong>Nano ESP32</strong> and <strong>Portenta</strong> (industrial-grade). For IoT research specifically, the 8-bit AVR boards are legacy — fine for teaching, but any wireless project should be on ESP32-class hardware.</p>
+<p><strong>Clones vs genuine:</strong> cheap clone boards work, but quality varies — voltage regulators that brown out under Wi-Fi load are the classic clone defect. For field deployments, buy from reputable vendors and test every board under full radio load before deployment. A $3 saving is not worth a long round trip to replace a dead node.</p>
+<h3 id="46-deep-dive-freertos-and-multitasking-on-the-esp32">4.6 Deep dive: FreeRTOS and multitasking on the ESP32</h3>
+<p>Unlike Arduino's single loop, the ESP32 runs <strong>FreeRTOS</strong>, a real-time operating system that lets your firmware do several things "at once" via <strong>tasks</strong>:</p>
+<ul>
+<li>A sensor-reading task (every 5 min), a communications task (MQTT handling), and a watchdog task can run concurrently, each with its own priority and stack.</li>
+<li><strong>Queues</strong> pass data safely between tasks (sensor task → queue → MQTT task); <strong>mutexes/semaphores</strong> protect shared resources (don't let two tasks write to the I²C bus simultaneously).</li>
+<li>The Arduino-on-ESP32 framework hides FreeRTOS by default (your <code>loop()</code> is just a task), but knowing it exists lets you graduate to non-blocking designs: no more <code>delay()</code> freezing everything — use task delays and timers.</li>
+</ul>
+<p>For research firmware, the practical payoff is <strong>reliability</strong>: a dedicated watchdog task that reboots the board if the comms task hangs for 5 minutes turns mysterious field failures into brief, self-healing hiccups. Log reboot causes (the ESP32 records the reset reason) — a node that reboots nightly at 3 AM is telling you something.</p>
+<h3 id="47-raspberry-pi-in-iot-roles-and-hardening">4.7 Raspberry Pi in IoT: roles and hardening</h3>
+<p>The Pi's IoT roles, from simplest to most ambitious:</p>
+<ol>
+<li><strong>MQTT broker + database host</strong> (Mosquitto + InfluxDB) for a local sensor network.</li>
+<li><strong>Protocol gateway</strong> — e.g., BLE sensors → Pi → MQTT/Wi-Fi uplink; LoRaWAN gateway (with a concentrator HAT).</li>
+<li><strong>Edge analytics</strong> — Node-RED flows, Python anomaly detection, image classification with a camera module.</li>
+<li><strong>Field server</strong> — serving the Grafana dashboard on a local network with no internet.</li>
+</ol>
+<p><strong>Hardening for field use:</strong> use an industrial-grade SD card (or better, boot from SSD/USB), mount the filesystem read-only with logs in RAM where possible, add a hardware watchdog (or the Pi's built-in one), power through a UPS, and enable automatic security updates. Document your hardening steps — "the gateway ran 6 months unattended" is a result worth reporting.</p>
+<h3 id="48-esp32-pin-gotchas-every-researcher-should-know">4.8 ESP32 pin gotchas every researcher should know</h3>
+<p>The ESP32 is generous with pins but several have quirks that cause hours of debugging:</p>
+<ul>
+<li><strong>Strapping pins</strong> (GPIO 0, 2, 5, 12, 15): their state at boot selects boot mode. Holding GPIO 0 low at reset enters download mode (that's how flashing works); accidentally pulling a strapping pin the wrong way with your sensor circuit causes mysterious boot failures. Prefer non-strapping pins for sensors when possible.</li>
+<li><strong>ADC2 vs Wi-Fi:</strong> on the classic ESP32, the ADC2 peripheral cannot be used while Wi-Fi is active (they share hardware). Use <strong>ADC1 pins</strong> (GPIO 32–39) for analog sensors on Wi-Fi nodes — this single fact resolves a huge fraction of "my analog readings freeze when Wi-Fi connects" forum posts.</li>
+<li><strong>GPIO 34–39 are input-only</strong> (no pull-up/pull-down, no output) — fine for sensor inputs, useless for driving relays.</li>
+<li><strong>Boot messages:</strong> the ESP32 prints boot logs on its UART at 115200 baud — invaluable for debugging; keep a USB-serial connection available on at least one field node.</li>
+</ul>
+<p>None of this is in the quick-start tutorials; all of it is in the official Technical Reference Manual [1]. When something "should work but doesn't," the TRM is the authority — learning to read it is a research skill.</p>
+<h3 id="49-development-environments">4.9 Development environments</h3>
+<ul>
+<li><strong>Arduino IDE / PlatformIO:</strong> the standard path for ESP32 and Arduino. PlatformIO (a VS Code extension) adds proper library management and is what most research labs standardize on.</li>
+<li><strong>MicroPython:</strong> Python on microcontrollers — faster to write, slower to run, larger memory footprint. Good for prototyping logic; C/C++ wins for tight timing and deep sleep.</li>
+<li><strong>ESP-IDF:</strong> Espressif's official framework — full control, steeper learning curve, the choice when you need FreeRTOS features or production-grade firmware.</li>
+<li><strong>Raspberry Pi OS + Python:</strong> standard Linux development; Node-RED gives a visual flow-based option for gateway logic.</li>
+</ul>
+<p><strong>For your research:</strong> Standardize your lab on one MCU family (ESP32 is the sensible default in 2026) and one toolchain (PlatformIO). Every hour spent fighting a new board's quirks is an hour not spent on your research question. Buy two of every critical part — when a node fails in the field at 9 PM, the spare on your desk is the difference between a lost week and a lost evening.</p>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>MCUs (ESP32, Arduino) run one program on milliwatts and sleep deeply; SBCs (Raspberry Pi) run Linux on watts and cannot truly sleep.</li>
+<li>ESP32 is the default research choice for wireless sensor nodes; Raspberry Pi is the default for gateways, dashboards, and image/ML workloads.</li>
+<li>Firmware = setup once + loop forever; deep sleep + interrupts + timers are the core techniques.</li>
+<li>Justify your board choice in writing — reviewers ask "why this hardware."</li>
+</ul>
+<hr />
+<h2 id="chapter-5-connectivity-wi-fi-bluetoothble-lora-cellular-zigbee">Chapter 5: Connectivity — Wi-Fi, Bluetooth/BLE, LoRa, Cellular, Zigbee</h2>
+<

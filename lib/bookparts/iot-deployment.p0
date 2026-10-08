@@ -1,0 +1,234 @@
+<h1 id="from-prototype-to-product-iot-deployment">From Prototype to Product: IoT Deployment</h1>
+<p><strong>Book 38 of 50 — AstolixGen Learning Series</strong>
+<em>For researcher and publication students</em></p>
+<p><img alt="Book cover" src="/learn/images/media-generation-book-38-iot-deployment-cover-0-77e532c8-ff46-48eb-a584-ddba1123f719.webp" /></p>
+<hr />
+<h2 id="about-this-book">About This Book</h2>
+<p>A breadboard demo is not a product. Between them lie enclosure design, power systems, manufacturing, provisioning, fleet management, and the operational discipline of running thousands of devices for years. This book is the bridge: how to take an IoT prototype through pilot to production, what breaks at each scale, and how to write deployment experience papers that industry actually reads.</p>
+<p><strong>Learning objectives:</strong>
+- Plan the prototype → pilot → production progression
+- Design enclosures, power, and connectivity for the field
+- Manage manufacturing: BOM, suppliers, testing, provisioning
+- Operate fleets: monitoring, updates, failure handling
+- Calculate true total cost of ownership
+- Handle logistics, support, and end-of-life
+- Publish deployment experience research</p>
+<hr />
+<h2 id="chapter-1-the-three-stages-prototype-pilot-production">Chapter 1: The Three Stages — Prototype, Pilot, Production</h2>
+<p><strong>Prototype</strong> (1–10 units): prove the concept. Breadboards allowed; focus on the core sensing/actuation loop. Goal: answer "does the physics work?" <strong>Pilot</strong> (10–200 units): prove it works in the real environment with real users. Custom PCBs, enclosures, real power — no breadboards. Goal: answer "does it survive the field and do users want it?" <strong>Production</strong> (200+ units): prove it scales economically. Manufactured, provisioned, supported. Goal: answer "does the business work?"</p>
+<p>The classic failure is scaling a prototype: deploying 500 breadboard-class devices and drowning in failures. Each stage has a different question; don't ask production questions of a prototype, and don't ship prototype answers to production.</p>
+<p><strong>Example:</strong> A water-quality startup: prototype (Arduino + probes, lab beakers) → pilot (50 sealed units in 5 villages, 6 months — discovered biofouling killed probes in 3 weeks, redesigned) → production (2,000 units with anti-fouling). The pilot's failure saved the company.</p>
+<p><strong>For your research:</strong> Deployment papers should state the stage clearly. Pilot studies have different claims (and different reviewer expectations) than production analyses.</p>
+<p><strong>Key takeaway:</strong> Prototype proves physics, pilot proves field survival, production proves economics — don't skip stages.</p>
+<hr />
+<h2 id="chapter-2-enclosures-and-environmental-design">Chapter 2: Enclosures and Environmental Design</h2>
+<p>Electronics die from water, dust, heat, UV, and curious humans. <strong>IP ratings:</strong> IP65 (dust-tight, water jets) is the practical minimum for outdoor; IP67 (immersion) for flood-prone. <strong>Thermal:</strong> sealed boxes cook in the sun — white/reflective, vented (with membranes like Gore vents that pass air not water), or shaded mounting. <strong>Condensation</strong> kills more devices than rain: desiccant + conformal coating on PCBs.</p>
+<p><strong>Mounting and access:</strong> design for the installer's reality (ladders, gloves) — big connectors, clear labels. Someone must open it yearly: captive screws, not 12 tiny ones. <strong>Vandalism/theft:</strong> make it boring-looking, mount high, no blinking lights advertising value.</p>
+<p><strong>Example:</strong> An air-quality node in IP65 boxes failed in month 2 — condensation, not rain. Fix: Gore vent + conformal coating + desiccant pack. Failure rate dropped from 30% to 2%. The failure analysis was published.</p>
+<p><strong>For your research:</strong> Environmental failure analyses (what failed, why, fix, new rate) are excellent applied papers — honest and useful.</p>
+<p><strong>Key takeaway:</strong> IP65 minimum, manage heat and condensation, design for installers and yearly maintenance.</p>
+<hr />
+<h2 id="chapter-3-power-systems-for-deployment">Chapter 3: Power Systems for Deployment</h2>
+<p>Prototype power (USB cable) doesn't deploy. Options: <strong>mains</strong> (where available — add surge protection and battery backup for outages), <strong>solar + battery</strong> (size for worst month + 5 sunless days; see Book 35), <strong>primary batteries</strong> (Li-SOCl₂ for 5–10 year life at tiny duty cycles — no recharging, plan replacement), <strong>energy harvesting</strong> (vibration, thermal — niche, exciting research area).</p>
+<p><strong>Power path design:</strong> proper charge controllers (not raw solar-to-battery), brownout protection (devices corrupting flash on low voltage is a classic field failure), and remote power telemetry (battery voltage in every message — the cheapest diagnostic you have).</p>
+<p><strong>Example:</strong> A LoRa sensor fleet on Li-SOCl₂: 8-year calculated life at 15-min readings. Reality: 6.5 years (self-discharge + cold winters). Published with the derating analysis — the honesty made it citable.</p>
+<p><strong>For your research:</strong> Always report the power architecture and the derating between calculated and observed lifetime.</p>
+<p><strong>Key takeaway:</strong> Size for worst case, protect against brownout, telemeter battery voltage, derate honestly.</p>
+<hr />
+<h2 id="chapter-4-connectivity-at-scale">Chapter 4: Connectivity at Scale</h2>
+<p>Prototype Wi-Fi doesn't scale to fields. <strong>Decision matrix:</strong> Wi-Fi (campus/buildings only), LoRaWAN (rural, tiny data — plan gateway density: 1 gateway per ~2–5 km in farmland), NB-IoT/LTE-M (where covered, per-SIM management at scale), Ethernet (fixed industrial — most reliable, plan cable runs).</p>
+<p><strong>Fleet connectivity ops:</strong> SIM management platforms, data caps with alerts, APN configuration, and roaming for cross-border. At 1,000+ SIMs, connectivity is a procurement and management discipline, not a technical detail.</p>
+<p><strong>Example:</strong> A 3,000-node LoRaWAN deployment: 14 gateways planned by RF survey (not guesswork), packet delivery 96.4% measured over 6 months, worst nodes identified and relocated. The RF survey methodology was the paper's methods section.</p>
+<p><strong>For your research:</strong> Large-scale connectivity measurement studies (delivery vs distance/obstruction over months) are valuable and rare.</p>
+<p><strong>Key takeaway:</strong> Survey, don't guess, gateway placement; manage SIMs as a discipline; measure delivery over months.</p>
+<hr />
+<h2 id="chapter-5-manufacturing-bom-suppliers-testing">Chapter 5: Manufacturing — BOM, Suppliers, Testing</h2>
+<p><strong>BOM (bill of materials) discipline:</strong> every component with manufacturer part number, alternates for critical parts (chip shortages kill products), and costed at volume. <strong>Supplier management:</strong> dual-source critical components; inspect first articles; plan for 2–5% component fallout.</p>
+<p><strong>Testing:</strong> bed-of-nails or pogo-pin fixtures for production test (program, verify sensors, calibrate — every unit, not sampling), burn-in (24–48 h powered run catches infant mortality), and calibration as a manufacturing step (each sensor calibrated on the line, coefficients stored per-unit).</p>
+<p><strong>Example:</strong> A 5,000-unit run: 3.2% failed production test (mostly solder bridges on a QFN — fixed with stencil change), 0.8% failed burn-in. Catching these at the factory vs in the field saved ~$40,000 in truck rolls. The test-economics analysis was published.</p>
+<p><strong>For your research:</strong> Manufacturing test data (failure modes, rates, costs) is almost never published and extremely valuable — anonymize the product, publish the data.</p>
+<p><strong>Key takeaway:</strong> Test every unit, burn in, calibrate on the line; publish anonymized failure data.</p>
+<hr />
+<h2 id="chapter-6-provisioning-identity-at-birth">Chapter 6: Provisioning — Identity at Birth</h2>
+<p>Every device needs unique identity and credentials before it ships (Book 37's PKI in practice). <strong>Provisioning flow:</strong> on the manufacturing line, generate keypair in secure element → sign certificate → store device record (serial, cert, calibration) in the fleet database → label with QR (serial + onboarding code).</p>
+<p><strong>Zero-touch onboarding:</strong> device first-boots, connects, presents certificate, fleet platform auto-registers it to the right customer/site. The QR label is the fallback. <strong>Anti-cloning:</strong> secure element private keys never leave the chip; verify attestation where available.</p>
+<p><strong>Example:</strong> Provisioning station: HSM-backed, 45 s/unit, full audit log. A batch of 2,000 provisioned in 3 days. The one attempted shortcut (shared cert for "just this batch") was caught in review — the near-miss became a conference anecdote about process discipline.</p>
+<p><strong>For your research:</strong> Provisioning is under-documented in academia; a detailed experience report (times, costs, failure modes) fills a real gap.</p>
+<p><strong>Key takeaway:</strong> Unique identity per device, HSM-backed provisioning, audited, with zero-touch onboarding.</p>
+<hr />
+<h2 id="chapter-7-fleet-operations-monitoring-and-management">Chapter 7: Fleet Operations — Monitoring and Management</h2>
+<p>Running the fleet: <strong>device twin/shadow</strong> (cloud record of each device's state — desired vs reported), <strong>health dashboards</strong> (online %, battery distribution, firmware versions, error rates), <strong>alerting</strong> (device offline &gt;24 h, battery &lt;20%, sensor stuck — alert fatigue is real, tune thresholds), and <strong>remote diagnostics</strong> (last-gasp messages, remote log retrieval).</p>
+<p><strong>The 1% rule:</strong> in a 10,000-device fleet, 1% failing = 100 truck rolls. Design for remote recovery first (watchdog reboots, safe-mode fallback, remote reconfiguration). Every avoided truck roll is money.</p>
+<p><strong>Example:</strong> Fleet of 4,000 soil nodes: health dashboard showed a firmware bug draining batteries 3× faster on 12% of nodes (a specific hardware revision). Targeted OTA to that revision only — fixed in a week, zero truck rolls. The revision-targeted update capability was the lesson.</p>
+<p><strong>For your research:</strong> Fleet-scale failure analyses (what broke at scale that never appeared in pilot) are top-tier deployment papers.</p>
+<p><strong>Key takeaway:</strong> Twins, health dashboards, tuned alerts, remote recovery — operate the fleet, don't just deploy it.</p>
+<hr />
+<h2 id="chapter-8-updates-at-scale-see-also-book-37">Chapter 8: Updates at Scale (see also Book 37)</h2>
+<p>Production OTA adds fleet dimensions: <strong>staged rollouts</strong> (1% → 10% → 50% → 100%, with automatic halt on error-rate regression), <strong>revision targeting</strong> (different hardware revs need different builds), <strong>update windows</strong> (don't reboot irrigation controllers at noon), and <strong>fleet-wide verification</strong> (cryptographic attestation that every device runs the approved version — for regulated industries).</p>
+<p><strong>Example:</strong> Staged rollout caught a regression at 1% (a sensor driver deadlock on one hardware rev) — halted automatically, 40 devices affected instead of 4,000. The rollout system's postmortem was published as a systems paper.</p>
+<p><strong>For your research:</strong> Staged-rollout algorithms and fleet-verification protocols are legitimate systems research topics.</p>
+<p><strong>Key takeaway:</strong> Stage rollouts, target by revision, verify fleet-wide — updates are a fleet operation, not a device feature.</p>
+<hr />
+<h2 id="chapter-9-total-cost-of-ownership">Chapter 9: Total Cost of Ownership</h2>
+<p>The BOM is the tip. <strong>TCO =</strong> hardware + manufacturing + provisioning + installation + connectivity (lifetime) + cloud/platform fees + support + truck rolls + replacements + end-of-life. Rule of thumb: 5-year TCO is 3–5× the BOM cost. If the business case doesn't work at 4× BOM, it doesn't work.</p>
+<p><strong>Example TCO (5,000 sensors, 5 years):</strong> BOM $35 → $175k. Manufacturing/test $12/unit → $60k. Install $25/unit → $125k. Connectivity $2/yr → $50k. Cloud $30k. Support (2% annual failure, $80 truck roll) → $40k. Replacements $25k. <strong>Total: ~$505k vs $175k BOM (2.9×).</strong> The per-sensor 5-year cost: $101. The paper's TCO model was reused by three other groups.</p>
+<p><strong>For your research:</strong> Publish TCO models. The community desperately needs real numbers; almost nobody shares them.</p>
+<p><strong>Key takeaway:</strong> 5-year TCO ≈ 3–5× BOM — model it fully, publish it.</p>
+<hr />
+<h2 id="chapter-10-support-logistics-and-end-of-life">Chapter 10: Support, Logistics, and End-of-Life</h2>
+<p><strong>Support:</strong> tiered (self-serve diagnostics → remote support → RMA), spares inventory (2–5% of fleet), RMA process with failure analysis feeding back to design. <strong>Logistics:</strong> installation kits, installer training, site surveys. <strong>End-of-life:</strong> battery disposal (regulatory), data sanitization (wipe keys), hardware recycling, and customer migration path. Abandoned devices become e-waste and security risks — plan the ending at the beginning.</p>
+<p><strong>Example:</strong> A 7-year-old sensor fleet's Li-SOCl₂ batteries hit end-of-life across 2,000 units in one year. Because the replacement program (pre-positioned batteries, scheduled swaps, $18/unit) was planned in year 1, it was routine maintenance, not a crisis.</p>
+<p><strong>For your research:</strong> Lifecycle studies (7-year field data on one deployment) are extraordinarily rare and valuable — start logging now.</p>
+<p><strong>Key takeaway:</strong> Plan support, spares, and end-of-life from day one; lifecycle data is gold.</p>
+<hr />
+<h2 id="chapter-11-pilot-design-proving-field-readiness">Chapter 11: Pilot Design — Proving Field Readiness</h2>
+<p>A pilot that proves readiness: <strong>representative sites</strong> (not the lab parking lot — the actual harsh environment), <strong>real users</strong> (not engineers), <strong>success criteria defined upfront</strong> (e.g., "95% uptime, &lt;5% data loss, 80% user satisfaction over 3 months"), <strong>instrumented</strong> (you need the failure data), and <strong>long enough</strong> (one full seasonal cycle minimum for outdoor).</p>
+<p><strong>Example:</strong> A pilot success-criteria doc: uptime ≥95%, data loss &lt;5%, battery ≥80% after 3 months, installer setup &lt;30 min, farmer NPS ≥7. Result: 4/5 met; data loss 8% (cellular dead zones) → added LoRa fallback before production. The criteria doc was the difference between "pilot felt good" and "pilot proved readiness."</p>
+<p><strong>For your research:</strong> Pilot methodology papers (how to design pilots that actually de-risk production) serve the whole community.</p>
+<p><strong>Key takeaway:</strong> Representative sites, real users, pre-defined criteria, full season — pilots prove readiness, not concepts.</p>
+<hr />
+<h2 id="chapter-12-your-deployment-study-from-pilot-to-paper">Chapter 12: Your Deployment Study — From Pilot to Paper</h2>
+<p>Template:</p>
+<ol>
+<li><strong>System:</strong> What was deployed, where, how many, for how long.</li>
+<li><strong>Stage &amp; criteria:</strong> Pilot or production; pre-defined success criteria.</li>
+<li><strong>Method:</strong> Instrumentation, data collected, analysis approach.</li>
+<li><strong>Results:</strong> Against criteria — met/unmet with numbers.</li>
+<li><strong>Failures:</strong> What broke, root causes, fixes, new rates (the most valuable section).</li>
+<li><strong>Costs:</strong> TCO model with real numbers.</li>
+<li><strong>Lessons:</strong> Numbered, actionable, generalizable.</li>
+<li><strong>Artifact:</strong> Anonymized dataset, configs, TCO spreadsheet.</li>
+<li><strong>Writing:</strong> IEEE format or experience-report venues; lead with scale and duration numbers.</li>
+</ol>
+<p>Venues that welcome deployment papers: ACM SenSys, IPSN (applied tracks), IEEE IoT-J, industry tracks at major conferences.</p>
+<p><strong>For your research:</strong> Start logging everything now — the deployment paper you'll write in 2 years depends on data you collect today.</p>
+<p><strong>Key takeaway:</strong> Scale + duration + criteria + failures + costs + lessons = the deployment paper the community needs.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Chapter</th>
+<th>Core idea</th>
+<th>Research use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>3 stages</td>
+<td>Prototype/pilot/production questions</td>
+<td>Stage-appropriate claims</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Enclosures</td>
+<td>IP65, condensation, access</td>
+<td>Failure analyses</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Power</td>
+<td>Worst-month sizing, brownout</td>
+<td>Derated lifetime reports</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Connectivity</td>
+<td>Survey gateways, manage SIMs</td>
+<td>Large-scale measurements</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Manufacturing</td>
+<td>Test all, burn in, calibrate</td>
+<td>Anonymized failure data</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Provisioning</td>
+<td>Per-device identity, HSM</td>
+<td>Experience reports</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Fleet ops</td>
+<td>Twins, dashboards, remote fix</td>
+<td>Scale failure analyses</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Fleet OTA</td>
+<td>Staged, targeted, verified</td>
+<td>Rollout systems research</td>
+</tr>
+<tr>
+<td>9</td>
+<td>TCO</td>
+<td>3–5× BOM, full model</td>
+<td>Published cost models</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Lifecycle</td>
+<td>Support, spares, end-of-life</td>
+<td>Rare lifecycle studies</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Pilot design</td>
+<td>Criteria upfront, real users</td>
+<td>Pilot methodology</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Study template</td>
+<td>Deploy → paper pipeline</td>
+<td>Start logging now</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] L. Atzori, A. Iera, and G. Morabito, "The Internet of Things: A survey," Computer Networks, vol. 54, no. 15, pp. 2787–2805, 2010.
+[2] W. Shi, J. Cao, Q. Zhang, Y. Li, and L. Xu, "Edge Computing: Vision and Challenges," IEEE Internet of Things Journal, vol. 3, no. 5, pp. 637–646, 2016.
+[3] R. Roman, P. Najera, and J. Lopez, "Securing the Internet of Things," Computer, vol. 44, no. 9, pp. 51–58, 2011.
+[4] M. Satyanarayanan, "The Emergence of Edge Computing," Computer, vol. 50, no. 1, pp. 30–39, 2017.
+[5] S. Wolfert, L. Ge, C. Verdouw, and M. J. Bogaardt, "Big Data in Smart Farming — A review," Agricultural Systems, vol. 153, pp. 69–80, 2017.
+[6] A. Banks and R. Gupta, "MQTT Version 3.1.1," OASIS Standard, Oct. 2014.
+[7] H. Kopetz, Real-Time Systems: Design Principles for Distributed Embedded Applications, 2nd ed. Springer, 2011. (book)
+[8] ETSI, "ETSI EN 303 645 V2.1.1: Cyber Security for Consumer Internet of Things," 2020.
+[9] NIST, "NISTIR 8259A: IoT Device Cybersecurity Capability Core Baseline," 2020.
+[10] World Health Organization, WHO Global Air Quality Guidelines, Geneva, 2021. (for environmental deployments)</p>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>BOM</strong> — bill of materials</li>
+<li><strong>Pilot</strong> — real-environment trial with real users</li>
+<li><strong>IP rating</strong> — ingress protection (dust/water)</li>
+<li><strong>Conformal coating</strong> — protective PCB film</li>
+<li><strong>Burn-in</strong> — powered stress test catching early failures</li>
+<li><strong>Device twin</strong> — cloud record of device state</li>
+<li><strong>Staged rollout</strong> — gradual update deployment</li>
+<li><strong>TCO</strong> — total cost of ownership</li>
+<li><strong>RMA</strong> — return merchandise authorization</li>
+<li><strong>Derating</strong> — adjusting specs for real conditions</li>
+<li><strong>Pogo-pin fixture</strong> — production programming/test rig</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li>For your project, write the three stage-questions (prototype/pilot/production) and what would answer each.</li>
+<li>Your outdoor node fails in month 2. List five likely causes in order and how you'd diagnose each remotely.</li>
+<li>Size a solar system for a node averaging 2 mW in your region's worst month. Show math.</li>
+<li>Plan gateway placement for 40 LoRa nodes over 3 km² of farmland. What survey would you run?</li>
+<li>Design a production test fixture: what does it check, in what order, with what pass/fail criteria?</li>
+<li>Write the provisioning flow for 1,000 devices, including the audit trail.</li>
+<li>Your fleet dashboard shows 5% of devices offline. Write the triage runbook.</li>
+<li>Build a 5-year TCO model for 2,000 units of a device you specify. What's the BOM multiple?</li>
+<li>Write pilot success criteria (5 items, numeric) for an air-quality deployment in schools.</li>
+<li>Outline a deployment experience paper for a pilot you could run, with the failures section pre-structured.</li>
+</ol>
+<hr />
+<p><em>End of Book 38. Next: Book 39 — Business Process Automation Basics.</em></p>

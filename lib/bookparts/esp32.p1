@@ -1,0 +1,915 @@
+s (transitions), not levels.
+- Use <code>millis()</code> timestamps instead of <code>delay()</code> whenever the loop must stay responsive.</p>
+<hr />
+<h2 id="chapter-5-analog-input-reading-sensors-adc-basics-dht11dht22-example">Chapter 5: Analog Input: Reading Sensors (ADC Basics, DHT11/DHT22 Example)</h2>
+<h3 id="from-continuous-world-to-numbers-the-adc">From continuous world to numbers: the ADC</h3>
+<p>Many sensors report continuous quantities — light level, soil moisture, temperature voltage — as a varying voltage. The ESP32's <strong>ADC (analog-to-digital converter)</strong> translates a voltage on a pin into a number your code can use. On the ESP32 the ADC resolution defaults to <strong>12 bits</strong>, so <code>analogRead()</code> returns an integer from <strong>0 (0 V) to 4095 (about 3.3 V)</strong>. (The classic Arduino Uno is 10-bit: 0–1023. Do not mix the two ranges up when porting examples.)</p>
+<p>Three ADC facts that prevent the most common beginner errors:</p>
+<ol>
+<li><strong>Maximum input is ~3.3 V.</strong> Applying 5 V to an ESP32 analog pin can damage it. If your sensor outputs 0–5 V, you need a voltage divider (two resistors) to scale it down — or choose a 3.3 V sensor.</li>
+<li><strong>Use ADC1 pins for general analog reading.</strong> The ESP32 has two ADC units; ADC2 is shared with the Wi-Fi radio, so <code>analogRead()</code> on ADC2 pins misbehaves while Wi-Fi is active. On common devkit layouts, GPIO 32–39 belong to ADC1 and are the safe choice (GPIO 34–39 are input-only, which is fine for sensors). The Learning Dashboard has the full quick-reference.</li>
+<li><strong>The ADC is nonlinear near the extremes.</strong> Readings near 0 and near 4095 are less accurate than the middle range. For hobby purposes it is fine; for calibrated research measurements, characterize your specific board or use an external ADC.</li>
+</ol>
+<h3 id="two-kinds-of-temperature-sensor-analog-vs-digital-modules">Two kinds of temperature sensor: analog vs. digital modules</h3>
+<ul>
+<li>An <strong>analog</strong> sensor (e.g., a TMP36 or an LDR light sensor) outputs a voltage you read with <code>analogRead()</code> and convert with math.</li>
+<li>A <strong>digital module</strong> like the <strong>DHT11/DHT22</strong> does the conversion internally and sends already-digitized temperature and humidity over a single-wire digital protocol. You talk to it with a library, and you get clean floating-point values with no ADC math.</li>
+</ul>
+<p>This chapter does both: first a 10-line analog read to learn the ADC, then the DHT22 as the practical sensor you will actually deploy.</p>
+<p><img alt="DHT sensor wired to a development board on a breadboard" src="/learn/images/media-generation-book-30-ch5-sensor-0-7c50cf3f-89cf-4dbe-b493-87da7d7fd8b3.webp" /></p>
+<h3 id="part-a-analog-read-a-light-sensor-ldr">Part A — Analog read: a light sensor (LDR)</h3>
+<p><strong>Wiring (voltage divider):</strong> an LDR (light-dependent resistor) changes resistance with light. Wire <strong>3V3 → LDR → GPIO 34 → 10 kΩ resistor → GND</strong>. The junction between the LDR and the resistor goes to GPIO 34, so the pin sees a voltage that rises as light increases.</p>
+<pre><code class="language-cpp">// Analog light sensor read on ADC1 (GPIO 34).
+
+const int LDR_PIN = 34;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  analogReadResolution(12);          // explicit: 12-bit, 0..4095 (the default)
+  Serial.println(&quot;LDR readings (0..4095):&quot;);
+}
+
+void loop() {
+  int raw = analogRead(LDR_PIN);     // 0..4095
+  float voltage = raw * (3.3 / 4095.0);
+  Serial.print(&quot;raw=&quot;);
+  Serial.print(raw);
+  Serial.print(&quot;  voltage=&quot;);
+  Serial.print(voltage, 2);
+  Serial.println(&quot; V&quot;);
+  delay(500);
+}
+</code></pre>
+<p><strong>Expected Serial Monitor output</strong> (values move as you shade/uncover the LDR):</p>
+<pre><code>LDR readings (0..4095):
+raw=2871  voltage=2.31 V
+raw=2890  voltage=2.33 V
+raw=412   voltage=0.33 V      &lt;-- hand shading the sensor
+raw=405   voltage=0.33 V
+raw=2905  voltage=2.34 V      &lt;-- hand removed
+</code></pre>
+<p>If the numbers barely move, your divider resistor value is mismatched to the LDR — try 4.7 kΩ or 22 kΩ and watch the swing grow.</p>
+<h3 id="part-b-dht11dht22-digital-sensor-module">Part B — DHT11/DHT22 digital sensor module</h3>
+<p>The DHT22 (also sold as AM2302) measures temperature (−40 to +80 °C, ±0.5 °C) and humidity (0–100 %, ±2 %) — good enough for room monitoring, agriculture sheds, and most student research. The cheaper DHT11 is less accurate (±2 °C, ±5 %) and slower; the wiring and code are identical, only the <code>DHTTYPE</code> changes. Most DHT modules sold for breadboard use have 3 or 4 pins: <strong>VCC, DATA, GND</strong> (a fourth NC pin is unused).</p>
+<p><strong>Step 1 — Install the library.</strong> In the IDE: <strong>Sketch → Include Library → Manage Libraries</strong>, search <strong>"DHT sensor library"</strong> by <strong>Adafruit</strong>, and install it (it will offer the <strong>Adafruit Unified Sensor</strong> dependency — accept and install that too). Note the version numbers in your lab notes.</p>
+<p><strong>Step 2 — Wiring:</strong></p>
+<table>
+<thead>
+<tr>
+<th>DHT module pin</th>
+<th>ESP32 pin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VCC (+)</td>
+<td>3V3</td>
+</tr>
+<tr>
+<td>DATA (out)</td>
+<td>GPIO 15</td>
+</tr>
+<tr>
+<td>GND (−)</td>
+<td>GND</td>
+</tr>
+</tbody>
+</table>
+<p>Many modules include the required pull-up resistor on the DATA line already. If you have a bare 4-pin sensor (no module board), add a 10 kΩ resistor between DATA and VCC yourself.</p>
+<p><strong>Step 3 — The sketch:</strong></p>
+<pre><code class="language-cpp">// DHT22 temperature &amp; humidity reader (ESP32).
+// Library: &quot;DHT sensor library&quot; by Adafruit (+ Adafruit Unified Sensor).
+// Wiring: VCC-&gt;3V3, DATA-&gt;GPIO 15, GND-&gt;GND.
+
+#include &quot;DHT.h&quot;
+
+#define DHTPIN 15
+#define DHTTYPE DHT22     // use DHT11 here if that is your sensor
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  dht.begin();
+  Serial.println(&quot;DHT22 reader started.&quot;);
+}
+
+void loop() {
+  // The DHT22 needs ~2 seconds between reads. Respect it.
+  delay(2000);
+
+  float humidity = dht.readHumidity();
+  float tempC = dht.readTemperature();        // Celsius; pass true for Fahrenheit
+
+  // The library returns NaN (&quot;not a number&quot;) when the read fails.
+  if (isnan(humidity) || isnan(tempC)) {
+    Serial.println(&quot;Failed to read from DHT sensor! Check wiring.&quot;);
+    return;   // skip the rest of this loop pass and try again
+  }
+
+  float heatIndex = dht.computeHeatIndex(tempC, humidity, false);
+
+  Serial.print(&quot;Humidity: &quot;);
+  Serial.print(humidity, 1);
+  Serial.print(&quot; %   Temperature: &quot;);
+  Serial.print(tempC, 1);
+  Serial.print(&quot; C   Heat index: &quot;);
+  Serial.print(heatIndex, 1);
+  Serial.println(&quot; C&quot;);
+}
+</code></pre>
+<h3 id="serial-monitor-expected-output_1">Serial Monitor: expected output</h3>
+<pre><code>DHT22 reader started.
+Humidity: 54.2 %   Temperature: 27.8 C   Heat index: 29.1 C
+Humidity: 54.1 %   Temperature: 27.8 C   Heat index: 29.0 C
+Humidity: 54.3 %   Temperature: 27.9 C   Heat index: 29.2 C
+</code></pre>
+<p>Breathe gently on the sensor: humidity should climb several percent within seconds and temperature nudge upward — a satisfying physical confirmation that the numbers are real.</p>
+<h3 id="troubleshooting_2">Troubleshooting</h3>
+<ul>
+<li><strong><code>Failed to read from DHT sensor!</code> every time:</strong> wrong <code>DHTTYPE</code> (DHT11 vs DHT22), DATA wire on the wrong GPIO, missing pull-up on a bare sensor, or the sensor is wired to 5 V logic expectations — keep VCC at 3.3 V.</li>
+<li><strong>Readings work, then freeze:</strong> you are reading faster than every 2 s (DHT22) — the <code>delay(2000)</code> is mandatory, not stylistic.</li>
+<li><strong>Humidity stuck at 99.9 % or temperature absurd:</strong> a damaged or counterfeit sensor; swap it. Also keep the sensor out of direct enclosure heat — the ESP32's own warmth biases readings if they share a tight box (Chapter 12 ventilates the enclosure for exactly this reason).</li>
+<li><strong>Analog readings drift while Wi-Fi runs:</strong> you used an ADC2 pin — move to an ADC1 pin (GPIO 32–39 on common layouts).</li>
+<li><strong>Analog value saturates at 4095:</strong> input exceeds ~3.3 V or the pin is accidentally still configured for something else; check wiring first.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> Every sensor has an <strong>accuracy specification</strong> (±0.5 °C, ±2 % RH for the DHT22) and a <strong>sampling limit</strong> (one read per 2 s). Both belong in your paper's methodology: "temperature was sampled every 5 s with a DHT22 (±0.5 °C)". Reviewers check whether your claimed findings are even resolvable by your instruments — a 0.2 °C effect measured with a ±0.5 °C sensor is not a finding. Also log raw values alongside converted ones; raw logs let you re-calibrate after the fact.</p>
+</blockquote>
+<h3 id="smoothing-noisy-readings-averaging">Smoothing noisy readings: averaging</h3>
+<p>Real analog signals jitter — electrical noise, not real change. The standard cure is averaging several quick reads. This helper takes 10 samples and returns the mean; use it anywhere stability matters:</p>
+<pre><code class="language-cpp">int readAveraged(int pin, int samples = 10) {
+  long total = 0;
+  for (int i = 0; i &lt; samples; i++) {
+    total += analogRead(pin);
+    delay(5);
+  }
+  return total / samples;
+}
+</code></pre>
+<p>Call <code>readAveraged(LDR_PIN)</code> instead of <code>analogRead(LDR_PIN)</code>. For slow signals (room temperature, soil moisture) a moving average over seconds is even better — but simple multi-sampling already removes most flicker. In research logging, note your averaging method in the methodology: "each reported value is the mean of 10 ADC samples" is a sentence reviewers expect.</p>
+<h3 id="voltage-dividers-the-math-for-sensors-that-output-up-to-5-v">Voltage dividers: the math (for sensors that output up to 5 V)</h3>
+<p>A divider of two resistors scales a voltage down: with R1 from the sensor output to the pin and R2 from the pin to GND, <code>Vpin = Vsensor × R2 / (R1 + R2)</code>. To map 0–5 V into 0–3.3 V, use R1 = 20 kΩ and R2 = 39 kΩ (ratio ≈ 0.66 → 5 V becomes 3.3 V). Verify with a multimeter before connecting. When in doubt, choose a 3.3 V-native sensor and skip the divider entirely.</p>
+<h3 id="choosing-your-temperaturehumidity-sensor">Choosing your temperature/humidity sensor</h3>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Temperature accuracy</th>
+<th>Humidity accuracy</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DHT11</td>
+<td>±2 °C</td>
+<td>±5 % RH</td>
+<td>Cheapest; fine for demos, weak for research</td>
+</tr>
+<tr>
+<td>DHT22 / AM2302</td>
+<td>±0.5 °C</td>
+<td>±2 % RH</td>
+<td>The sweet spot; used in this book</td>
+</tr>
+<tr>
+<td>BME280</td>
+<td>±0.5 °C</td>
+<td>±3 % RH</td>
+<td>Adds barometric pressure + I2C interface; the research favorite</td>
+</tr>
+</tbody>
+</table>
+<p>The BME280 (I2C, Adafruit library available) is the natural upgrade when your paper needs pressure data or tighter specs. The wiring differs (SDA→GPIO 21, SCL→GPIO 22 on the default I2C bus), but the read-publish-sleep architecture stays identical.</p>
+<h3 id="applied-analog-input-the-soil-moisture-sensor">Applied analog input: the soil-moisture sensor</h3>
+<p>The classic capacitive soil-moisture sensor (the corrosion-resistant kind, not the bare resistive probes that dissolve in weeks) outputs an analog voltage: wetter soil → lower voltage on most modules. It is the sensor behind every smart-agriculture demo, and it exercises everything in this chapter.</p>
+<p><strong>Wiring:</strong> VCC → 3V3, GND → GND, AOUT (analog out) → GPIO 34. Insert the probe into soil; do not submerge the electronics.</p>
+<p><strong>Calibration is the whole game.</strong> Raw values are meaningless until anchored: record the reading in completely dry soil (<code>DRY_VALUE</code>) and in a glass of water (<code>WET_VALUE</code>), then map:</p>
+<pre><code class="language-cpp">// Soil moisture as a percentage, calibrated to your sensor and soil.
+
+const int SOIL_PIN = 34;
+const int DRY_VALUE = 3200;   // &lt;-- replace with YOUR dry-soil reading
+const int WET_VALUE = 1200;   // &lt;-- replace with YOUR in-water reading
+
+int readAveraged(int pin, int samples = 20) {
+  long total = 0;
+  for (int i = 0; i &lt; samples; i++) { total += analogRead(pin); delay(5); }
+  return total / samples;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println(&quot;Soil moisture monitor. Calibrate DRY_VALUE/WET_VALUE first!&quot;);
+}
+
+void loop() {
+  int raw = readAveraged(SOIL_PIN);
+  // Constrain, then map dry-&gt;0% ... wet-&gt;100%.
+  int moisture = map(constrain(raw, WET_VALUE, DRY_VALUE), DRY_VALUE, WET_VALUE, 0, 100);
+  Serial.print(&quot;raw=&quot;);
+  Serial.print(raw);
+  Serial.print(&quot;  moisture=&quot;);
+  Serial.print(moisture);
+  Serial.println(&quot; %&quot;);
+  delay(2000);
+}
+</code></pre>
+<p><strong>Expected output</strong> (dip the probe in water mid-run):</p>
+<pre><code>raw=2890  moisture=16 %
+raw=2844  moisture=18 %
+raw=1310  moisture=96 %     &lt;-- probe in water
+raw=1295  moisture=97 %
+</code></pre>
+<p>Two research-grade lessons here: <strong>calibration is per-sensor and per-soil</strong> (your numbers will differ from anyone else's — publish your calibration procedure, not just the code), and capacitive probes drift as soil chemistry changes, so re-calibrate periodically and log the calibration constants with the data.</p>
+<h3 id="sampling-discipline-how-often-should-you-read">Sampling discipline: how often should you read?</h3>
+<p>Faster is not better. Match the interval to the physics: room temperature changes over minutes (10–60 s sampling is plenty), soil moisture over hours (5–15 min), while vibration or sound need kilohertz rates the <code>analogRead</code>-in-<code>loop()</code> approach cannot sustain (that needs continuous ADC/DMA modes — advanced territory). Oversampling wastes power and storage and buys nothing; the right rate is the slowest one that still captures the phenomenon — a sentence that belongs in every methodology.</p>
+<p><strong>Key takeaways:</strong>
+- ESP32 ADC is 12-bit (0–4095 for 0–3.3 V); never feed it more than ~3.3 V.
+- Use ADC1 pins (commonly GPIO 32–39) for analog reads — ADC2 conflicts with Wi-Fi.
+- The DHT22 gives calibrated digital temperature/humidity over one wire; respect its 2-second minimum interval and always check for <code>NaN</code>.
+- Quote sensor accuracy and sampling rate in your methodology — your instruments bound your claims.</p>
+<hr />
+<h2 id="chapter-6-wi-fi-connecting-to-a-network-and-reading-signal-strength">Chapter 6: Wi-Fi: Connecting to a Network and Reading Signal Strength</h2>
+<h3 id="how-the-esp32-joins-a-network">How the ESP32 joins a network</h3>
+<p>The ESP32's Wi-Fi can operate in <strong>station mode</strong> (joining an existing network, like your phone does — this is what you want), <strong>access-point mode</strong> (creating its own network others join), or both. Connection is handled by the built-in <code>WiFi</code> library: you give it the network name (<strong>SSID</strong>) and password, and it negotiates the rest (DHCP address, etc.) automatically.</p>
+<p>One hard constraint to know upfront: the ESP32 connects to <strong>2.4 GHz Wi-Fi only</strong>. It cannot see 5 GHz networks. If your router uses one merged network name for both bands, the ESP32 usually still connects (the router steers it to 2.4 GHz), but if connection mysteriously fails, check whether your SSID is 5 GHz-only or uses WPA3-only security — the ESP32 is happiest with WPA2 on 2.4 GHz.</p>
+<h3 id="the-sketch-connect-report-and-monitor-signal-strength">The sketch: connect, report, and monitor signal strength</h3>
+<p><strong>Wiring:</strong> none — the antenna is on the module.</p>
+<pre><code class="language-cpp">// ESP32 Wi-Fi station-mode connection with signal-strength reporting.
+// Replace SSID and PASSWORD with your own. 2.4 GHz WPA2 network required.
+
+#include &lt;WiFi.h&gt;
+
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.print(&quot;Connecting to &quot;);
+  Serial.println(SSID);
+
+  WiFi.mode(WIFI_STA);          // station mode: join an existing network
+  WiFi.begin(SSID, PASSWORD);
+
+  // Wait for connection, with a timeout so we never hang forever.
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; attempts &lt; 40) {
+    delay(500);
+    Serial.print(&quot;.&quot;);
+    attempts++;
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(&quot;Connected!&quot;);
+    Serial.print(&quot;IP address: &quot;);
+    Serial.println(WiFi.localIP());
+    Serial.print(&quot;Signal strength (RSSI): &quot;);
+    Serial.print(WiFi.RSSI());
+    Serial.println(&quot; dBm&quot;);
+  } else {
+    Serial.println(&quot;FAILED to connect. Check SSID/password and 2.4 GHz band.&quot;);
+  }
+}
+
+void loop() {
+  // Report signal strength every 10 seconds and watch for disconnects.
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(&quot;RSSI: &quot;);
+    Serial.print(WiFi.RSSI());
+    Serial.println(&quot; dBm&quot;);
+  } else {
+    Serial.println(&quot;Wi-Fi disconnected! Attempting reconnect...&quot;);
+    WiFi.reconnect();
+  }
+  delay(10000);
+}
+</code></pre>
+<h3 id="reading-rssi-what-the-numbers-mean">Reading RSSI: what the numbers mean</h3>
+<p><strong>RSSI</strong> (received signal strength indicator), measured in dBm, is negative — closer to zero is stronger:</p>
+<table>
+<thead>
+<tr>
+<th>RSSI</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>−30 to −50 dBm</td>
+<td>Excellent (same room as router)</td>
+</tr>
+<tr>
+<td>−50 to −65 dBm</td>
+<td>Good (reliable for sensor nodes)</td>
+</tr>
+<tr>
+<td>−65 to −75 dBm</td>
+<td>Fair (works, but watch for drops)</td>
+</tr>
+<tr>
+<td>Below −75 dBm</td>
+<td>Weak (expect disconnects; move closer or add an access point)</td>
+</tr>
+</tbody>
+</table>
+<p>Walk around with the board powered from a USB power bank and watch the numbers change — you are doing a one-device <strong>site survey</strong>, exactly what Chapter 12's deployment step asks for.</p>
+<h3 id="serial-monitor-expected-output_2">Serial Monitor: expected output</h3>
+<pre><code>Connecting to MyHomeWiFi
+.........
+Connected!
+IP address: 192.168.1.42
+Signal strength (RSSI): -58 dBm
+RSSI: -58 dBm
+RSSI: -61 dBm
+RSSI: -59 dBm
+</code></pre>
+<p>The dots appear one per half-second while connecting; the IP address will match your own network's range.</p>
+<h3 id="troubleshooting_3">Troubleshooting</h3>
+<ul>
+<li><strong>Dots forever, never connects:</strong> wrong SSID/password (case-sensitive), 5 GHz-only network, WPA3-only security, or MAC-address filtering on the router. Also: some corporate/captive-portal networks (university Wi-Fi with a login page) cannot be joined by a microcontroller at all — use a phone hotspot for testing instead.</li>
+<li><strong>Connects then drops repeatedly:</strong> weak signal (check RSSI), an overloaded/cheap router, or power-supply brownout — the Wi-Fi radio's transmit bursts draw sharp current spikes; a thin USB cable or weak supply causes exactly this symptom.</li>
+<li><strong><code>WiFi.status()</code> stuck at <code>WL_NO_SSID_AVAIL</code>:</strong> the SSID is not visible — check spelling, band, and that the network is not hidden (hidden SSIDs need extra configuration).</li>
+<li><strong>Works at your desk, fails in the field:</strong> you hardcoded home credentials. Chapters 7–8 keep credentials in one clearly marked place; for real deployments, look into WiFiManager-style captive-portal provisioning (named in the dashboard so you can find it later).</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> Signal strength is data, not trivia. Papers on wireless sensor deployments routinely report RSSI distributions, packet-delivery ratios, and reconnect counts — they are the evidence that your deployment was real rather than a desk demo. Add a line to your logger that records RSSI with every sensor reading (Chapter 12 does this), and your methodology gains a wireless-characterization paragraph almost for free.</p>
+</blockquote>
+<h3 id="scanning-seeing-the-invisible-networks">Scanning: seeing the invisible networks</h3>
+<p>Before joining a network, it helps to see what the ESP32 sees. This scan sketch lists every visible access point with RSSI and security type — the fastest way to confirm "2.4 GHz vs 5 GHz" suspicions:</p>
+<pre><code class="language-cpp">// Wi-Fi network scanner (ESP32).
+
+#include &lt;WiFi.h&gt;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();   // ensure a clean scan
+  delay(100);
+
+  Serial.println(&quot;Scanning...&quot;);
+  int n = WiFi.scanNetworks();
+  Serial.print(n);
+  Serial.println(&quot; networks found:&quot;);
+  for (int i = 0; i &lt; n; i++) {
+    Serial.print(i + 1);
+    Serial.print(&quot;: &quot;);
+    Serial.print(WiFi.SSID(i));
+    Serial.print(&quot;  (&quot;);
+    Serial.print(WiFi.RSSI(i));
+    Serial.print(&quot; dBm)  &quot;);
+    Serial.println(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? &quot;open&quot; : &quot;secured&quot;);
+  }
+}
+
+void loop() {
+  delay(10000);   // scan once; press EN to re-scan
+}
+</code></pre>
+<p><strong>Expected output:</strong></p>
+<pre><code>Scanning...
+6 networks found:
+1: MyHomeWiFi  (-52 dBm)  secured
+2: MyHomeWiFi_5G  (-58 dBm)  secured
+3: NeighborNet  (-71 dBm)  secured
+...
+</code></pre>
+<p>If your network appears only with a <code>_5G</code> suffix (or not at all while your phone sees it), you have confirmed a band problem — enable the 2.4 GHz radio on your router or use a hotspot.</p>
+<h3 id="the-esp32-as-its-own-access-point">The ESP32 as its own access point</h3>
+<p>Sometimes there is no router — a field site, a demo table. The ESP32 can <em>be</em> the network:</p>
+<pre><code class="language-cpp">#include &lt;WiFi.h&gt;
+const char* AP_SSID = &quot;ESP32-Field-Node&quot;;
+const char* AP_PASS = &quot;field1234&quot;;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  Serial.print(&quot;AP IP address: &quot;);
+  Serial.println(WiFi.softAPIP());   // typically 192.168.4.1
+}
+void loop() {}
+</code></pre>
+<p>Your phone joins <code>ESP32-Field-Node</code> and can reach the board at 192.168.4.1. Combined with a tiny web page served by the ESP32 (an <code>ESPAsyncWebServer</code> project for later), this becomes a configuration portal — the professional answer to "hardcoded credentials" from Chapter 6's troubleshooting.</p>
+<h3 id="static-ips-and-hostnames-deployment-hygiene">Static IPs and hostnames (deployment hygiene)</h3>
+<p>DHCP addresses change when the router reboots, which breaks bookmarks and firewall rules. For fixed installations, either reserve the address in the router (best — no code change) or call <code>WiFi.config(staticIP, gateway, subnet)</code> before <code>WiFi.begin()</code>. Either way, record the address in your deployment notes; "the node" is not an address.</p>
+<h3 id="logging-signal-strength-over-time">Logging signal strength over time</h3>
+<p>One RSSI reading is a snapshot; a log is evidence. This sketch appends timestamped readings you can paste into a spreadsheet — the technique behind every wireless characterization in published sensor work:</p>
+<pre><code class="language-cpp">// RSSI logger: CSV output for spreadsheet analysis.
+
+#include &lt;WiFi.h&gt;
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
+  Serial.println(&quot;\nseconds,rssi_dbm&quot;);
+}
+
+void loop() {
+  static unsigned long start = millis();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print((millis() - start) / 1000);
+    Serial.print(&quot;,&quot;);
+    Serial.println(WiFi.RSSI());
+  } else {
+    Serial.println(&quot;disconnected, reconnecting...&quot;);
+    WiFi.reconnect();
+    delay(2000);
+  }
+  delay(5000);
+}
+</code></pre>
+<p><strong>Expected output:</strong></p>
+<pre><code>seconds,rssi_dbm
+0,-58
+5,-60
+10,-59
+15,-63
+20,-58
+</code></pre>
+<p>Copy 10 minutes of this into a spreadsheet, compute min/max/mean/standard deviation, and you have a link-quality characterization — exactly the table reviewers expect in a deployment section.</p>
+<h3 id="reconnect-strategies-compared">Reconnect strategies compared</h3>
+<p>Three philosophies, in order of robustness: (1) <strong>Block until connected</strong> (Chapter 6's first sketch) — simplest, but a dead router wedges the node forever. Fine for bench work. (2) <strong>Retry with timeout, then continue degraded</strong> — the capstone's approach: attempt, and if it fails, sleep and try next cycle. Right for battery nodes. (3) <strong>Background auto-reconnect</strong> — <code>WiFi.setAutoReconnect(true)</code> plus event callbacks (<code>WiFi.onEvent</code>) that fire on disconnect/connect, letting the main loop keep sensing while Wi-Fi heals itself. Most robust for mains-powered gateways; slightly more code. Choose by asking: "what should this node do if the network never comes back?" — then implement that answer.</p>
+<h3 id="a-note-on-enterprise-and-campus-networks">A note on enterprise and campus networks</h3>
+<p>University and corporate Wi-Fi often uses WPA2-Enterprise (username + password, no pre-shared key) or captive portals (click-through login pages). The ESP32's Arduino WiFi library supports enterprise auth via <code>WiFi.begin(ssid, WPA2_AUTH_PEAP, username, password)</code>-style calls, but captive portals are effectively impossible for a headless microcontroller. For campus deployments, request an IoT/PSK SSID from IT, or use a dedicated hotspot — document whichever you chose, because it constrains where your results generalize.</p>
+<h3 id="finding-your-board-on-the-network">Finding your board on the network</h3>
+<p>DHCP addresses change, which is annoying when you want to reach a node. Three answers:</p>
+<ul>
+<li><strong>Serial Monitor</strong> (this book's default): <code>WiFi.localIP()</code> printed at boot — simple, requires USB.</li>
+<li><strong>Router client list:</strong> log into your router and find the device by its MAC address (Chapter 2's fingerprint sketch prints it). Most routers let you assign a permanent DHCP reservation here — the cleanest fix.</li>
+<li><strong>mDNS:</strong> the ESP32 can advertise a human name like <code>esp32-node.local</code> on the local network. Add <code>#include &lt;ESPmDNS.h&gt;</code> and <code>MDNS.begin("esp32-node")</code> after Wi-Fi connects; then <code>ping esp32-node.local</code> from your computer. (Windows needs Bonjour/iTunes installed for <code>.local</code> names; macOS and Linux handle them natively.)</li>
+</ul>
+<h3 id="bandwidth-reality-check">Bandwidth reality check</h3>
+<p>How much data can a node actually move? A JSON reading of ~100 bytes every 10 s is 600 bytes/minute — trivial. Even at one reading per second, you are far below Wi-Fi's capacity; the constraints are <em>power</em> (each transmit burst costs battery) and <em>broker/endpoint politeness</em> (public services throttle aggressive clients), not bandwidth. Design around energy and etiquette: batch readings and transmit in bursts if you need history, keep payloads small, and remember that for environmental sensing, the physics changes slowly — the network is never the bottleneck.</p>
+<h3 id="wi-fi-power-saving-without-deep-sleep">Wi-Fi power saving without deep sleep</h3>
+<p>Between full-active and deep sleep lies a useful middle ground: <strong>modem sleep</strong>, where the CPU keeps running but the radio duty-cycles between access-point beacons. The Arduino core enables a light form of this automatically when Wi-Fi idles, but you can tune it: <code>WiFi.setSleep(true)</code> allows modem sleep (default on most cores), while <code>WiFi.setSleep(false)</code> forces the radio always-on for minimum latency — useful when a node must react to subscribed MQTT commands instantly. The tradeoff is concrete: always-on Wi-Fi draws ~100+ mA continuously; modem sleep cuts that roughly fivefold at the cost of ~10–100 ms extra latency on incoming packets. For mains-powered actuators (a relay board awaiting commands), disable sleep; for battery nodes that only transmit, leave it on and let deep sleep handle the rest.</p>
+<h3 id="wi-fi-and-bluetooth-coexistence">Wi-Fi and Bluetooth coexistence</h3>
+<p>The ESP32's headline feature — Wi-Fi <em>and</em> Bluetooth on one chip — comes with a hardware footnote: both radios share the same 2.4 GHz antenna and front-end. They time-slice rather than truly operating simultaneously, which has two practical consequences: running BLE (Bluetooth Low Energy) alongside Wi-Fi slightly reduces Wi-Fi throughput and increases power draw, and classic Bluetooth's frequency hopping can add jitter to latency-sensitive Wi-Fi traffic. For this book's sensor nodes (Wi-Fi only) it is irrelevant — but when you later add BLE provisioning or beaconing, test the combination under load rather than assuming independence. Espressif's documentation describes coexistence configuration options for advanced use; the default settings are correct for beginners.</p>
+<p><strong>Key takeaways:</strong>
+- Use station mode (<code>WIFI_STA</code>); the ESP32 needs a 2.4 GHz WPA2 network — it cannot join 5 GHz.
+- Always bound your connection wait with a timeout; never <code>while(true)</code> on Wi-Fi.
+- RSSI in dBm tells you link quality: above −65 is comfortable, below −75 is trouble.
+- <code>WiFi.reconnect()</code> in the loop plus RSSI logging turns a fragile demo into a deployable node.</p>
+<hr />
+<h2 id="chapter-7-mqtt-on-esp32-publishing-sensor-data-pubsubclient-pattern">Chapter 7: MQTT on ESP32: Publishing Sensor Data (PubSubClient Pattern)</h2>
+<h3 id="why-mqtt-exists">Why MQTT exists</h3>
+<p>Your sensor node needs to get readings to somewhere useful — a dashboard, a database, a phone alert. You could have the node push data directly to each consumer, but that tangles every device with every destination. <strong>MQTT</strong> solves this with the <strong>publish/subscribe</strong> pattern: devices <strong>publish</strong> messages to named channels called <strong>topics</strong> on a central <strong>broker</strong>, and any number of <strong>subscribers</strong> receive them. Publishers and subscribers never talk to each other directly; they only talk to the broker.</p>
+<p><img alt="Publish-subscribe messaging: sensors publish to a central broker that fans out to subscribers" src="/learn/images/media-generation-book-30-ch7-mqtt-0-dd6b47d5-51aa-48b9-a718-69efe152fe38.webp" /></p>
+<p>MQTT was designed for exactly this job — tiny devices, unreliable networks, minimal bandwidth. Messages are small, the protocol keeps a persistent connection with lightweight keep-alive pings, and three <strong>Quality of Service</strong> levels let you choose between "fire and forget" (QoS 0), "deliver at least once" (QoS 1), and "deliver exactly once" (QoS 2). For sensor telemetry, QoS 0 or 1 is the norm. MQTT is an open OASIS standard, and the public documentation at mqtt.org describes the protocol in full.</p>
+<p>A <strong>topic</strong> looks like a path: <code>home/livingroom/temperature</code>. Subscribers use <strong>wildcards</strong>: <code>home/+/temperature</code> (the <code>+</code> matches one level) or <code>home/#</code> (the <code>#</code> matches everything below). Designing a clean topic hierarchy up front — <code>site/room/measurement</code> — saves painful refactoring later.</p>
+<h3 id="the-broker">The broker</h3>
+<p>For learning, use a public test broker. <code>test.mosquitto.org</code> (run by the Eclipse Mosquitto project) is the long-standing public test instance: no account needed, reachable at port 1883. <strong>Never publish private or sensitive data to a public broker</strong> — anyone can subscribe to your topics. For real deployments you run your own broker (Mosquitto on a Raspberry Pi or VPS takes minutes) or use a managed one.</p>
+<h3 id="the-pubsubclient-pattern">The PubSubClient pattern</h3>
+<p>The standard Arduino MQTT library is <strong>PubSubClient</strong> by Nick O'Leary. Its usage pattern has four parts you will reuse in every MQTT project:</p>
+<ol>
+<li><strong>Configure</strong> a <code>WiFiClient</code> and a <code>PubSubClient</code> pointing at the broker.</li>
+<li><strong>Connect</strong> (and reconnect in the loop — connections drop; your code must heal).</li>
+<li><strong>Publish</strong> readings on a schedule.</li>
+<li><strong>Call <code>client.loop()</code> often</strong> — this pumps the keep-alive and delivers incoming messages. Starve it (with long <code>delay()</code>s) and the broker disconnects you.</li>
+</ol>
+<h3 id="wiring_1">Wiring</h3>
+<p>This chapter publishes the DHT22 readings from Chapter 5, so keep that wiring: <strong>VCC→3V3, DATA→GPIO 15, GND→GND</strong>.</p>
+<h3 id="step-1-install-the-library">Step 1 — Install the library</h3>
+<p><strong>Sketch → Include Library → Manage Libraries</strong>, search <strong>"PubSubClient"</strong> by <strong>Nick O'Leary</strong>, install. (You need the DHT library from Chapter 5 as well.)</p>
+<h3 id="the-sketch_1">The sketch</h3>
+<pre><code class="language-cpp">// ESP32 MQTT sensor publisher (PubSubClient pattern).
+// Publishes DHT22 temperature/humidity to test.mosquitto.org every 10 s.
+// Libraries: PubSubClient (Nick O'Leary), DHT sensor library (Adafruit).
+
+#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+#include &quot;DHT.h&quot;
+
+// ---- configure these ----
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+const char* MQTT_BROKER = &quot;test.mosquitto.org&quot;;
+const int   MQTT_PORT = 1883;
+const char* TOPIC_TEMP = &quot;astolixgen/demo/lab1/temperature&quot;;
+const char* TOPIC_HUM  = &quot;astolixgen/demo/lab1/humidity&quot;;
+// Use YOUR OWN unique topic prefix (not &quot;astolixgen/demo&quot;) on public brokers.
+
+#define DHTPIN 15
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+unsigned long lastPublish = 0;
+const unsigned long PUBLISH_INTERVAL = 10000;  // 10 seconds
+
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PASSWORD);
+  Serial.print(&quot;Connecting to Wi-Fi&quot;);
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; attempts &lt; 40) {
+    delay(500); Serial.print(&quot;.&quot;); attempts++;
+  }
+  Serial.println(WiFi.status() == WL_CONNECTED ? &quot; OK&quot; : &quot; FAILED&quot;);
+}
+
+void connectMQTT() {
+  // Loop until reconnected. A unique client ID avoids broker conflicts.
+  while (!client.connected()) {
+    Serial.print(&quot;Connecting to MQTT broker...&quot;);
+    String clientId = &quot;esp32-&quot; + String((uint32_t)ESP.getEfuseMac(), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println(&quot;connected.&quot;);
+    } else {
+      Serial.print(&quot;failed, rc=&quot;);
+      Serial.print(client.state());
+      Serial.println(&quot; - retrying in 5 s&quot;);
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  dht.begin();
+  connectWiFi();
+  client.setServer(MQTT_BROKER, MQTT_PORT);
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) { connectWiFi(); }
+  if (!client.connected()) { connectMQTT(); }
+  client.loop();   // keep-alive + incoming messages: call as often as possible
+
+  if (millis() - lastPublish &gt;= PUBLISH_INTERVAL) {
+    lastPublish = millis();
+
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    if (isnan(h) || isnan(t)) {
+      Serial.println(&quot;DHT read failed, skipping publish.&quot;);
+      return;
+    }
+
+    char payload[16];
+    snprintf(payload, sizeof(payload), &quot;%.1f&quot;, t);
+    client.publish(TOPIC_TEMP, payload);
+    snprintf(payload, sizeof(payload), &quot;%.1f&quot;, h);
+    client.publish(TOPIC_HUM, payload);
+
+    Serial.print(&quot;Published: temp=&quot;);
+    Serial.print(t, 1);
+    Serial.print(&quot; C, hum=&quot;);
+    Serial.print(h, 1);
+    Serial.println(&quot; %&quot;);
+  }
+}
+</code></pre>
+<p>Study the architecture: <code>loop()</code> does three jobs every pass — <strong>heal</strong> the connections, <strong>pump</strong> the MQTT client, and <strong>publish on a timer</strong>. The publishing uses <code>millis()</code> timing (Chapter 4's pattern) so <code>client.loop()</code> never starves. The client ID is derived from the chip's unique MAC address so two of your boards never clash on the broker.</p>
+<h3 id="serial-monitor-expected-output_3">Serial Monitor: expected output</h3>
+<pre><code>Connecting to Wi-Fi......... OK
+Connecting to MQTT broker...connected.
+Published: temp=27.8 C, hum=54.2 %
+Published: temp=27.9 C, hum=54.1 %
+Published: temp=27.9 C, hum=54.3 %
+</code></pre>
+<h3 id="verifying-with-a-subscriber-the-satisfying-part">Verifying with a subscriber (the satisfying part)</h3>
+<p>To prove the data really leaves the building, subscribe from your computer. If you have Python, <code>pip install paho-mqtt</code> and run a tiny subscriber on topic <code>astolixgen/demo/lab1/#</code> — or use any free MQTT dashboard app on your phone pointed at <code>test.mosquitto.org:1883</code> with the same topic. Seeing your phone update every 10 seconds with live readings from the little board on your desk is the moment MQTT "clicks."</p>
+<h3 id="troubleshooting_4">Troubleshooting</h3>
+<ul>
+<li><strong><code>failed, rc=-2</code> looping:</strong> the broker is unreachable — no internet route, DNS blocked, or the public broker is down (it happens). Test from your phone's MQTT app on the same network to isolate board vs. broker.</li>
+<li><strong>Connects then drops every ~15 s:</strong> <code>client.loop()</code> is starved by a long <code>delay()</code> somewhere — the keep-alive never goes out. Keep delays short or restructure with <code>millis()</code>.</li>
+<li><strong>Publishes but subscriber sees nothing:</strong> topic typo (topics are case-sensitive), or you subscribed to a different topic tree. Double-check both strings character by character.</li>
+<li><strong>Two boards, one keeps disconnecting the other:</strong> identical client IDs — the broker kicks the older session. Use unique IDs (the sketch's MAC-based ID fixes this).</li>
+<li><strong>Payload shows stale/odd values:</strong> you are publishing faster than the DHT22's 2 s minimum — keep the publish interval well above it.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> MQTT topic design is research-infrastructure design. A scheme like <code>campus/building-A/room-204/temperature</code> lets you add fifty nodes without touching subscriber code, and logging every message with a broker-side timestamp gives you a complete, replayable dataset. In a paper, one sentence — "readings were published via MQTT (QoS 1) to topic <code>greenhouse/zone-2/...</code> at 10 s intervals and archived by a subscriber" — tells reviewers your data pipeline is real and reproducible. Keep a sample of raw MQTT payloads in your appendix or repository; it is the closest thing to primary evidence.</p>
+</blockquote>
+<h3 id="subscribing-from-telemetry-to-control">Subscribing: from telemetry to control</h3>
+<p>Publishing is only half of MQTT. <strong>Subscribing</strong> lets the node receive commands — the foundation of actuators (relays, pumps, alarms). The pattern: register a <strong>callback</strong> function, subscribe after connecting, and let <code>client.loop()</code> deliver messages into the callback:</p>
+<pre><code class="language-cpp">// Add to the Chapter 7 sketch: subscribe to a command topic.
+
+const char* TOPIC_CMD = &quot;astolixgen/demo/lab1/led&quot;;  // YOUR OWN prefix
+const int LED_PIN = 2;
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (unsigned int i = 0; i &lt; length; i++) msg += (char)payload[i];
+  msg.trim();
+  Serial.print(&quot;Command received: &quot;);
+  Serial.println(msg);
+  if (msg == &quot;on&quot;)       digitalWrite(LED_PIN, HIGH);
+  else if (msg == &quot;off&quot;) digitalWrite(LED_PIN, LOW);
+}
+
+// in setup(), after WiFi connects:
+ // client.setCallback(mqttCallback);
+// in connectMQTT(), after client.connect() succeeds:
+ // client.subscribe(TOPIC_CMD);
+</code></pre>
+<p>Keep callbacks short — set flags or outputs directly, never <code>delay()</code> inside. Publish the command from your phone's MQTT app (<code>on</code>/<code>off</code>) and watch the board's LED obey: you have built bidirectional IoT, the basis of every "smart" device.</p>
+<h3 id="retained-messages-and-last-will">Retained messages and Last Will</h3>
+<p>Two broker features worth knowing:</p>
+<ul>
+<li><strong>Retained messages:</strong> publish with the retain flag and the broker stores the last value, delivering it instantly to each new subscriber. Perfect for "current setpoint" topics — a dashboard always shows the latest command even if it connects after the command was sent.</li>
+<li><strong>Last Will and Testament (LWT):</strong> the node registers a "will" message at connect time (e.g., topic <code>.../status</code> = <code>"offline"</code>); if the node disconnects unexpectedly, the broker publishes it automatically. Subscribers then distinguish "node asleep" from "node dead" — set the will in <code>client.connect()</code> via its overloads, and publish <code>"online"</code> (retained) on each successful boot. Fleet-health dashboards are built on exactly this.</li>
+</ul>
+<h3 id="choosing-qos">Choosing QoS</h3>
+<p>QoS 0 (at most once) is fine for 10-second temperature telemetry — losing one reading in a thousand is invisible. Use QoS 1 (at least once) for commands and alarms where a lost message matters; accept the small overhead of acknowledgments. QoS 2 (exactly once) is rarely needed on Arduino-class devices and PubSubClient's default configuration focuses on QoS 0/1 — another reason to keep telemetry idempotent (each message self-contained, so duplicates or gaps never corrupt the dataset).</p>
+<h3 id="designing-topic-hierarchies-for-a-fleet">Designing topic hierarchies for a fleet</h3>
+<p>One node tolerates sloppy topics; twenty nodes punish them. Design rules that scale:</p>
+<ul>
+<li><strong>Root by deployment, then location, then measurement:</strong> <code>campus/building-a/floor-2/room-204/temperature</code>. Every level you add is a future filter you get for free.</li>
+<li><strong>Separate telemetry from status from commands:</strong> <code>.../temperature</code> (data), <code>.../status</code> (online/offline via LWT), <code>.../cmd/led</code> (commands in). Mixing them forces every subscriber to parse message types.</li>
+<li><strong>Keep topics stable, put change in payloads.</strong> Renaming topics breaks subscribers; adding a JSON field does not.</li>
+<li><strong>Document the tree</strong> in your repository README — a one-page topic map is the contract between firmware people and data people.</li>
+</ul>
+<p>With wildcards, one subscriber to <code>campus/#</code> archives everything, while <code>campus/building-a/+/room-204/#</code> isolates a single room across floors. Good hierarchy turns "add a node" into a zero-code operation.</p>
+<h3 id="broker-options-from-laptop-to-cloud">Broker options: from laptop to cloud</h3>
+<ul>
+<li><strong>Mosquitto on your own machine/Raspberry Pi</strong> — free, private, minutes to install; the right choice for real data collection and for this book's capstone once you outgrow the test broker.</li>
+<li><strong>Managed MQTT (various cloud providers)</strong> — hosted brokers with TLS and authentication; costs money but removes server maintenance. Evaluate on message volume and retention needs.</li>
+<li><strong>Public test brokers</strong> (<code>test.mosquitto.org</code>) — for learning only. No privacy, no uptime guarantees, no authentication.</li>
+</ul>
+<p>Whichever you choose, the ESP32 code barely changes — only the broker address, port, and credentials. That portability is the payoff of learning the standard pattern rather than a vendor's SDK.</p>
+<h3 id="payload-design-json-vs-plain-values">Payload design: JSON vs. plain values</h3>
+<p>Chapter 7 publishes bare values (<code>27.8</code>) — simplest, and fine for one measurement per topic. The capstone publishes JSON documents — better when a message carries several fields plus metadata (node, firmware, RSSI). Rule: one value per topic → plain text; anything richer → JSON. And whatever you choose, freeze the schema early: changing payload formats mid-deployment corrupts datasets silently, while versioned schemas (<code>"v":1</code> field) let parsers evolve safely.</p>
+<p><strong>Key takeaways:</strong>
+- MQTT = publish/subscribe via a broker; topics are hierarchical paths, wildcards (<code>+</code>, <code>#</code>) select subtrees.
+- The PubSubClient pattern: configure → connect/reconnect → publish on a <code>millis()</code> timer → call <code>client.loop()</code> constantly.
+- Use a unique client ID (MAC-based) and your own topic prefix on public brokers; never send private data to one.
+- A phone MQTT app subscribing to your topic is the fastest end-to-end verification.</p>
+<hr />
+<h2 id="chapter-8-sending-data-to-the-cloud-http-post-to-a-test-endpoint">Chapter 8: Sending Data to the Cloud (HTTP POST to a Test Endpoint)</h2>
+<h3 id="http-the-webs-language-spoken-by-microcontrollers">HTTP: the web's language, spoken by microcontrollers</h3>
+<p>MQTT is ideal for continuous telemetry, but much of the internet speaks <strong>HTTP</strong> — the request/response protocol behind every web page and REST API. An ESP32 can act as an HTTP <strong>client</strong>: it opens a connection to a server, sends a request (GET to fetch, POST to submit data), and reads the response with its <strong>status code</strong> (<code>200 OK</code>, <code>404 Not Found</code>, <code>500 Server Error</code>) and body.</p>
+<p>For a sensor node, the typical use is <strong>POSTing a JSON payload</strong> to a data-collection endpoint: <code>{"temperature": 27.8, "humidity": 54.2, "rssi": -61}</code>. Your own server, a cloud function, or a service like ThingSpeak/MQTT-to-cloud bridges all accept this shape.</p>
+<h3 id="the-test-endpoint-httpbinorg">The test endpoint: httpbin.org</h3>
+<p>To learn HTTP without standing up a server, use <strong>httpbin.org</strong> — a free, long-running request-inspection service. POST anything to <code>http://httpbin.org/post</code> and it echoes back exactly what you sent, with headers and metadata. It is the standard scratch endpoint for HTTP client development. (Use plain <code>http://</code> here — the ESP32 can do HTTPS too, but certificate handling adds complexity covered in the dashboard's "next steps.")</p>
+<h3 id="the-httpclient-pattern">The HTTPClient pattern</h3>
+<p>Arduino-ESP32's <code>HTTPClient</code> library (built into the core — no install needed) follows a tidy pattern: <code>begin(url)</code> → <code>addHeader(...)</code> → <code>POST(payload)</code> → read <code>httpResponseCode</code> and body → <code>end()</code> to free the connection. Forgetting <code>end()</code> leaks the connection and eventually exhausts memory — the embedded equivalent of leaving files open.</p>
+<h3 id="wiring_2">Wiring</h3>
+<p>Same DHT22 wiring as Chapters 5 and 7 (VCC→3V3, DATA→GPIO 15, GND→GND). No new hardware.</p>
+<h3 id="the-sketch_2">The sketch</h3>
+<pre><code class="language-cpp">// ESP32 HTTP POST: send DHT22 readings as JSON to a test endpoint.
+// Endpoint: http://httpbin.org/post  (echoes your data back for verification)
+// No extra library needed: HTTPClient ships with the ESP32 Arduino core.
+
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &quot;DHT.h&quot;
+
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+const char* POST_URL = &quot;http://httpbin.org/post&quot;;
+
+#define DHTPIN 15
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+unsigned long lastPost = 0;
+const unsigned long POST_INTERVAL = 30000;  // 30 seconds (be polite to free services)
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  dht.begin();
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PASSWORD);
+  Serial.print(&quot;Connecting to Wi-Fi&quot;);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
+  Serial.println(&quot;\nWi-Fi connected.&quot;);
+}
+
+void loop() {
+  if (millis() - lastPost &gt;= POST_INTERVAL) {
+    lastPost = millis();
+
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    if (isnan(h) || isnan(t)) {
+      Serial.println(&quot;DHT read failed, skipping POST.&quot;);
+      return;
+    }
+
+    // Build the JSON payload by hand (small and dependency-free).
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+             &quot;{\&quot;temperature\&quot;:%.1f,\&quot;humidity\&quot;:%.1f,\&quot;rssi\&quot;:%d}&quot;,
+             t, h, WiFi.RSSI());
+
+    HTTPClient http;
+    http.begin(POST_URL);
+    http.addHeader(&quot;Content-Type&quot;, &quot;application/json&quot;);
+
+    int code = http.POST((uint8_t*)payload, strlen(payload));
+    Serial.print(&quot;POST -&gt; HTTP &quot;);
+    Serial.println(code);
+
+    if (code == 200) {
+      String body = http.getString();
+      // The echo is long; print just the first 300 characters.
+      Serial.println(body.substring(0, 300));
+    } else {
+      Serial.println(&quot;POST failed. Check network/DNS.&quot;);
+    }
+    http.end();   // always release the connection
+  }
+  delay(100);  // small idle; nothing else to do in this sketch
+}
+</code></pre>
+<p>Hand-building JSON with <code>snprintf</code> is fine for three fields and avoids adding a JSON library. If your payload grows (nested objects, arrays), switch to the <strong>ArduinoJson</strong> library — it is the community standard and is listed in the dashboard checklist.</p>
+<h3 id="serial-monitor-expected-output_4">Serial Monitor: expected output</h3>
+<pre><code>Connecting to Wi-Fi.....
+Wi-Fi connected.
+POST -&gt; HTTP 200
+{
+  &quot;args&quot;: {},
+  &quot;data&quot;: &quot;{\&quot;temperature\&quot;:27.8,\&quot;humidity\&quot;:54.2,\&quot;rssi\&quot;:-61}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    ...
+</code></pre>
+<p>The echo proves your JSON arrived intact — the server received exactly the string you sent. In a real deployment, your own endpoint would parse this JSON and store the three fields in a database.</p>
+<h3 id="status-codes-you-will-meet">Status codes you will meet</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>200</td>
+<td>OK</td>
+<td>Success — your data arrived.</td>
+</tr>
+<tr>
+<td>400</td>
+<td>Bad Request</td>
+<td>Your payload/format is wrong — print and inspect it.</td>
+</tr>
+<tr>
+<td>401/403</td>
+<td>Unauthorized/Forbidden</td>
+<td>Missing or wrong API key — add the auth header.</td>
+</tr>
+<tr>
+<td>404</td>
+<td>Not Found</td>
+<td>Wrong URL path — check the endpoint.</td>
+</tr>
+<tr>
+<td>429</td>
+<td>Too Many Requests</td>
+<td>You are posting too fast — slow down (rate limit).</td>
+</tr>
+<tr>
+<td>500</td>
+<td>Server Error</td>
+<td>Their problem, not yours — retry with backoff.</td>
+</tr>
+<tr>
+<td>−1 (ESP32)</td>
+<td>Connection failed</td>
+<td>No route/DNS — check Wi-Fi and the hostname.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="troubleshooting_5">Troubleshooting</h3>
+<ul>
+<li><strong>HTTP code −1 every time:</strong> no internet connectivity or DNS failure — verify Wi-Fi is connected and try the URL in a desktop browser on the same network.</li>
+<li><strong>Code 200 but data looks wrong on your server:</strong> print the exact <code>payload</code> string before sending; 90 % of API bugs are malformed JSON (missing quote, stray comma).</li>
+<li><strong>Works for an hour then crashes:</strong> missing <code>http.end()</code> in an earlier version of your code, or <code>String</code> fragmentation — the sketch above ends the client every cycle.</li>
+<li><strong>HTTPS URLs fail:</strong> certificate validation — for learning, stay on <code>http://</code> test endpoints; production HTTPS needs the root CA certificate loaded (dashboard "next steps").</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> HTTP POST with JSON is the lingua franca between field hardware and research data infrastructure. When your paper says "sensor nodes POSTed JSON readings every 30 s to a REST endpoint backed by a time-series database," every reviewer understands the pipeline instantly — no custom protocol to explain or defend. Log the HTTP status code alongside each reading; a column of <code>200</code>s is quantitative evidence of uplink reliability, and the failure codes document exactly when and how the link degraded.</p>
+</blockquote>
+<h3 id="get-fetching-data-down">GET: fetching data down</h3>
+<p>POST sends data up; <strong>GET</strong> fetches data down — configuration, commands, or reference information. The pattern is nearly identical:</p>
+<pre><code class="language-cpp">// HTTP GET example: fetch echoed request info from httpbin.
+
+#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
+  Serial.println(&quot;\nConnected.&quot;);
+
+  HTTPClient http;
+  http.begin(&quot;http://httpbin.org/get?node=node1&quot;);
+  int code = http.GET();
+  Serial.print(&quot;GET -&gt; HTTP &quot;);
+  Serial.println(code);
+  if (code == 200) {
+    Serial.println(http.getString().substring(0, 400));
+  }
+  http.end();
+}
+
+void loop() {}
+</code></pre>
+<p><strong>Expected output</strong> (truncated): <code>GET -&gt; HTTP 200</code> followed by JSON showing your query parameters echoed back. Practical uses: a node fetching its sampling interval from a server at boot (remote configuration without reflashing), or pulling a weather forecast to decide whether to water plants.</p>
+<h3 id="parsing-json-responses-arduinojson">Parsing JSON responses: ArduinoJson</h3>
+<p>When responses grow beyond a glance, parse them properly. Install <strong>ArduinoJson</strong> by Benoît Blanchon (Library Manager) — the community standard:</p>
+<pre><code class="language-cpp">#include &lt;ArduinoJson.h&gt;
+
+// ... after a successful GET with body in `String body`:
+StaticJsonDocument&lt;1024&gt; doc;
+DeserializationError err = deserializeJson(doc, body);
+if (!err) {
+  const char* origin = doc[&quot;origin&quot;];      // httpbin returns caller IP here
+  Serial.print(&quot;Server saw us as: &quot;);
+  Serial.println(origin);
+}
+</code></pre>
+<p>Rule: size the document generously (<code>StaticJsonDocument&lt;2048&gt;</code> for small payloads), always check the deserialization error, and never parse untrusted JSON into fixed buffers without bounds — the library handles this if you let it.</p>
+<h3 id="https-in-production">HTTPS in production</h3>
+<p>Real cloud endpoints use <code>https://</code>. The ESP32 supports it, but certificate validation requires loading the server's root CA certificate (<code>http.begin(url, rootCACertificate)</code> or <code>setInsecure()</code> for testing only — never ship <code>setInsecure()</code>). TLS handshakes also cost RAM and seconds of awake time, which matters for Chapter 9's power budget. Learn on <code>http://</code> test endpoints; add TLS when you move to your own infrastructure, and measure the extra awake time.</p>
+<h3 id="from-endpoint-to-dashboard-completing-the-pipeline">From endpoint to dashboard: completing the pipeline</h3>
+<p>Posting JSON to httpbin proves your client works, but research needs the data <em>stored and visible</em>. The full pipeline has four stages, and you now understand the first two:</p>
+<ol>
+<li><strong>Node</strong> (this book): senses and POSTs JSON.</li>
+<li><strong>Endpoint</strong>: receives and validates — this can be a 20-line Python Flask server on your laptop, a cloud function, or a managed IoT service.</li>
+<li><strong>Storage</strong>: a time-series database (InfluxDB is the open-source standard) keyed by timestamp, node, and measurement.</li>
+<li><strong>Visualization</strong>: a dashboard (Grafana pairs naturally with InfluxDB) showing live graphs and alerts.</li>
+</ol>
+<p>A minimal Flask receiver for testing looks like this (run on your computer, point the ESP32 at <code>http://YOUR_PC_IP:5000/data</code>):</p>
+<pre><code class="language-python">from flask import Flask, request
+app = Flask(__name__)
+
+@app.route('/data', methods=['POST'])
+def data():
+    reading = request.get_json(force=True)
+    print(reading)  # later: write to a database
+    return {&quot;status&quot;: &quot;ok&quot;}, 200
+
+app.run(host='0.0.0.0', port=5000)
+</code></pre>
+<p>Your ESP32 POSTs to it exactly as it POSTed to httpbin — same code, different URL — and your terminal prints each reading. That is a complete private data pipeline with no cloud account required.</p>
+<h3 id="rate-limits-and-politeness">Rate limits and politeness</h3>
+<p>Free endpoints and shared networks have limits: posting every second to a free service will get you throttled (HTTP 429) or banned. Rules of thumb: 30–60 s intervals for environmental data (nothing physical changes faster), exponential backoff on failures (wait 5 s, then 10 s, then 20 s…), and never retry a 4xx error in a tight loop — 4xx means <em>your request</em> is wrong, and hammering it helps nobody. The capstone's bounded retries embody this.</p>
+<h3 id="retry-with-backoff-production-grade-post">Retry with backoff: production-grade POST</h3>
+<p>The Chapter 8 sketch tries once per interval. Real firmware retries intelligently — immediate retries hammer struggling servers, so wait progressively longer (<strong>exponential backoff</strong>):</p>
+<pre><code class="language-cpp">// POST with exponential backoff: 5 s, 10 s, 20 s, then give up until next cycle.
+
+bool postWithRetry(const char* url, const char* payload) {
+  HTTPClient http;
+  http.begin(url);
+  http.addHeader(&quot;Content-Type&quot;, &quot;application/json&quot;);
+
+  unsigned long waitMs = 5000;
+  for (int attempt = 1; attempt &lt;= 3; attempt++) {
+    int code = http.POST((uint8_t*)payload, strlen(payload));
+    Serial.print(&quot;Attempt &quot;);
+    Serial.print(attempt);
+    Serial.print(&quot; -&gt; HTTP &quot;);
+    Serial.println(code);
+    if (code == 200) { http.end(); return true; }
+    if (code &gt;= 400 &amp;&amp; code &lt; 500 &amp;&amp; code != 429) {
+      Serial.println(&quot;Client error: retrying won't help. Check the request.&quot;);
+      break;   // your request is wrong; don't hammer the server
+    }
+    delay(waitMs);
+    waitMs *= 2;
+  }
+  http.end();
+  return false;
+}
+</code></pre>
+<p>Notice the 4xx rule encoded: retry network failures and rate limits, but stop immediately on <em>your</em> mistakes. Call this from <code>loop()</code> in place of the inline POST, count successes, and you have the uplink-reliability metric Exercise 8 asks for.</p>
+<h3 id="mqtt-vs-http-which-to-use">MQTT vs. HTTP: which to use?</h3>
+<p>They overlap, so choose deliberately:</p>
+<ul>
+<li><strong>Pick MQTT</strong> for continuous telemetry to dashboards, many-to-many messaging, low bandwidth, and unreliable networks (the keep-alive and QoS machinery handles drops gracefully). The capstone uses it.</li>
+<li><strong>Pick HTTP</strong> for occasional submissions to web APIs, request/response interactions (send data, get a command back), and integration with existing web infrastructure. Simpler to debug — every browser speaks it.</li>
+<li><strong>Use both</strong> when it fits: MQTT for live telemetry, HTTP POST for daily summary uploads to a REST archive. They coexist fine on one board.</li>
+</ul>
+<p>The deciding question is not "which is better" but "who consumes the data, and what shape do they expect?" — answer that, and the protocol picks itself.</p>
+<p><strong>Key takeaways:</strong>
+- ESP32 speaks HTTP via the built-in <code>HTTPClient</code>: begin → headers → POST → check code → <code>end()</code>.
+- <code>httpbin.org/post</code> echoes your payload — the perfect no-server way to verify your client.
+- Always <code>http.end()</code>; always check the status code; include RSSI and timestamps in your JSON.
+- Hand-rolled <code>snprintf</code> JSON is fine for tiny payloads; adopt ArduinoJson when structure grows.</p>
+<hr />

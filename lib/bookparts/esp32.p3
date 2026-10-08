@@ -1,0 +1,120 @@
+ failed</td>
+<td>Same subnet; check firewall; verify Wi-Fi (10)</td>
+</tr>
+<tr>
+<td>"Worked yesterday, changed nothing"</td>
+<td>Loose wire / dying battery / router change</td>
+<td>Re-seat wiring; re-run blink test (11)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="library-checklist-install-via-sketch-manage-libraries-record-versions">Library checklist (install via Sketch → Manage Libraries; record versions)</h3>
+<table>
+<thead>
+<tr>
+<th>Library</th>
+<th>Author</th>
+<th>Used in</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DHT sensor library</td>
+<td>Adafruit</td>
+<td>Ch. 5, 12</td>
+<td>Accept the Adafruit Unified Sensor dependency</td>
+</tr>
+<tr>
+<td>PubSubClient</td>
+<td>Nick O'Leary</td>
+<td>Ch. 7, 12</td>
+<td>The standard Arduino MQTT client</td>
+</tr>
+<tr>
+<td>ArduinoJson</td>
+<td>Benoît Blanchon</td>
+<td>(next step)</td>
+<td>For complex JSON payloads beyond <code>snprintf</code></td>
+</tr>
+<tr>
+<td>WiFi, HTTPClient, ArduinoOTA, <code>esp_sleep.h</code></td>
+<td>Espressif (built into core)</td>
+<td>Ch. 6, 8, 9, 10</td>
+<td>No install needed — part of the ESP32 core</td>
+</tr>
+</tbody>
+</table>
+<h3 id="suggested-next-steps-after-this-book">Suggested next steps after this book</h3>
+<ul>
+<li>HTTPS with root-CA certificates for production cloud endpoints</li>
+<li>EXT0/EXT1 external wake-up (button/PIR-triggered sleep)</li>
+<li>WiFiManager-style captive-portal Wi-Fi provisioning (no hardcoded credentials)</li>
+<li>Running your own Mosquitto broker with username/password and TLS</li>
+<li>ArduinoJson for structured payloads; time-series databases for storage</li>
+<li>FreeRTOS tasks and dual-core usage for advanced sensing pipelines</li>
+</ul>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>ADC (analog-to-digital converter)</strong> — hardware that converts a voltage into a number; 12-bit on ESP32 (0–4095).</li>
+<li><strong>Arduino core (Arduino-ESP32)</strong> — Espressif's support package letting the Arduino IDE compile for ESP32 chips.</li>
+<li><strong>ArduinoOTA</strong> — library enabling firmware uploads over Wi-Fi from the Arduino IDE.</li>
+<li><strong>Baud rate</strong> — serial communication speed in bits per second; 115200 is the ESP32 standard.</li>
+<li><strong>Bootloader</strong> — first code that runs at power-on; loads your sketch or enters download mode.</li>
+<li><strong>Broker (MQTT)</strong> — central server that receives published messages and forwards them to subscribers.</li>
+<li><strong>Brownout</strong> — a dip in supply voltage below the minimum; triggers resets, often during Wi-Fi transmit bursts.</li>
+<li><strong>DAC (digital-to-analog converter)</strong> — hardware that converts a number into a voltage (GPIO 25/26 on ESP32).</li>
+<li><strong>Debouncing</strong> — ignoring the rapid mechanical chatter of a switch so one press counts once.</li>
+<li><strong>Deep sleep</strong> — ultra-low-power mode (~10 µA) where RAM clears and the chip reboots on wake.</li>
+<li><strong>Devkit board</strong> — module plus USB-serial, regulator, buttons, and pin headers; what beginners buy.</li>
+<li><strong>DHT22 (AM2302)</strong> — digital temperature/humidity sensor; ±0.5 °C, ±2 % RH, 2 s minimum read interval.</li>
+<li><strong>Duty cycle</strong> — fraction of time a device is awake; determines battery life.</li>
+<li><strong>Floating pin</strong> — an input with nothing driving it; reads random noise. Fix with pull-up/pull-down.</li>
+<li><strong>GPIO</strong> — general-purpose input/output pin, referenced by number in code.</li>
+<li><strong>HTTP POST</strong> — web-protocol request that submits data (e.g., JSON) to a server.</li>
+<li><strong>I2C / SPI / UART</strong> — standard wired protocols for talking to sensors and peripherals.</li>
+<li><strong>IP address</strong> — the network address (e.g., 192.168.1.42) assigned to the ESP32 by the router's DHCP.</li>
+<li><strong>JSON</strong> — lightweight text format (<code>{"key": value}</code>) for structuring data sent to servers.</li>
+<li><strong>MQTT</strong> — lightweight publish/subscribe messaging protocol, an OASIS standard, designed for IoT.</li>
+<li><strong>Payload</strong> — the actual data content of a message (MQTT or HTTP).</li>
+<li><strong>Pull-up / pull-down resistor</strong> — resistor holding an input at a known level until a device overrides it; built into the ESP32 and enabled with <code>INPUT_PULLUP</code>.</li>
+<li><strong>QoS (quality of service)</strong> — MQTT delivery guarantee level: 0 (at most once), 1 (at least once), 2 (exactly once).</li>
+<li><strong>RSSI</strong> — received signal strength in dBm (negative; closer to zero is stronger).</li>
+<li><strong>RTC memory</strong> — small memory preserved during deep sleep; use <code>RTC_DATA_ATTR</code> for counters.</li>
+<li><strong>Serial Monitor</strong> — IDE window showing text the ESP32 prints via <code>Serial.print</code>.</li>
+<li><strong>Sketch</strong> — an Arduino program (<code>setup()</code> + <code>loop()</code>).</li>
+<li><strong>SSID</strong> — the name of a Wi-Fi network.</li>
+<li><strong>Status code (HTTP)</strong> — numeric result of a request: 200 OK, 404 not found, 500 server error.</li>
+<li><strong>Strapping pins</strong> — GPIOs sampled at boot that control startup mode; avoid driving them externally during reset.</li>
+<li><strong>Topic (MQTT)</strong> — hierarchical channel name (<code>site/room/measurement</code>); <code>+</code> and <code>#</code> are wildcards.</li>
+<li><strong>Watchdog timer</strong> — hardware that resets the chip if software stops responding; the cause of crash-loop resets.</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Verify your toolchain.</strong> Install the IDE, core, and driver per Chapter 2, then compile (not upload) the BareMinimum example. Write down your IDE version, ESP32 core version, and board selection in your lab notes.</li>
+<li><strong>Blink with a twist.</strong> Modify the Chapter 3 sketch to blink SOS in Morse code (··· −−− ···) on the built-in LED, printing each symbol to the Serial Monitor. Confirm the timing with a stopwatch.</li>
+<li><strong>Button reaction timer.</strong> Using Chapter 4's debounced button, build a reaction game: the ESP32 prints "GO!", you press the button, and it reports your reaction time in milliseconds using <code>millis()</code>. Average five tries.</li>
+<li><strong>Calibrate the LDR.</strong> From Chapter 5's analog circuit, record raw ADC values in three conditions (dark room, desk light, direct sunlight). Plot them and choose a threshold value that reliably distinguishes "light" from "dark" for a night-light controller.</li>
+<li><strong>DHT22 data logger.</strong> Extend the Chapter 5 sketch to print a CSV line (<code>seconds,humidity,temperature</code>) every 5 seconds. Copy 10 minutes of output into a spreadsheet and plot temperature over time. Breathe on the sensor mid-run and mark the event.</li>
+<li><strong>RSSI site survey.</strong> Flash the Chapter 6 sketch, power the board from a USB power bank, and record RSSI at five locations between your router and the farthest room. Make a small table: location → RSSI → quality rating. Decide where a sensor node could reliably live.</li>
+<li><strong>MQTT round trip.</strong> Publish DHT22 readings (Chapter 7) and build a phone/computer subscriber. Then add a <em>second</em> topic the ESP32 subscribes to (e.g., <code>.../led</code>) that turns the built-in LED on/off from your phone — your first bidirectional IoT control.</li>
+<li><strong>Cloud POST with retry.</strong> Extend Chapter 8's sketch: if the POST fails (non-200), retry up to 3 times with a 5-second gap, then log the failure code to serial. Count successes vs. failures over 30 minutes and report the uplink reliability percentage.</li>
+<li><strong>Research-oriented: duty-cycle experiment.</strong> Flash the Chapter 9 deep-sleep sketch with a 60-second cycle and measure actual awake time with a stopwatch over 5 cycles. Compute the duty cycle, average current, and predicted battery life for a 2000 mAh cell. Write it up as a 200-word methodology paragraph with the full calculation shown.</li>
+<li><strong>Research-oriented: deploy and document the capstone.</strong> Build Chapter 12's node, run it for 24 hours on your intended power supply, and produce a one-page deployment report: hardware table (module, board, sensor, GPIO map), firmware/library versions, sampling regime, RSSI at the deployment spot, number of expected vs. received MQTT messages (delivery ratio), and one paragraph on problems encountered and fixes. This report is a draft methodology section.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] Espressif Systems, "ESP32 Series Datasheet," Espressif Systems, Shanghai, China. [Online]. Available: https://www.espressif.com/en/support/download/documents</p>
+<p>[2] Espressif Systems, "ESP32 Technical Reference Manual," Espressif Systems, Shanghai, China. [Online]. Available: https://www.espressif.com/en/support/download/documents</p>
+<p>[3] Espressif Systems, "Arduino-ESP32 Official Documentation," GitHub. [Online]. Available: https://github.com/espressif/arduino-esp32</p>
+<p>[4] Espressif Systems, "ESP-IDF Programming Guide," Espressif Systems. [Online]. Available: https://docs.espressif.com/projects/esp-idf/en/latest/</p>
+<p>[5] Arduino, "Arduino IDE 2 Documentation," Arduino. [Online]. Available: https://docs.arduino.cc/software/ide/</p>
+<p>[6] A. Banks and R. Gupta, Eds., "MQTT Version 3.1.1," OASIS Standard, 2014. [Online]. Available: https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html</p>
+<p>[7] MQTT.org, "MQTT: The Standard for IoT Messaging," OASIS / Eclipse Foundation. [Online]. Available: https://mqtt.org/</p>
+<p>[8] N. O'Leary, "PubSubClient — Arduino Client for MQTT," GitHub. [Online]. Available: https://github.com/knolleary/pubsubclient</p>
+<p>[9] Adafruit Industries, "DHT Sensor Library," GitHub. [Online]. Available: https://github.com/adafruit/DHT-sensor-library</p>
+<p>[10] R. T. Fielding, "Architectural Styles and the Design of Network-based Software Architectures," Ph.D. dissertation, Univ. California, Irvine, CA, USA, 2000. [Online]. Available: https://www.ics.uci.edu/~fielding/pubs/dissertation/top.htm</p>
+<hr />
+<p><em>End of Book 30. Next: Book 31.</em></p>

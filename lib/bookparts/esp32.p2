@@ -1,0 +1,847 @@
+<h2 id="chapter-9-deep-sleep-and-power-saving">Chapter 9: Deep Sleep and Power Saving</h2>
+<h3 id="why-sleep-matters">Why sleep matters</h3>
+<p>Everything so far assumed USB power — infinite energy. Real research deployments do not have that luxury: a greenhouse node, a river-level monitor, or a classroom air-quality logger often runs on batteries or a small solar panel, far from any outlet. The ESP32's answer is <strong>deep sleep</strong>: the main processors, Wi-Fi, and Bluetooth shut down almost entirely, leaving only a tiny ultra-low-power coprocessor and a timer running. Current drops from ~100+ mA (Wi-Fi active) to roughly <strong>10 µA</strong> — a ten-thousand-fold reduction.</p>
+<p>The trade: in deep sleep the ESP32 <strong>forgets everything</strong> — RAM is cleared, Wi-Fi disconnects, and your program restarts from <code>setup()</code> on every wake. Design your firmware around that: wake → connect → read sensor → transmit → sleep again. A node that wakes for 10 seconds every 10 minutes is awake ~1.6 % of the time, so a battery that lasts a day of continuous operation can last for weeks.</p>
+<h3 id="wake-up-sources">Wake-up sources</h3>
+<p>The ESP32 can wake from several triggers; the two you need first are:</p>
+<ul>
+<li><strong>Timer wake-up</strong> — sleep for N seconds, then wake. The workhorse of periodic sensing.</li>
+<li><strong>External wake-up (EXT0/EXT1)</strong> — wake when a pin changes (a button press, a PIR motion trigger). The board sleeps indefinitely until something happens — perfect for event-driven nodes.</li>
+</ul>
+<p>This chapter implements timer wake-up; the dashboard notes where to find EXT0 examples.</p>
+<h3 id="how-deep-sleep-code-is-structured">How deep sleep code is structured</h3>
+<pre><code class="language-cpp">#include &quot;esp_sleep.h&quot;   // deep-sleep API (part of the ESP32 core)
+
+#define uS_TO_S_FACTOR 1000000ULL   // microseconds -&gt; seconds
+#define TIME_TO_SLEEP  600          // sleep 600 s = 10 minutes
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  // 1. Find out WHY we woke up.
+  esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+  switch (cause) {
+    case ESP_SLEEP_WAKEUP_TIMER:
+      Serial.println(&quot;Woke from timer.&quot;);
+      break;
+    case ESP_SLEEP_WAKEUP_UNDEFINED:
+    default:
+      Serial.println(&quot;Fresh power-on (not a timer wake).&quot;);
+      break;
+  }
+
+  // 2. Do the work: read sensor, connect Wi-Fi, publish. (Abbreviated here;
+  //    in the capstone this is the full DHT + MQTT sequence.)
+  Serial.println(&quot;Taking a reading...&quot;);
+  float fakeTemp = 25.0 + random(-50, 50) / 10.0;
+  Serial.print(&quot;Temperature: &quot;);
+  Serial.print(fakeTemp, 1);
+  Serial.println(&quot; C (placeholder - real sensor in Chapter 12)&quot;);
+  Serial.println(&quot;Pretending to transmit... done.&quot;);
+
+  // 3. Arm the timer and sleep.
+  Serial.print(&quot;Sleeping for &quot;);
+  Serial.print(TIME_TO_SLEEP);
+  Serial.println(&quot; seconds. Goodnight.&quot;);
+  Serial.flush();   // let the serial text finish before we vanish
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  esp_deep_sleep_start();
+
+  // We never reach here. On wake, the chip reboots into setup().
+}
+
+void loop() {
+  // Empty: everything happens in setup() because each wake is a fresh boot.
+}
+</code></pre>
+<p>For a first test, change <code>TIME_TO_SLEEP</code> to <strong>10</strong> seconds so you can watch several cycles quickly.</p>
+<h3 id="serial-monitor-expected-output-time_to_sleep-10">Serial Monitor: expected output (TIME_TO_SLEEP = 10)</h3>
+<pre><code>Fresh power-on (not a timer wake).
+Taking a reading...
+Temperature: 24.3 C (placeholder - real sensor in Chapter 12)
+Pretending to transmit... done.
+Sleeping for 10 seconds. Goodnight.
+Woke from timer.
+Taking a reading...
+Temperature: 25.1 C (placeholder - real sensor in Chapter 12)
+Pretending to transmit... done.
+Sleeping for 10 seconds. Goodnight.
+Woke from timer.
+...
+</code></pre>
+<p>Notice the first line differs on power-on vs. wake — that <code>switch</code> on the wake cause is how production firmware distinguishes "first boot, do one-time setup" from "routine wake, just sense and sleep."</p>
+<h3 id="the-power-math-do-this-before-buying-batteries">The power math (do this before buying batteries)</h3>
+<p>Estimate battery life with the <strong>duty cycle</strong>:</p>
+<pre><code>average current = (awake_current × awake_time + sleep_current × sleep_time) / total_time
+</code></pre>
+<p>Example: awake 10 s at 120 mA (Wi-Fi transmitting), asleep 590 s at 0.01 mA:</p>
+<pre><code>(120 × 10 + 0.01 × 590) / 600 ≈ 2.0 mA average
+</code></pre>
+<p>A 2000 mAh battery ÷ 2.0 mA ≈ 1000 hours ≈ <strong>41 days</strong>. Lengthen the sleep to 30 minutes and you pass 4 months. This one calculation belongs in every battery-powered paper's methodology — reviewers love it because it shows the deployment lifetime was engineered, not hoped for.</p>
+<p>Practical notes: cheap devkit boards include a USB-serial chip and voltage regulator that draw milliamps even in deep sleep, limiting real-world savings — for maximum battery life, purpose-built low-power boards (or powering the module directly at 3.3 V with peripherals disconnected) do better. Always measure your <em>actual</em> sleep current with a USB meter or multimeter rather than trusting datasheet numbers alone.</p>
+<h3 id="troubleshooting_6">Troubleshooting</h3>
+<ul>
+<li><strong>Board never wakes:</strong> the timer was not armed before <code>esp_deep_sleep_start()</code>, or you called sleep inside <code>loop()</code> after already sleeping — keep the canonical order: arm → start, at the end of <code>setup()</code>.</li>
+<li><strong>Serial output cut off mid-line:</strong> missing <code>Serial.flush()</code> before sleeping — the UART buffer is discarded on sleep entry.</li>
+<li><strong>Sleep current in milliamps, not microamps:</strong> the devkit's USB-serial chip/regulator/LEDs are still powered (normal for devkits — see above), or a sensor/peripheral is drawing power — power peripherals from a GPIO so you can switch them off before sleeping.</li>
+<li><strong>Wi-Fi takes 5–8 s to reconnect every wake:</strong> normal — connection setup dominates the energy budget. Lengthening the sleep interval amortizes it; shortening the awake work (static IP, fast sensor reads) trims it.</li>
+<li><strong>Variables "forgotten" between wakes:</strong> expected — RAM clears. Persist counters across sleeps with <strong>RTC memory</strong> (<code>RTC_DATA_ATTR</code> attribute) or write to flash/NVS sparingly (flash wears out after ~10,000–100,000 writes; RTC memory is the right tool for counters).</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> Duty cycling is a first-class research topic, not just a trick: papers compare adaptive sampling (sleep longer when readings are stable, wake faster when they change) against fixed schedules, quantifying the energy-vs-freshness tradeoff. Even a simple version — "nodes slept 10 min, waking immediately if temperature changed &gt;1 °C since last reading" — is a publishable engineering contribution in an applied IoT paper. And always report measured sleep current, not the datasheet's: measured numbers are evidence, datasheet numbers are hopes.</p>
+</blockquote>
+<h3 id="remembering-across-sleeps-rtc-memory">Remembering across sleeps: RTC memory</h3>
+<p>Deep sleep wipes RAM — but a small region of <strong>RTC memory</strong> survives. Mark a variable with <code>RTC_DATA_ATTR</code> and it persists across timer wakes (though not across full power loss):</p>
+<pre><code class="language-cpp">// Counter that survives deep sleep.
+
+#include &quot;esp_sleep.h&quot;
+#define uS_TO_S_FACTOR 1000000ULL
+
+RTC_DATA_ATTR int wakeCount = 0;   // preserved across deep sleep
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  wakeCount++;
+  Serial.print(&quot;Wake number &quot;);
+  Serial.println(wakeCount);
+  Serial.println(&quot;Sleeping 10 s...&quot;);
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup(10 * uS_TO_S_FACTOR);
+  esp_deep_sleep_start();
+}
+void loop() {}
+</code></pre>
+<p><strong>Expected output:</strong> <code>Wake number 1</code>, then <code>2</code>, <code>3</code>… across sleeps. Unplug the USB and the count restarts at 1 — RTC memory survives sleep, not power loss. The capstone uses this for its boot counter; combined with MQTT, gaps in the sequence reveal lost cycles.</p>
+<h3 id="waking-on-events-ext0">Waking on events: EXT0</h3>
+<p>Timer wake-up suits periodic sensing. For event-driven nodes — a door sensor, a rain gauge tip, a PIR motion trigger — <strong>EXT0</strong> wakes the chip when a single RTC-capable pin changes level:</p>
+<pre><code class="language-cpp">// Wake when a button (GPIO 15 to GND) is pressed.
+
+#include &quot;esp_sleep.h&quot;
+#define BUTTON_PIN 15
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+  if (cause == ESP_SLEEP_WAKEUP_EXT0) {
+    Serial.println(&quot;Woke because the button was pressed!&quot;);
+  } else {
+    Serial.println(&quot;Power-on. Press the button to wake me next time.&quot;);
+  }
+  Serial.println(&quot;Sleeping until button press...&quot;);
+  Serial.flush();
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);  // wake when pin goes LOW
+  esp_deep_sleep_start();
+}
+void loop() {}
+</code></pre>
+<p>Wire the button exactly as in Chapter 4 (GPIO 15 to GND, internal pull-up enabled by the sleep hardware). The board now draws microamps indefinitely until someone presses the button — the architecture behind battery door/window sensors that last a year.</p>
+<h3 id="measuring-your-actual-current">Measuring your actual current</h3>
+<p>Datasheet sleep figures assume an ideal board. Measure yours: put a USB current meter (a few dollars) between the supply and the board, or insert a multimeter in series on the 5 V line. Record three numbers — active-with-Wi-Fi, active-idle, and deep-sleep — and use the measured values in your duty-cycle math. If deep sleep reads milliamps on a devkit, that is the USB-serial chip and regulator, not your code; note it, and know that a purpose-built board would do better.</p>
+<h3 id="the-sleep-spectrum-modem-light-and-deep-sleep">The sleep spectrum: modem, light, and deep sleep</h3>
+<p>Deep sleep is the deepest, but the ESP32 offers a ladder — pick the shallowest rung that meets your goal:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>What stays on</th>
+<th>Typical current</th>
+<th>Wake behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active (Wi-Fi on)</td>
+<td>Everything</td>
+<td>100–200 mA</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Modem sleep</td>
+<td>CPU on, Wi-Fi radio cycled</td>
+<td>~20 mA</td>
+<td>Instant, automatic</td>
+</tr>
+<tr>
+<td>Light sleep</td>
+<td>CPU paused, RAM kept</td>
+<td>~1 mA</td>
+<td>Fast resume, program continues</td>
+</tr>
+<tr>
+<td>Deep sleep</td>
+<td>Only RTC + timer</td>
+<td>~10 µA</td>
+<td>Reboot into <code>setup()</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Modem sleep</strong> happens automatically between Wi-Fi beacons when the radio idles — you get it for free. <strong>Light sleep</strong> (<code>esp_light_sleep_start()</code>) pauses the CPU but preserves RAM and program state, so <code>loop()</code> simply continues after wake — ideal for second-scale duty cycles where deep sleep's reboot overhead (reconnecting Wi-Fi each time) would dominate. Rule of thumb: sleep intervals under ~30 s favor light sleep; minutes-to-hours favor deep sleep.</p>
+<h3 id="solar-powering-the-other-half-of-infinite-deployments">Solar powering: the other half of "infinite" deployments</h3>
+<p>For truly unattended nodes, pair deep sleep with a small solar panel and a LiPo battery through a charge controller (the common TP4056 module with battery protection). Size the panel so one average day of sun covers the node's daily energy budget <em>plus</em> a margin for cloudy stretches — compute the budget with Chapter 9's duty-cycle math first, then buy the panel, not the reverse. And remember: lithium batteries and unattended enclosures demand proper charge controllers with overcharge/over-discharge protection — never connect a raw panel directly to a battery.</p>
+<h3 id="worked-example-sizing-a-battery-for-the-capstone-node">Worked example: sizing a battery for the capstone node</h3>
+<p>Put the power math to work on Chapter 12's node. Measure (or estimate) the awake phase: Wi-Fi connect ~4 s + DHT read 2 s + MQTT publish ~1 s + margin ≈ 10 s at ~120 mA. Sleep: 600 s at ~0.05 mA (devkit, measured — regulator and USB chip included).</p>
+<pre><code>Awake energy per cycle:   120 mA × 10 s   = 1200 mA·s
+Sleep energy per cycle:  0.05 mA × 600 s  =   30 mA·s
+Total per 610 s cycle:                     1230 mA·s
+Average current: 1230 / 610                ≈ 2.0 mA
+</code></pre>
+<p>A 2000 mAh LiPo (derate to 80 % usable → 1600 mAh): 1600 / 2.0 ≈ 800 hours ≈ <strong>33 days</strong>. Shorten the sleep to 5 minutes and it halves; stretch to 30 minutes and it triples. Build this as a spreadsheet with cells for each parameter, and every deployment decision — battery size, sleep interval, panel wattage — becomes a what-if exercise instead of a guess. Include the table in your paper; it is the quantitative backbone of any "long-term deployment" claim.</p>
+<p><strong>Key takeaways:</strong>
+- Deep sleep cuts current ~10,000× but wipes RAM — structure firmware as wake → work → sleep, all in <code>setup()</code>.
+- <code>esp_sleep_enable_timer_wakeup()</code> then <code>esp_deep_sleep_start()</code>; check the wake cause to distinguish fresh boot from timer wake.
+- <code>Serial.flush()</code> before sleeping; persist counters with <code>RTC_DATA_ATTR</code>, not flash.
+- Do the duty-cycle math: average current → battery life in days. Put the calculation in your methodology.</p>
+<hr />
+<h2 id="chapter-10-ota-over-the-air-updates-concept-and-setup">Chapter 10: OTA (Over-the-Air) Updates Concept and Setup</h2>
+<h3 id="the-problem-ota-solves">The problem OTA solves</h3>
+<p>Your sensor node is working on a greenhouse shelf — or a rooftop, or a field three hours away. Then you find a bug, or your supervisor asks for a faster sampling rate. Without OTA, you drive there, climb up, plug in a USB cable, and re-flash. With <strong>OTA (over-the-air) updates</strong>, you upload new firmware through the Wi-Fi network from your desk. For any deployment beyond arm's reach, OTA changes firmware updates from a field trip into a coffee break.</p>
+<p>Conceptually, OTA is simple: the ESP32 downloads the new program image over the network into a spare flash partition, verifies it, marks it as the one to boot, and reboots. If the new image fails to boot, the bootloader can roll back to the previous working image — a safety net USB flashing does not give you.</p>
+<h3 id="two-flavors-arduinoota-vs-http-ota">Two flavors: ArduinoOTA vs. HTTP OTA</h3>
+<ul>
+<li><strong>ArduinoOTA</strong> (the <code>ArduinoOTA</code> library, built into the ESP32 core) makes the board advertise itself on the local network; the Arduino IDE then lists it under <strong>Tools → Port → Network ports</strong>, and you press Upload exactly as if it were USB. Easiest to set up; works only on the same local network.</li>
+<li><strong>HTTP OTA</strong> (<code>HTTPUpdate</code> library) has the board periodically check a URL for a new <code>.bin</code> file and pull it itself. Better for remote fleets, but requires you to host firmware files.</li>
+</ul>
+<p>This chapter sets up ArduinoOTA — the fastest path from "USB only" to "wireless uploads."</p>
+<h3 id="the-sketch-adding-ota-to-any-project">The sketch: adding OTA to any project</h3>
+<p>OTA is not a standalone program; it is a few lines you add to an existing Wi-Fi sketch. The pattern: include the library, configure it in <code>setup()</code> <em>after</em> Wi-Fi connects, and call <code>ArduinoOTA.handle()</code> frequently in <code>loop()</code>.</p>
+<pre><code class="language-cpp">// ArduinoOTA basic setup (ESP32). Add this pattern to any Wi-Fi sketch.
+// After uploading ONCE via USB, future uploads go over Wi-Fi.
+
+#include &lt;WiFi.h&gt;
+#include &lt;ArduinoOTA.h&gt;
+
+const char* SSID = &quot;YOUR_WIFI_NAME&quot;;
+const char* PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, PASSWORD);
+  Serial.print(&quot;Connecting to Wi-Fi&quot;);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
+  Serial.println(&quot;\nWi-Fi connected.&quot;);
+  Serial.print(&quot;IP address: &quot;);
+  Serial.println(WiFi.localIP());
+
+  // ---- OTA configuration ----
+  ArduinoOTA.setHostname(&quot;esp32-lab-node&quot;);       // name shown in the IDE port list
+  ArduinoOTA.setPassword(&quot;change-me-ota&quot;);        // REQUIRED: never leave OTA open
+
+  ArduinoOTA
+    .onStart([]() {
+      String type = (ArduinoOTA.getCommand() == U_FLASH) ? &quot;sketch&quot; : &quot;filesystem&quot;;
+      Serial.println(&quot;OTA start updating &quot; + type);
+    })
+    .onEnd([]()   { Serial.println(&quot;\nOTA complete. Rebooting...&quot;); })
+    .onProgress([](unsigned int done, unsigned int total) {
+      Serial.printf(&quot;OTA progress: %u%%\r&quot;, (done * 100) / total);
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf(&quot;OTA error %u\n&quot;, error);
+    });
+
+  ArduinoOTA.begin();
+  Serial.println(&quot;OTA ready. Upload via Tools -&gt; Port -&gt; Network ports.&quot;);
+}
+
+void loop() {
+  ArduinoOTA.handle();   // must run often; keep delays short elsewhere
+  // ... your normal sensor/network code here ...
+  delay(10);
+}
+</code></pre>
+<h3 id="using-it">Using it</h3>
+<ol>
+<li>Upload this sketch <strong>once via USB</strong> (OTA cannot install itself).</li>
+<li>Wait ~10 s, then open <strong>Tools → Port</strong> — a new section, <strong>Network ports</strong>, should list <code>esp32-lab-node</code>.</li>
+<li>Select it and press <strong>Upload</strong>. The IDE compiles and sends the firmware over Wi-Fi; the serial monitor (over USB, if still plugged in) shows the progress callbacks.</li>
+<li>From now on, every code change uploads wirelessly. Your USB cable becomes optional.</li>
+</ol>
+<h3 id="security-and-reliability-rules">Security and reliability rules</h3>
+<ul>
+<li><strong>Always set an OTA password</strong> (<code>setPassword</code>). An open OTA port lets anyone on your network reflash your device — on a university or shared network this is not hypothetical.</li>
+<li><strong>Keep <code>ArduinoOTA.handle()</code> responsive.</strong> Long blocking <code>delay()</code>s stall the transfer and can corrupt it; the <code>millis()</code> patterns from Chapters 4 and 7 are OTA-friendly.</li>
+<li><strong>Do not OTA across the public internet</strong> with basic ArduinoOTA — it has no encryption. For remote fleets, use HTTPS-based HTTP OTA with signed images (advanced; listed in the dashboard's next steps).</li>
+<li><strong>Test rollback awareness:</strong> know that a crashed new image may need physical recovery — keep one USB path to each deployment site, or use the two-partition rollback features of the underlying update system.</li>
+</ul>
+<h3 id="troubleshooting_7">Troubleshooting</h3>
+<ul>
+<li><strong>No network port appears in the IDE:</strong> board and computer must be on the <em>same</em> subnet (guest Wi-Fi networks often isolate clients); the firewall may block the discovery broadcasts; or <code>ArduinoOTA.begin()</code> never ran because Wi-Fi failed to connect.</li>
+<li><strong>Upload starts then fails partway:</strong> weak Wi-Fi (check RSSI), or <code>handle()</code> starved by blocking code — shorten delays.</li>
+<li><strong>"Auth failed":</strong> wrong OTA password — it must match <code>setPassword</code> exactly.</li>
+<li><strong>After OTA, the board boot-loops:</strong> the new image is too large for the partition or crashed on boot — recover via USB upload, which always overrides OTA.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> OTA is what makes a <em>deployment</em> different from a <em>demo</em>. Reviewers of systems papers ask "how was the fleet maintained?" — answering "firmware was updated over the air via password-protected ArduinoOTA; 14 nodes were reflashed without physical access" signals real engineering maturity. Record firmware version numbers in your published dataset (each node reporting <code>fw=1.3</code> in its MQTT/HTTP payload) so results can be traced to exact code — versioned data is auditable data.</p>
+</blockquote>
+<h3 id="how-the-flash-is-divided-partitions">How the flash is divided: partitions</h3>
+<p>The ESP32's 4 MB flash is split by a <strong>partition table</strong>: regions for the bootloader, two OTA "app slots" (the running firmware and the spare that receives updates), and storage (NVS for settings, SPIFFS/LittleFS for files). ArduinoOTA works because there are <em>two</em> app slots — the new image lands in the inactive one, and only after verification does the bootloader switch. This is also why OTA images have a size limit (roughly half the app partition space): a sketch too large for one slot cannot be OTA-updated. If you ever hit "image too large" on OTA, the fix is a partition scheme with bigger app slots (Tools → Partition Scheme), at the cost of file-storage space.</p>
+<h3 id="http-ota-updating-a-fleet">HTTP OTA: updating a fleet</h3>
+<p>ArduinoOTA needs your computer and the node on the same network. For remote fleets, <strong>HTTP OTA</strong> lets each node pull its own update. The <code>HTTPUpdate</code> library (built into the core) reduces it to a version check plus one call:</p>
+<pre><code class="language-cpp">#include &lt;HTTPUpdate.h&gt;
+
+// Pseudo-pattern (host your own .bin built via Sketch -&gt; Export Compiled Binary):
+//   1. Node GETs https://your-server/firmware/version.txt  -&gt; &quot;1.4&quot;
+//   2. If newer than FIRMWARE_VERSION, run:
+//      t_httpUpdate_return ret = httpUpdate.update(client, &quot;https://your-server/firmware/node-1.4.bin&quot;);
+//   3. On HTTP_UPDATE_OK the device reboots into the new image automatically.
+</code></pre>
+<p>Production systems add signing and HTTPS (never plain HTTP for firmware — an attacker who controls the update controls the device). The full pattern — version manifest, signed binaries, staged rollouts, rollback on failed boot — is the subject of deployment engineering beyond this book, but now you know the shape of it.</p>
+<h3 id="version-discipline">Version discipline</h3>
+<p>Whichever OTA flavor you use, adopt three habits from day one: (1) a <code>FIRMWARE_VERSION</code> string compiled into every build and reported in every data payload (the capstone does this); (2) firmware binaries archived with versioned filenames (<code>node-fw-1.3.bin</code>) so any deployed version can be re-examined; (3) a changelog line per version. When a reviewer asks "which code produced this dataset?", you answer with a version number, not a shrug.</p>
+<h3 id="walkthrough-your-first-ota-session-step-by-step">Walkthrough: your first OTA session, step by step</h3>
+<p>Concepts land better as a checklist. Do this once, slowly, with the USB cable still plugged in so you can watch the serial output:</p>
+<ol>
+<li>Flash the Chapter 10 sketch <strong>via USB</strong>. Open the Serial Monitor at 115200.</li>
+<li>Wait for <code>OTA ready. Upload via Tools -&gt; Port -&gt; Network ports.</code></li>
+<li>In the IDE, open <strong>Tools → Port</strong>. Under <strong>Network ports</strong>, select <code>esp32-lab-node</code>. (If it is missing: same subnet? firewall? See troubleshooting.)</li>
+<li>Make a visible change — e.g., change the hostname to <code>esp32-lab-node-2</code>.</li>
+<li>Press <strong>Upload</strong>. The IDE compiles, transfers over Wi-Fi (slower than USB — normal), and the serial output shows <code>OTA progress: ...%</code> then <code>OTA complete. Rebooting...</code>.</li>
+<li>The board reboots running the new firmware. The port list now shows the <em>new</em> hostname — proof the wireless image took.</li>
+<li>Unplug the USB cable, power the board from a power bank, and upload once more. You have just reflashed a device with no physical connection — the whole point.</li>
+</ol>
+<p>From here, every later chapter's sketch can carry the OTA block from step to step, so your capstone node (Chapter 12) is field-updatable from the day it deploys.</p>
+<h3 id="ota-and-deep-sleep-the-honest-conflict">OTA and deep sleep: the honest conflict</h3>
+<p>A node in deep sleep cannot receive an OTA upload — it is effectively off. Three standard resolutions: (1) <strong>awake windows</strong> — the node stays awake for 60 s after each boot listening for OTA before sleeping (simplest; costs a minute of battery per cycle); (2) <strong>maintenance mode</strong> — a button held at boot skips sleep entirely and waits for OTA indefinitely; (3) <strong>HTTP OTA polling</strong> — the node checks a version URL each wake and pulls updates itself (most autonomous, most infrastructure). For the capstone, option 2 is the pragmatic choice: hold BOOT at power-on, the node enters OTA-wait instead of sleeping, you upload, then reset normally.</p>
+<h3 id="anatomy-of-an-ota-transfer-step-by-step">Anatomy of an OTA transfer, step by step</h3>
+<p>What happens between pressing Upload and the reboot:</p>
+<ol>
+<li>The IDE compiles the sketch into a <code>.bin</code> firmware image on your computer.</li>
+<li>It opens a TCP connection to the ESP32's OTA port and authenticates with your password.</li>
+<li>The image streams into the <strong>inactive app partition</strong> in flash — your running firmware is untouched, so a failed transfer cannot brick the device.</li>
+<li>Each chunk is checksummed; on completion the bootloader's OTA data partition is updated to mark the new image as "pending verification."</li>
+<li>The chip reboots into the new image. If it crashes immediately, the bootloader can fall back to the previous image (rollback) — the safety net USB flashing lacks.</li>
+</ol>
+<p>Understanding step 3 explains two practical facts: OTA needs roughly twice the free flash of your sketch size (two app slots), and interrupting a transfer is merely annoying, never fatal — just retry.</p>
+<h3 id="updating-files-not-just-firmware">Updating files, not just firmware</h3>
+<p>Sketches are not the only thing you can update over the air. The ESP32's flash can hold a <strong>LittleFS filesystem</strong> (web pages, configuration files, calibration tables), and the same OTA machinery can deliver filesystem images (<code>U_SPIFFS</code> command in the <code>onStart</code> callback distinguishes them). A common production pattern: firmware updates rarely, but a <code>config.json</code> on LittleFS updates often — sampling intervals, thresholds, and broker addresses change without recompiling. For this book's scope, knowing the capability exists is enough; reach for it when hardcoded constants start feeling wrong.</p>
+<p><strong>Key takeaways:</strong>
+- OTA replaces USB field trips: flash new firmware over Wi-Fi, with bootloader rollback as a safety net.
+- ArduinoOTA pattern: include → configure after Wi-Fi → <code>begin()</code> → <code>handle()</code> often in <code>loop()</code>; upload once via USB first.
+- Always password-protect OTA; keep <code>handle()</code> responsive; do not expose basic OTA to the internet.
+- Report firmware versions in your data payloads — traceability from reading to code version.</p>
+<hr />
+<h2 id="chapter-11-troubleshooting-the-20-most-common-errors-and-fixes">Chapter 11: Troubleshooting: The 20 Most Common Errors and Fixes</h2>
+<h3 id="a-method-before-a-list">A method before a list</h3>
+<p>Randomly changing things is how a 10-minute fix becomes a 3-hour ordeal. Use this order every time:</p>
+<ol>
+<li><strong>Read the actual error.</strong> The IDE console and the Serial Monitor tell you what happened — copy the full text instead of paraphrasing it.</li>
+<li><strong>Locate the stage.</strong> Setup/toolchain (Ch. 2)? Upload (Ch. 3)? Boot (repeating boot text = crash loop)? Runtime (runs, but wrong behavior)?</li>
+<li><strong>Change one thing, re-test.</strong> If you change three things and it works, you learned nothing and it will break again.</li>
+<li><strong>Check the physical layer first.</strong> Cables, power, and wiring cause a remarkable share of "software" bugs.</li>
+</ol>
+<p>Now the twenty.</p>
+<h3 id="upload-and-toolchain-errors">Upload and toolchain errors</h3>
+<p><strong>1. <code>Failed to connect to ESP32: Timed out waiting for packet header</code></strong>
+The classic. The uploader cannot reset the board into download mode. <strong>Fix:</strong> hold the <strong>BOOT</strong> button while the console shows <code>Connecting...</code>, release when <code>Writing...</code> appears. If it persists, lower <strong>Tools → Upload Speed</strong> to 115200, try another USB cable/port.</p>
+<p><strong>2. <code>Wrong boot mode detected (0x13)!</code></strong>
+Often appears alongside #1 — the chip did not enter download mode. <strong>Fix:</strong> same BOOT-button procedure; on some boards you must hold BOOT <em>before</em> starting the upload.</p>
+<p><strong>3. No serial port in Tools → Port</strong>
+The computer does not see the board at all. <strong>Fix:</strong> swap to a known data-capable USB cable first (charge-only cables light the power LED but carry no data), install the CP210x/CH340 driver for your board's serial chip, try a different USB port, avoid unpowered hubs.</p>
+<p><strong>4. <code>Access is denied</code> / permission errors (Linux)</strong>
+Your user lacks serial-port rights. <strong>Fix:</strong> add yourself to the <code>dialout</code> group and log out/in. On Windows, close any other program holding the port (another Serial Monitor, PuTTY).</p>
+<p><strong>5. Compilation errors mentioning a missing <code>.h</code> file</strong>
+A library is not installed. <strong>Fix:</strong> <strong>Sketch → Include Library → Manage Libraries</strong>, install the exact library the chapter names — and its dependencies when the IDE offers them (e.g., Adafruit Unified Sensor for the DHT library).</p>
+<p><strong>6. <code>Error compiling for board ESP32 Dev Module</code> with pages of template gibberish</strong>
+Usually a library version incompatible with your ESP32 core version. <strong>Fix:</strong> note the library name in the first error lines, then in Library Manager install an older/newer version; keep a working version set recorded (Chapter 12's reproducibility notes).</p>
+<h3 id="boot-and-crash-errors">Boot and crash errors</h3>
+<p><strong>7. Repeating boot text, sketch never runs (crash loop / boot loop)</strong>
+The program crashes during <code>setup()</code> and the watchdog resets it, forever. <strong>Fix:</strong> read the crash dump — <code>Guru Meditation Error</code> with a backtrace. Common causes: dereferencing a null pointer, stack overflow from huge local arrays, or (very common) calling Wi-Fi/MQTT functions before they are initialized. Binary-search by commenting out halves of <code>setup()</code>.</p>
+<p><strong>8. <code>Brownout detector was triggered</code></strong>
+The power supply dipped below the minimum voltage — the Wi-Fi radio's transmit bursts cause sharp current spikes. <strong>Fix:</strong> use a shorter/thicker USB cable, a stronger 5 V supply (not a laptop's weak port), add a capacitor across 5 V/GND near the board if designing hardware. This masquerades as "random crashes when Wi-Fi transmits."</p>
+<p><strong>9. Board boots only when USB is plugged into the computer, not a power bank</strong>
+Some boards' auto-reset circuitry holds the chip in download mode without the computer's serial signals. <strong>Fix:</strong> press EN/RST once after powering from the bank; for permanent installations, this is a board-selection issue.</p>
+<p><strong>10. <code>E (xxx) camera: ...</code> or other peripheral errors at boot</strong>
+You enabled a peripheral your board variant lacks (e.g., camera code on a non-camera board). <strong>Fix:</strong> disable the peripheral's initialization; verify your exact board model.</p>
+<h3 id="runtime-behavior-errors">Runtime behavior errors</h3>
+<p><strong>11. Serial Monitor shows <code>⸮⸮⸮</code> gibberish</strong>
+Baud mismatch. <strong>Fix:</strong> set the monitor's baud dropdown to match <code>Serial.begin(...)</code> — 115200 in all this book's sketches. (Boot messages print at 115200 too, so one setting covers everything.)</p>
+<p><strong>12. Serial Monitor shows nothing</strong>
+Wrong port, cable/driver issue, or the sketch crashed before its first <code>Serial.println</code>. <strong>Fix:</strong> confirm upload succeeded, press EN/RST, and check that <code>Serial.begin</code> runs before any print.</p>
+<p><strong>13. Button/sensor input reads random values (floating pin)</strong>
+The pin has no pull-up/pull-down. <strong>Fix:</strong> <code>pinMode(pin, INPUT_PULLUP)</code> for buttons-to-GND; check the GND wire is actually connected — a disconnected GND looks identical to a missing pull-up.</p>
+<p><strong>14. <code>Failed to read from DHT sensor!</code> constantly</strong>
+Wrong <code>DHTTYPE</code>, DATA pin mismatch, missing pull-up on bare sensors, or reading faster than the 2 s minimum. <strong>Fix:</strong> verify type vs. hardware, wiring vs. <code>#define DHTPIN</code>, keep the 2 s interval.</p>
+<p><strong>15. Analog readings stuck at 0 or 4095, or drift when Wi-Fi runs</strong>
+Saturation (input beyond 0–3.3 V range or wiring fault) or ADC2-vs-Wi-Fi conflict. <strong>Fix:</strong> confirm the voltage is within range with a multimeter; move the sensor to an ADC1 pin (GPIO 32–39 on common layouts).</p>
+<p><strong>16. Wi-Fi connects then drops, or never connects</strong>
+See Chapter 6's list, condensed: wrong credentials (case-sensitive), 5 GHz-only or WPA3-only network, weak signal (RSSI below −75 dBm), power brownout (#8), or captive-portal networks that microcontrollers cannot join. <strong>Fix:</strong> test with a phone hotspot to isolate router vs. board.</p>
+<p><strong>17. MQTT <code>failed, rc=-2</code> / disconnects every ~15 s</strong>
+Unreachable broker, or <code>client.loop()</code> starved by long <code>delay()</code>s so keep-alive pings never send. <strong>Fix:</strong> verify broker reachability from another device; restructure timing with <code>millis()</code>; use unique client IDs per board.</p>
+<p><strong>18. HTTP POST returns −1 or unexpected codes</strong>
+−1 = no connection (Wi-Fi/DNS/hostname). 4xx = your URL, headers, or payload are wrong — print the exact payload. 429 = slow down. <strong>Fix:</strong> consult the status-code table in Chapter 8 instead of guessing.</p>
+<p><strong>19. Deep sleep never wakes, or serial cuts off mid-line</strong>
+Timer not armed before <code>esp_deep_sleep_start()</code>, or missing <code>Serial.flush()</code>. <strong>Fix:</strong> keep the canonical order (arm → flush → start) at the end of <code>setup()</code>; during development use 10 s sleeps to iterate fast.</p>
+<p><strong>20. "It worked yesterday and I changed nothing"</strong>
+Something <em>did</em> change: a loose breadboard wire (the #1 cause — press every wire firmly home), a dying battery, a router that rebooted with a new DHCP lease, or a public broker/endpoint having a bad day. <strong>Fix:</strong> re-seat all wiring, power-cycle, and re-run the Chapter 3 blink test to confirm the board itself is healthy before debugging your code.</p>
+<h3 id="the-debugging-mindset">The debugging mindset</h3>
+<p>Keep a lab notebook entry per bug: symptom, error text, hypothesis, fix, result. After twenty entries you will notice you diagnose new problems in minutes — and that notebook becomes the troubleshooting appendix of your thesis or paper, which examiners genuinely respect.</p>
+<blockquote>
+<p><strong>For your research:</strong> A troubleshooting log is research data about your <em>method</em>. Papers with a short "deployment challenges" paragraph — brownouts on weak supplies, ADC2 conflicts, broker outages — are more credible than papers where everything worked perfectly, because every reviewer who has deployed hardware knows perfection is fiction. Honest failure reporting is a feature, not an embarrassment.</p>
+</blockquote>
+<h3 id="preventive-habits-the-pre-flight-checklist">Preventive habits: the pre-flight checklist</h3>
+<p>Most of the twenty errors above are preventable. Run this checklist before any new wiring or any deployment:</p>
+<ul>
+<li>[ ] Cable is data-capable (board appears in Tools → Port)</li>
+<li>[ ] Board + port selected; Tools-menu settings at known defaults</li>
+<li>[ ] Libraries installed at recorded versions</li>
+<li>[ ] Every input pin has a pull-up/pull-down; every GND wire verified</li>
+<li>[ ] No voltage above 3.3 V on any GPIO; sensor VCC at 3.3 V</li>
+<li>[ ] Analog sensors on ADC1 pins if Wi-Fi will be active</li>
+<li>[ ] <code>Serial.begin</code> before any print; monitor baud matches</li>
+<li>[ ] Connection waits bounded (no infinite <code>while</code> on Wi-Fi/MQTT)</li>
+<li>[ ] <code>client.loop()</code> / <code>ArduinoOTA.handle()</code> called frequently; no long blocking delays</li>
+<li>[ ] <code>http.end()</code> after every request; <code>Serial.flush()</code> before deep sleep</li>
+<li>[ ] Credentials and topic prefixes unique per project; OTA password set</li>
+<li>[ ] Firmware version string updated and reported in payloads</li>
+</ul>
+<h3 id="when-to-ask-for-help-writing-a-good-forum-post">When to ask for help: writing a good forum post</h3>
+<p>Even with methodical debugging, you will get stuck. A good help request gets answers in hours; a bad one gets ignored. Include: (1) your board name and core/library versions, (2) the <em>complete</em> error text or serial output (not a paraphrase), (3) a minimal sketch that reproduces the problem — delete everything unrelated until the bug remains or vanishes, (4) what you already tried. "Minimal reproducible example" is not forum etiquette trivia — the act of minimizing usually reveals the bug before you even post.</p>
+<h3 id="case-studies-three-debugging-stories">Case studies: three debugging stories</h3>
+<p><strong>Story 1 — "The sensor that lied."</strong> A student's greenhouse node reported 38 °C in a 25 °C room. The code was correct; the DHT22 was correct. The bug was <em>placement</em>: the sensor sat 2 cm from the ESP32's voltage regulator inside a sealed box, measuring the board's waste heat. Fix: move the sensor outside the enclosure on short wires, ventilate the box. Lesson: validate against an independent reference thermometer before trusting any reading — Chapter 12's checklist requires it.</p>
+<p><strong>Story 2 — "The midnight disconnector."</strong> A node worked all day and dropped every night at 2 a.m. Wi-Fi signal was fine; power was fine. The router's DHCP lease expired nightly and the ISP-side reconnect changed the gateway — the sketch's "connect once in setup()" never re-acquired an address. Fix: the loop's reconnect logic from Chapter 6 (check <code>WiFi.status()</code> every cycle). Lesson: test through at least one full DHCP-lease cycle and one router reboot before declaring victory.</p>
+<p><strong>Story 3 — "The shrinking heap."</strong> A node published happily for six hours, then crashed — every time, six hours. The free-heap printout (Chapter 2's fingerprint) showed a steady decline: each MQTT publish allocated a <code>String</code> that was never freed, fragmenting the heap until allocation failed. Fix: reuse fixed <code>char</code> buffers with <code>snprintf</code> (the capstone's approach). Lesson: on microcontrollers, <code>String</code> convenience has a cost — measure heap over time in any long-running firmware.</p>
+<p>Each story follows the method: observe precisely, hypothesize one cause, test, fix. Collect your own — after a dozen, you will be the person others ask for help.</p>
+<h3 id="decoding-a-crash-the-guru-meditation-backtrace">Decoding a crash: the Guru Meditation backtrace</h3>
+<p>When the ESP32 crashes it prints something like:</p>
+<pre><code>Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+...
+Backtrace: 0x400d1a2f:0x3ffb1f00 0x400d1c88:0x3ffb1f20 ...
+</code></pre>
+<p>Those hex addresses are useless raw — but the <strong>ESP Exception Decoder</strong> (a free tool; Arduino IDE 2.x has community plugins, or use the web version) translates them into file names and line numbers using the <code>.elf</code> file from your last compile. Workflow: copy the entire backtrace from the Serial Monitor, paste it into the decoder along with your sketch's <code>.elf</code> (find it via Preferences → verbose compilation, or Sketch → Export Compiled Binary), and it points at the exact crashing line — often a null pointer from a failed allocation or an out-of-bounds array index. The two most common beginner panics: <code>LoadProhibited</code> (derefenced a null/invalid pointer — check every pointer and object before use) and <code>IntegerDivideByZero</code>. Learning to decode one backtrace demystifies every future crash loop.</p>
+<p><strong>Key takeaways:</strong>
+- Diagnose in order: read the error → locate the stage (toolchain/upload/boot/runtime) → change one thing → re-test.
+- Physical layer first: cables, power, wiring. Brownouts and floating pins masquerade as software bugs.
+- Repeating boot text = crash loop; <code>⸮⸮⸮</code> = baud mismatch; <code>rc=-2</code> = broker unreachable; −1 on HTTP = no connection.
+- Log every bug and fix — the log becomes your deployment-challenges paragraph.</p>
+<hr />
+<h2 id="chapter-12-capstone-build-a-wi-fi-temperaturehumidity-sensor-node-end-to-end">Chapter 12: Capstone: Build a Wi-Fi Temperature/Humidity Sensor Node End to End</h2>
+<h3 id="the-mission">The mission</h3>
+<p>You will now combine everything into one deployable system: an ESP32 that wakes every 10 minutes, reads temperature, humidity, and Wi-Fi signal strength from a DHT22, publishes the readings via MQTT, and returns to deep sleep. This is the canonical architecture of real environmental-monitoring research — and the complete, documented build below is designed so you can adapt it directly into a methodology chapter.</p>
+<p><img alt="Finished Wi-Fi sensor node transmitting data to a dashboard" src="/learn/images/media-generation-book-30-ch12-capstone-0-c3573635-b03e-45f1-b382-73132fb36d5f.webp" /></p>
+<h3 id="bill-of-materials">Bill of materials</h3>
+<ul>
+<li>1× ESP32 devkit board (any common devkit)</li>
+<li>1× DHT22 (AM2302) module — 3 pins: VCC, DATA, GND</li>
+<li>3× jumper wires + half-size breadboard</li>
+<li>USB cable (data-capable) + USB power source</li>
+<li>A computer with the Arduino IDE configured per Chapter 2</li>
+</ul>
+<h3 id="libraries-install-first-record-versions">Libraries (install first, record versions)</h3>
+<ol>
+<li><strong>DHT sensor library</strong> by Adafruit (+ Adafruit Unified Sensor dependency) — Chapter 5.</li>
+<li><strong>PubSubClient</strong> by Nick O'Leary — Chapter 7.</li>
+<li><code>WiFi</code>, <code>HTTPClient</code>-style built-ins and <code>esp_sleep.h</code> ship with the ESP32 core — no install needed.</li>
+</ol>
+<p>Write the exact version numbers in your lab notes now; you will publish them with your results.</p>
+<h3 id="wiring_3">Wiring</h3>
+<table>
+<thead>
+<tr>
+<th>DHT22 module</th>
+<th>ESP32</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VCC (+)</td>
+<td>3V3</td>
+</tr>
+<tr>
+<td>DATA</td>
+<td>GPIO 15</td>
+</tr>
+<tr>
+<td>GND (−)</td>
+<td>GND</td>
+</tr>
+</tbody>
+</table>
+<p>No other wiring. Keep the sensor a few centimeters from the ESP32 module so the chip's warmth does not bias the temperature reading, and keep the assembly ventilated — never sealed airtight with the board.</p>
+<h3 id="the-complete-firmware">The complete firmware</h3>
+<p>Read it fully before uploading — every earlier chapter is visible inside it.</p>
+<pre><code class="language-cpp">// Capstone: Wi-Fi temperature/humidity sensor node with deep sleep + MQTT.
+// Cycle: wake -&gt; read DHT22 -&gt; connect Wi-Fi -&gt; publish -&gt; deep sleep 10 min.
+// Book 30, AstolixGen Learning Series.
+
+#include &lt;WiFi.h&gt;
+#include &lt;PubSubClient.h&gt;
+#include &quot;DHT.h&quot;
+#include &quot;esp_sleep.h&quot;
+
+// ============ CONFIGURATION (edit these) ============
+const char* WIFI_SSID     = &quot;YOUR_WIFI_NAME&quot;;
+const char* WIFI_PASSWORD = &quot;YOUR_WIFI_PASSWORD&quot;;
+const char* MQTT_BROKER   = &quot;test.mosquitto.org&quot;;   // use your own broker for real work
+const int   MQTT_PORT     = 1883;
+const char* TOPIC_BASE    = &quot;astolixgen/capstone/node1&quot;;  // YOUR OWN unique prefix
+const char* FIRMWARE_VERSION = &quot;1.0&quot;;
+
+#define DHTPIN  15
+#define DHTTYPE DHT22
+
+#define uS_TO_S_FACTOR 1000000ULL
+#define SLEEP_SECONDS  600          // 10 minutes (use 30 for bench testing)
+// =====================================================
+
+DHT dht(DHTPIN, DHTTYPE);
+WiFiClient espClient;
+PubSubClient mqtt(espClient);
+
+// Survives deep sleep: counts total wake cycles.
+RTC_DATA_ATTR int bootCount = 0;
+
+bool connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print(&quot;Wi-Fi connecting&quot;);
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED &amp;&amp; attempts &lt; 40) {
+    delay(500); Serial.print(&quot;.&quot;); attempts++;
+  }
+  Serial.println();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(&quot;Wi-Fi FAILED.&quot;);
+    return false;
+  }
+  Serial.print(&quot;Wi-Fi OK, IP=&quot;);
+  Serial.println(WiFi.localIP());
+  return true;
+}
+
+bool connectMQTT() {
+  mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+  String clientId = &quot;capstone-&quot; + String((uint32_t)ESP.getEfuseMac(), HEX);
+  int attempts = 0;
+  while (!mqtt.connected() &amp;&amp; attempts &lt; 3) {
+    Serial.print(&quot;MQTT connecting...&quot;);
+    if (mqtt.connect(clientId.c_str())) { Serial.println(&quot;OK&quot;); return true; }
+    Serial.print(&quot;failed rc=&quot;);
+    Serial.println(mqtt.state());
+    attempts++;
+    delay(2000);
+  }
+  return mqtt.connected();
+}
+
+void publishReading(float tempC, float humidity, int rssi) {
+  char topic[96], payload[160];
+
+  // One JSON document per cycle: self-describing and archivable.
+  snprintf(payload, sizeof(payload),
+           &quot;{\&quot;node\&quot;:\&quot;node1\&quot;,\&quot;fw\&quot;:\&quot;%s\&quot;,\&quot;boot\&quot;:%d,&quot;
+           &quot;\&quot;temperature\&quot;:%.1f,\&quot;humidity\&quot;:%.1f,\&quot;rssi\&quot;:%d}&quot;,
+           FIRMWARE_VERSION, bootCount, tempC, humidity, rssi);
+
+  snprintf(topic, sizeof(topic), &quot;%s/data&quot;, TOPIC_BASE);
+  mqtt.publish(topic, payload);
+  Serial.print(&quot;Published to &quot;);
+  Serial.print(topic);
+  Serial.print(&quot;: &quot;);
+  Serial.println(payload);
+}
+
+void goToSleep() {
+  Serial.print(&quot;Sleeping &quot;);
+  Serial.print(SLEEP_SECONDS);
+  Serial.println(&quot; s...&quot;);
+  Serial.flush();
+  WiFi.disconnect(true);   // cleanly drop Wi-Fi before sleeping
+  esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * uS_TO_S_FACTOR);
+  esp_deep_sleep_start();
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  bootCount++;
+
+  Serial.println(&quot;\n===== Sensor node boot =====&quot;);
+  Serial.print(&quot;Firmware v&quot;); Serial.println(FIRMWARE_VERSION);
+  Serial.print(&quot;Boot count: &quot;); Serial.println(bootCount);
+  Serial.print(&quot;Wake cause: &quot;);
+  Serial.println(esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER
+                 ? &quot;timer&quot; : &quot;power-on&quot;);
+
+  dht.begin();
+
+  // 1. Sense first (works even if the network is down).
+  delay(2000);  // DHT22 minimum interval
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  if (isnan(h) || isnan(t)) {
+    Serial.println(&quot;DHT read failed! Sleeping and retrying next cycle.&quot;);
+    goToSleep();   // never hang on a bad sensor read
+  }
+
+  // 2. Connect and publish; skip gracefully if the network fails.
+  if (connectWiFi() &amp;&amp; connectMQTT()) {
+    mqtt.loop();
+    publishReading(t, h, WiFi.RSSI());
+    delay(500);          // let the publish flush
+  } else {
+    Serial.println(&quot;Network unavailable; reading discarded, will retry.&quot;);
+  }
+
+  // 3. Sleep.
+  goToSleep();
+}
+
+void loop() {
+  // Never reached: each wake reboots into setup().
+}
+</code></pre>
+<h3 id="design-decisions-worth-noticing">Design decisions worth noticing</h3>
+<ul>
+<li><strong>Sense before connecting.</strong> The reading is taken even if Wi-Fi fails, and a failed sensor read sleeps immediately instead of hanging — a node that never wedges itself is a node you can deploy.</li>
+<li><strong>Bounded retries.</strong> MQTT gets 3 attempts, then the cycle is abandoned. An unbounded <code>while(!connected)</code> would drain the battery retrying into a dead network.</li>
+<li><strong>Self-describing JSON.</strong> Each payload carries node ID, firmware version, boot count, and RSSI alongside the measurements — everything a dataset needs to be auditable without external notes.</li>
+<li><strong><code>RTC_DATA_ATTR</code> boot counter.</strong> Survives deep sleep; a gap in the sequence at the subscriber tells you exactly how many cycles were lost.</li>
+<li><strong>Bench-test with short sleeps.</strong> Set <code>SLEEP_SECONDS</code> to 30 while verifying, then 600 for deployment. Never deploy untested firmware.</li>
+</ul>
+<h3 id="serial-monitor-expected-output-bench-test-30-s-sleep">Serial Monitor: expected output (bench test, 30 s sleep)</h3>
+<pre><code>===== Sensor node boot =====
+Firmware v1.0
+Boot count: 1
+Wake cause: power-on
+Wi-Fi connecting.........
+Wi-Fi OK, IP=192.168.1.42
+MQTT connecting...OK
+Published to astolixgen/capstone/node1/data: {&quot;node&quot;:&quot;node1&quot;,&quot;fw&quot;:&quot;1.0&quot;,&quot;boot&quot;:1,&quot;temperature&quot;:27.8,&quot;humidity&quot;:54.2,&quot;rssi&quot;:-61}
+Sleeping 30 s...
+===== Sensor node boot =====
+Firmware v1.0
+Boot count: 2
+Wake cause: timer
+Wi-Fi connecting.......
+Wi-Fi OK, IP=192.168.1.42
+MQTT connecting...OK
+Published to astolixgen/capstone/node1/data: {&quot;node&quot;:&quot;node1&quot;,&quot;fw&quot;:&quot;1.0&quot;,&quot;boot&quot;:2,&quot;temperature&quot;:27.9,&quot;humidity&quot;:54.0,&quot;rssi&quot;:-63}
+Sleeping 30 s...
+</code></pre>
+<h3 id="end-to-end-verification-checklist">End-to-end verification checklist</h3>
+<ol>
+<li><strong>Subscriber test:</strong> on your phone or computer, subscribe to <code>YOUR_PREFIX/#</code> on the broker — JSON documents arrive every cycle.</li>
+<li><strong>Boot-count continuity:</strong> boots increment by exactly 1 with no gaps over an hour — no silent resets.</li>
+<li><strong>Physical stimulus:</strong> breathe on the sensor; the next cycle's humidity jumps — proves the data path is live, not replayed.</li>
+<li><strong>Power test:</strong> run 24 hours on your intended supply; check for brownout resets in the boot-cause line.</li>
+<li><strong>RSSI survey:</strong> place the node at the deployment spot, read three cycles of RSSI — above −70 dBm before you commit.</li>
+</ol>
+<h3 id="deployment-hardening-from-bench-to-field">Deployment hardening (from bench to field)</h3>
+<ul>
+<li><strong>Enclosure:</strong> ventilated (sensor needs airflow), shaded from direct sun, rain-shielded; mount the sensor outside the ESP32's thermal plume.</li>
+<li><strong>Power:</strong> compute the duty-cycle budget from Chapter 9 with <em>measured</em> awake time (time it with a stopwatch over 5 cycles) and buy battery accordingly, plus margin.</li>
+<li><strong>Broker:</strong> move off the public test broker to your own Mosquitto instance with authentication before any real data collection.</li>
+<li><strong>OTA:</strong> add the Chapter 10 ArduinoOTA pattern <em>before</em> deployment — but note OTA and deep sleep conflict (a sleeping node cannot receive uploads); schedule an "awake window" or a button-triggered OTA mode for maintenance.</li>
+<li><strong>Documentation:</strong> photograph the wiring, save the exact sketch file with a version tag, and record library/core versions — this package is your methodology appendix.</li>
+</ul>
+<h3 id="troubleshooting-the-capstone">Troubleshooting the capstone</h3>
+<ul>
+<li><strong>Publishes once, then nothing:</strong> sleep armed but timer misconfigured, or the board browns out on the Wi-Fi burst of cycle 2 — shorten the sleep for testing and watch cycle 2 closely.</li>
+<li><strong>Boot count jumps by 2+:</strong> the board reset mid-cycle (brownout or crash) — check power first, then review the crash dump.</li>
+<li><strong>Data arrives but values are stale:</strong> you are reading the sensor faster than its 2 s minimum somewhere, or publishing a cached variable — trace the read→publish path.</li>
+<li><strong>Everything works on USB, dies on battery:</strong> the #1 field failure — insufficient current for Wi-Fi transmit bursts. Bigger battery, shorter wires, or a capacitor across the supply.</li>
+</ul>
+<blockquote>
+<p><strong>For your research:</strong> This capstone is a complete, defensible research instrument. A methodology section writes itself: hardware table (module, board, sensor, GPIO map), firmware environment (IDE/core/library versions), sampling regime (10-min duty cycle, JSON schema), network path (MQTT topic tree, broker), and validation (24-h bench test, RSSI survey, stimulus-response check). Archive the firmware file and a sample of raw MQTT payloads in a repository with a DOI (e.g., Zenodo) and cite it — that single act elevates the work from "student project" to reproducible research artifact.</p>
+</blockquote>
+<h3 id="from-readings-to-results-analyzing-a-week-of-data">From readings to results: analyzing a week of data</h3>
+<p>A running node is the beginning, not the end. After a week of 10-minute cycles you have ~1,000 JSON documents — enough for real analysis:</p>
+<ol>
+<li><strong>Archive</strong> the subscriber log as CSV (<code>timestamp,node,fw,boot,temperature,humidity,rssi</code>).</li>
+<li><strong>Check completeness:</strong> expected vs. received message counts give the delivery ratio; boot-count gaps locate outage windows. Report both — they quantify deployment reliability.</li>
+<li><strong>Plot</strong> temperature and humidity vs. time; overlay RSSI. Look for correlations (does RSSI dip when the microwave runs? does temperature spike at noon through a window?).</li>
+<li><strong>Summarize</strong> with daily min/max/mean — the descriptive statistics every environmental paper's results section opens with.</li>
+<li><strong>Compare</strong> against a reference (a commercial thermometer, a weather station API) to estimate your node's bias — the seed of a calibration paragraph.</li>
+</ol>
+<p>This pipeline — collect, validate completeness, visualize, summarize, compare — is the same shape as any experimental science. The hardware was just the instrument.</p>
+<h3 id="build-log-template-copy-into-your-lab-notes">Build log template (copy into your lab notes)</h3>
+<pre><code>Project: Wi-Fi temp/humidity node (Book 30 capstone)
+Date: ________    Builder: ________
+Board: ________ (module: ________)   USB-serial chip: ________
+Sensor: DHT22 (module/bare: ________)   DATA pin: GPIO __
+IDE version: ________   ESP32 core: ________
+Libraries: DHT ______ / Unified Sensor ______ / PubSubClient ______
+Wi-Fi: SSID ________ (2.4 GHz confirmed: Y/N)   Broker: ________
+Topic prefix: ________   Sleep interval: ________ s
+Bench test: __ cycles, __ received, __ boot gaps, RSSI @site: __ dBm
+Firmware file archived as: ________________  Version: ____
+Issues encountered: ________________________________________
+</code></pre>
+<h3 id="cost-breakdown-typical-for-proposals">Cost breakdown (typical, for proposals)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Approx. cost (USD)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32 devkit board</td>
+<td>4–8</td>
+</tr>
+<tr>
+<td>DHT22 module</td>
+<td>3–5</td>
+</tr>
+<tr>
+<td>Breadboard + jumper wires</td>
+<td>3–5</td>
+</tr>
+<tr>
+<td>USB cable + power source</td>
+<td>3–6</td>
+</tr>
+<tr>
+<td><strong>Total per node</strong></td>
+<td><strong>~15–25</strong></td>
+</tr>
+</tbody>
+</table>
+<p>At that price, a 20-node field deployment costs less than a single commercial data logger — the economic argument that makes ESP32-based sensing fundable, and worth stating in proposals.</p>
+<p><strong>Key takeaways:</strong>
+- The canonical node architecture: wake → sense → connect → publish self-describing JSON → deep sleep, with bounded retries and no hang states.
+- Every payload should carry node ID, firmware version, boot count, and RSSI — auditable data needs no external notes.
+- Verify end to end: subscriber check, boot-count continuity, physical stimulus, 24-h power test, RSSI survey.
+- Harden for the field: ventilated enclosure, measured power budget, private broker, OTA plan, archived firmware + versions.</p>
+<hr />
+<h2 id="learning-dashboard">Learning Dashboard</h2>
+<h3 id="gpio-quick-reference-common-esp32-devkit-boards-check-your-boards-pinout-diagram">GPIO quick-reference (common ESP32 devkit boards — check your board's pinout diagram)</h3>
+<table>
+<thead>
+<tr>
+<th>Pin group (typical GPIO numbers)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPIO 32–39</td>
+<td>ADC1 analog inputs — safe for sensors even with Wi-Fi on. 34–39 are input-only (no <code>digitalWrite</code>).</td>
+</tr>
+<tr>
+<td>GPIO 25, 26, 27, 14, 12, 13</td>
+<td>General-purpose digital I/O; DAC on 25/26.</td>
+</tr>
+<tr>
+<td>GPIO 15, 2, 4, 5, 18, 19, 21, 22, 23</td>
+<td>General digital I/O on most boards (2 is often the built-in LED; 21/22 are the default I2C bus).</td>
+</tr>
+<tr>
+<td>GPIO 0, 12, 15, 2, 4</td>
+<td><strong>Strapping pins</strong> — sampled at boot; avoid holding them HIGH/LOW externally during reset, or the board may fail to boot. GPIO 0 doubles as the BOOT button.</td>
+</tr>
+<tr>
+<td>GPIO 6–11</td>
+<td>Connected to the on-board flash — <strong>do not use</strong>.</td>
+</tr>
+<tr>
+<td>ADC2 pins (various)</td>
+<td>Analog reads conflict with Wi-Fi — avoid for sensors in networked projects.</td>
+</tr>
+</tbody>
+</table>
+<p>Rule of thumb for beginners: if you need "just a pin," GPIO 15, 4, 5, 18, or 19 are boring in the best way. When in doubt, consult your specific board's pinout diagram — manufacturers differ.</p>
+<h3 id="error-to-fix-lookup-table">Error-to-fix lookup table</h3>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Most likely cause</th>
+<th>Fix (chapter)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Timed out waiting for packet header</code> at upload</td>
+<td>Board not in download mode</td>
+<td>Hold BOOT during <code>Connecting...</code> (3, 11)</td>
+</tr>
+<tr>
+<td>No port in Tools → Port</td>
+<td>Charge-only cable / missing driver</td>
+<td>Swap cable; install CP210x/CH340 driver (2, 11)</td>
+</tr>
+<tr>
+<td><code>⸮⸮⸮</code> in Serial Monitor</td>
+<td>Baud mismatch</td>
+<td>Set monitor to 115200 (3, 11)</td>
+</tr>
+<tr>
+<td>Repeating boot text, sketch never runs</td>
+<td>Crash in <code>setup()</code> (null pointer, stack overflow)</td>
+<td>Read crash dump; bisect <code>setup()</code> (11)</td>
+</tr>
+<tr>
+<td><code>Brownout detector was triggered</code></td>
+<td>Weak supply vs. Wi-Fi current spikes</td>
+<td>Stronger supply / shorter cable (11)</td>
+</tr>
+<tr>
+<td>Phantom button triggers</td>
+<td>Floating input</td>
+<td><code>INPUT_PULLUP</code>; check GND wire (4, 11)</td>
+</tr>
+<tr>
+<td>One press counts many</td>
+<td>Contact bounce</td>
+<td>50 ms debounce; count edges (4)</td>
+</tr>
+<tr>
+<td><code>Failed to read from DHT sensor!</code></td>
+<td>Wrong type/pin/interval/wiring</td>
+<td>Check <code>DHTTYPE</code>, pin, 2 s interval (5, 11)</td>
+</tr>
+<tr>
+<td>Analog stuck at 0/4095 or Wi-Fi drift</td>
+<td>Over-range input or ADC2 pin</td>
+<td>Multimeter check; move to ADC1 (5, 11)</td>
+</tr>
+<tr>
+<td>Wi-Fi dots forever</td>
+<td>Wrong credentials / 5 GHz / WPA3 / captive portal</td>
+<td>Verify; test with phone hotspot (6, 11)</td>
+</tr>
+<tr>
+<td>Wi-Fi connects then drops</td>
+<td>Weak RSSI or brownout</td>
+<td>Survey RSSI; fix power (6, 9, 11)</td>
+</tr>
+<tr>
+<td>MQTT <code>rc=-2</code> loop</td>
+<td>Broker unreachable</td>
+<td>Test broker from another device (7, 11)</td>
+</tr>
+<tr>
+<td>MQTT drops every ~15 s</td>
+<td><code>client.loop()</code> starved</td>
+<td>Replace long <code>delay()</code> with <code>millis()</code> timing (7)</td>
+</tr>
+<tr>
+<td>HTTP code −1</td>
+<td>No route / DNS failure</td>
+<td>Check Wi-Fi; test URL on desktop (8)</td>
+</tr>
+<tr>
+<td>HTTP 4xx codes</td>
+<td>Wrong URL / headers / malformed JSON</td>
+<td>Print exact payload; fix per code table (8)</td>
+</tr>
+<tr>
+<td>Deep sleep never wakes</td>
+<td>Timer not armed before <code>esp_deep_sleep_start()</code></td>
+<td>Arm → flush → start order (9)</td>
+</tr>
+<tr>
+<td>Serial cut off before sleep</td>
+<td>UART buffer discarded</td>
+<td><code>Serial.flush()</code> before sleeping (9)</td>
+</tr>
+<tr>
+<td>No OTA network port in IDE</td>
+<td>Different subnet / firewall / Wi-Fi

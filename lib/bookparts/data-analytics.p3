@@ -1,0 +1,77 @@
+d>
+<td>"…we forecast 12% further decline next quarter"</td>
+<td>"…launch targeted scholarships in those cities"</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="glossary">Glossary</h2>
+<ul>
+<li><strong>Analytics</strong> — the systematic examination of data to find patterns and support decisions.</li>
+<li><strong>ANOVA</strong> — a statistical test comparing means across three or more groups.</li>
+<li><strong>Bias (sampling)</strong> — systematic error from a non-representative sample; results skew in one direction.</li>
+<li><strong>BI (Business Intelligence)</strong> — platforms (e.g., Power BI, Tableau) for interactive dashboards and reporting.</li>
+<li><strong>Big data</strong> — datasets too large or fast for traditional tools, often described by volume, velocity, and variety.</li>
+<li><strong>Causation</strong> — a relationship where one variable produces change in another; requires more than correlation to establish.</li>
+<li><strong>Cleaning (data)</strong> — fixing errors, inconsistencies, and missing values to make data analysis-ready.</li>
+<li><strong>Confidence interval</strong> — a range of values likely to contain the true population value, expressing estimate precision.</li>
+<li><strong>Correlation</strong> — strength and direction of a linear relationship between two numeric variables (−1 to +1); not causation.</li>
+<li><strong>CRISP-DM</strong> — Cross-Industry Standard Process for Data Mining; the six-phase analytics workflow.</li>
+<li><strong>Dashboard</strong> — a single-screen visual summary of key metrics for monitoring.</li>
+<li><strong>Data mining</strong> — searching large datasets for patterns, often with automated methods.</li>
+<li><strong>Descriptive analytics</strong> — analytics summarizing what happened in the past.</li>
+<li><strong>Diagnostic analytics</strong> — analytics investigating why something happened.</li>
+<li><strong>DIKW hierarchy</strong> — Data → Information → Knowledge → Wisdom; levels of understanding.</li>
+<li><strong>EDA (Exploratory Data Analysis)</strong> — open-ended summarizing and plotting to discover patterns before formal analysis.</li>
+<li><strong>Effect size</strong> — the magnitude of a difference or relationship; practical importance beyond statistical significance.</li>
+<li><strong>Hypothesis testing</strong> — formal procedure for judging whether a pattern could be due to chance.</li>
+<li><strong>KPI (Key Performance Indicator)</strong> — a headline metric tracked to judge performance (e.g., monthly sales).</li>
+<li><strong>Mean</strong> — the arithmetic average; sensitive to outliers.</li>
+<li><strong>Median</strong> — the middle value when sorted; robust to outliers.</li>
+<li><strong>Missing value</strong> — an absent data point; must be handled deliberately, never silently.</li>
+<li><strong>Outlier</strong> — an extreme value far from the rest; investigate before deleting.</li>
+<li><strong>p-value</strong> — probability of seeing data this extreme if the null hypothesis were true; small values suggest real effects.</li>
+<li><strong>Population</strong> — the entire group you want to learn about; usually studied via a sample.</li>
+<li><strong>Predictive analytics</strong> — analytics using past data to estimate future outcomes.</li>
+<li><strong>Prescriptive analytics</strong> — analytics recommending the best action given predictions and constraints.</li>
+<li><strong>Primary data</strong> — data you collect yourself for your question.</li>
+<li><strong>Regression</strong> — modeling a numeric outcome as a function of predictors; slope = effect per unit.</li>
+<li><strong>Reproducibility</strong> — the ability of others to re-run your analysis and get your results; a modern research standard.</li>
+<li><strong>Sample</strong> — the subset of a population actually measured; must represent the population to generalize.</li>
+<li><strong>Sampling error</strong> — natural wobble of sample estimates; shrinks as sample size grows.</li>
+<li><strong>Secondary data</strong> — data collected by others that you reuse.</li>
+<li><strong>Significance (statistical)</strong> — a result unlikely due to chance (typically p &lt; 0.05); distinct from practical importance.</li>
+<li><strong>SQL</strong> — Structured Query Language for retrieving and manipulating database data.</li>
+<li><strong>Standard deviation</strong> — typical distance of values from the mean, in original units.</li>
+<li><strong>Validity</strong> — whether a study measures what it claims and its conclusions hold (construct, internal, external, statistical).</li>
+</ul>
+<hr />
+<h2 id="practice-exercises">Practice Exercises</h2>
+<ol>
+<li><strong>Definitions.</strong> In your own words, write one sentence each explaining data, information, and insight. Give a one-line example from your own field for each.</li>
+<li><strong>Analytics types.</strong> For each of these questions, name the analytics type needed: (a) "How many students graduated last year?" (b) "Why did the dropout rate rise in 2025?" (c) "Which applicants are most likely to accept our offer?" (d) "How many buses should we run on each route next semester?"</li>
+<li><strong>Workflow.</strong> Take the question "Why is our department's Wi-Fi always slow at noon?" and write it as a precise analytics question with a success criterion, following CRISP-DM Phase 1. List the data you would need.</li>
+<li><strong>Sampling.</strong> A researcher surveys "student satisfaction" by handing questionnaires to students in the cafeteria at lunch. Name the sampling method, explain two specific biases this creates, and propose a better design.</li>
+<li><strong>Cleaning.</strong> You receive an "age" column containing: 22, 25, "twenty", 300, blank, -4, 23. For each problem value, state what is wrong and what you would do with it (and why). Write your answer as a mini cleaning log.</li>
+<li><strong>EDA.</strong> Given this tiny dataset of (study_hours, score): (2,55), (4,60), (3,58), (8,85), (7,80), (9,90), (5,65), (1,50) — sketch the scatter plot by hand, describe its direction and strength, and estimate the correlation as weak, moderate, or strong. What would you check next?</li>
+<li><strong>Statistics.</strong> A tutoring center claims its program "significantly improves scores (p = 0.03)." The improvement is 1.2 marks on a 100-mark exam with 2,000 students tested. Explain in plain language why a researcher should be unimpressed, using the concepts of effect size and practical significance.</li>
+<li><strong>Visualization.</strong> Find any chart in a news article or report. Critique it using Chapter 8's principles: does the chart type fit the question? Does the axis start at zero (if bars)? Is there a message title? Redesign it in words.</li>
+<li><strong>Research design (research-oriented).</strong> Draft a 2-page research proposal for a small analytics study in your field, following Chapter 11: research question, variables with definitions, design, population and sampling plan, data collection instruments, analysis plan (which descriptives, which tests), ethics considerations, and expected limitations. Show it to a peer or supervisor for feedback.</li>
+<li><strong>Capstone (research-oriented).</strong> Find a public dataset related to your field (government open data portal, UCI Machine Learning Repository, or similar). Run the full Chapter 12 template on it: question with success criterion → data understanding → cleaning log → EDA with at least 4 plots → simplest suitable model evaluated on unseen data → one-page brief with one key chart. Write up the Methods and Results as if for a journal paper, including a limitations paragraph.</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<p>[1] F. Provost and T. Fawcett, <em>Data Science for Business: What You Need to Know about Data Mining and Data-Analytic Thinking</em>. Sebastopol, CA, USA: O'Reilly Media, 2013.</p>
+<p>[2] W. McKinney, <em>Python for Data Analysis: Data Wrangling with pandas, NumPy, and IPython</em>, 2nd ed. Sebastopol, CA, USA: O'Reilly Media, 2017.</p>
+<p>[3] C. N. Knaflic, <em>Storytelling with Data: A Data Visualization Guide for Business Professionals</em>. Hoboken, NJ, USA: Wiley, 2015.</p>
+<p>[4] S. Few, <em>Show Me the Numbers: Designing Tables and Graphs to Enlighten</em>, 2nd ed. Burlingame, CA, USA: Analytics Press, 2012.</p>
+<p>[5] T. H. Davenport and J. G. Harris, <em>Competing on Analytics: The New Science of Winning</em>. Boston, MA, USA: Harvard Business School Press, 2007.</p>
+<p>[6] J. W. Tukey, <em>Exploratory Data Analysis</em>. Reading, MA, USA: Addison-Wesley, 1977.</p>
+<p>[7] E. R. Tufte, <em>The Visual Display of Quantitative Information</em>, 2nd ed. Cheshire, CT, USA: Graphics Press, 2001.</p>
+<p>[8] H. Wickham and G. Grolemund, <em>R for Data Science: Import and Tidy Your Data with R</em>. Sebastopol, CA, USA: O'Reilly Media, 2016.</p>
+<p>[9] T. H. Davenport and D. J. Patil, "Data scientist: The sexiest job of the 21st century," <em>Harvard Business Review</em>, vol. 90, no. 10, pp. 70–76, Oct. 2012.</p>
+<p>[10] P. Chapman, J. Clinton, R. Kerber, T. Khabaza, T. Reinartz, C. Shearer, and R. Wirth, "CRISP-DM 1.0: Step-by-step data mining guide," SPSS Inc., Chicago, IL, USA, Tech. Rep., 2000.</p>
+<p>[11] pandas development team, "pandas documentation," pandas.pydata.org. [Online]. Available: https://pandas.pydata.org/docs/</p>
+<p>[12] Microsoft, "Microsoft Power BI documentation," Microsoft Learn. [Online]. Available: https://learn.microsoft.com/en-us/power-bi/</p>
+<hr />
+<p><em>End of Book 21. Next: Book 22 — Statistics for Research: Hypothesis Testing and Beyond.</em></p>

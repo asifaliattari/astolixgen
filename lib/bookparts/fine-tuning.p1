@@ -1,0 +1,515 @@
+se model, many task adapters, each a small file. For research, this is wonderful: your "model" for the paper is a 100 MB adapter file anyone can download and plug into the public base model.</p>
+<p>Two clever details make LoRA train well:</p>
+<ol>
+<li><strong>Initialization:</strong> B starts at zero and A starts random. So at the start of training, BA = 0 and the model behaves <em>exactly</em> like the base model. Training only ever adds a deviation from the base behavior — it cannot start by being broken.</li>
+<li><strong>Scaling:</strong> the update is multiplied by α/r (alpha over rank), where α is a hyperparameter. This keeps the effective update magnitude stable when you change r, so tuning r doesn't require retuning the learning rate as much.</li>
+</ol>
+<p><img alt="LoRA low-rank concept: frozen matrix plus two small trainable matrices" src="media-generation-book-17-fig1-0-0377004c-6e57-4b2b-baf3-83dec973baf0.webp" /></p>
+<p><em>Figure: The frozen base weight plus the two small trainable matrices whose product forms the update.</em></p>
+<h2 id="qlora-lora-on-a-quantized-model">QLoRA: LoRA on a Quantized Model</h2>
+<p>LoRA slashed the <em>trainable</em> parameters, but the frozen base weights still sit on the GPU in 16-bit — 14 GB for a 7B model, plus activations. <strong>QLoRA</strong> (Dettmers et al.) attacks the frozen weights with <strong>quantization</strong>: storing each weight in 4 bits instead of 16.</p>
+<p>Four-bit might sound brutally lossy, but two innovations make it work:</p>
+<ul>
+<li><strong>NF4 (NormalFloat4):</strong> a 4-bit number format designed for the actual distribution of neural network weights (which are roughly normally distributed). It allocates its 16 representable values where weights actually fall, rather than evenly — much less rounding error than naive 4-bit.</li>
+<li><strong>Double quantization:</strong> the quantization constants themselves are quantized, squeezing out more memory savings.</li>
+</ul>
+<p>The result: a 7B model's frozen weights fit in about 3.5–4 GB. During training, weights are dequantized to 16-bit on the fly for the forward/backward pass, gradients flow only into the LoRA adapters, and the base weights are never updated. Memory for QLoRA fine-tuning of a 7–8B model lands around 8–12 GB total — fitting on a free Colab T4 GPU (16 GB). The QLoRA paper showed this recipe matching full 16-bit fine-tuning quality across benchmarks, and even enabled fine-tuning a 65B model on a single 48 GB GPU.</p>
+<p>The one cost of QLoRA is speed: dequantizing on the fly adds compute overhead, so training runs somewhat slower than 16-bit LoRA. For students, this is an excellent trade — slower but possible beats fast but impossible.</p>
+<h2 id="configuring-lora-in-practice-hugging-face-peft">Configuring LoRA in Practice (Hugging Face PEFT)</h2>
+<p>Here is what a LoRA configuration actually looks like, with every knob explained:</p>
+<pre><code class="language-python">from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+peft_config = LoraConfig(
+    r=16,                          # rank: the &quot;width&quot; of the adapter. Higher = more capacity.
+    lora_alpha=32,                 # scaling factor; effective update scaled by alpha/r = 2 here
+    lora_dropout=0.05,             # dropout on the adapter: mild regularization
+    bias=&quot;none&quot;,                   # don't train bias terms (keeps adapter tiny)
+    task_type=&quot;CAUSAL_LM&quot;,         # next-token prediction (standard for instruction tuning)
+    target_modules=[&quot;q_proj&quot;, &quot;v_proj&quot;],
+    # which weight matrices get adapters.
+    # Common choices: [&quot;q_proj&quot;,&quot;v_proj&quot;] (original paper, minimal),
+    # or all of [&quot;q_proj&quot;,&quot;k_proj&quot;,&quot;v_proj&quot;,&quot;o_proj&quot;,&quot;gate_proj&quot;,&quot;up_proj&quot;,&quot;down_proj&quot;] (more capacity)
+)
+
+model = prepare_model_for_kbit_training(model)  # needed for quantized base models
+model = get_peft_model(model, peft_config)
+model.print_trainable_parameters()
+# e.g. &quot;trainable params: 41,943,040 || all params: 8,030,000,000 || trainable%: 0.52%&quot;
+</code></pre>
+<p>That final printout is your sanity check: trainable parameters should be well under 1–2% of the total. If it says 100%, you forgot to freeze something.</p>
+<p><strong>Choosing r (rank):</strong> r=8 or 16 is the standard starting point and is enough for most format/style adaptation. Increase to 32–64 for harder tasks (new domains, complex reasoning). Higher rank = more capacity but more memory and more overfitting risk on small data. A good research practice: ablate r ∈ {8, 16, 32} on your validation set and report the curve.</p>
+<p><strong>Choosing target modules:</strong> adapting only attention (<code>q_proj</code>, <code>v_proj</code>) is the conservative default from the original paper. Adapting <em>all</em> linear layers (attention + MLP) gives the adapter more capacity and often better results on hard tasks, at the cost of a larger adapter file (still tiny relative to the model). For your first run, use the attention-only default; expand if validation performance plateaus.</p>
+<h2 id="when-full-fine-tuning-still-wins">When Full Fine-Tuning Still Wins</h2>
+<p>PEFT is not always the answer. Full fine-tuning remains preferable when:</p>
+<ul>
+<li><strong>You have the hardware.</strong> If your lab has 80 GB GPUs, full fine-tuning is simpler (no adapter machinery) and sometimes slightly better on very hard domain shifts.</li>
+<li><strong>The domain shift is extreme.</strong> Adapting to a language barely present in pre-training, or to a wildly different data distribution, may need changes LoRA's low-rank updates cannot express. (Though try high-rank LoRA first — it often suffices.)</li>
+<li><strong>You are pre-training further (continued pre-training).</strong> If you are continuing next-token training on gigabytes of domain text rather than instruction tuning, full fine-tuning is the standard choice.</li>
+</ul>
+<p>For a student on limited hardware doing instruction tuning, the honest default is <strong>QLoRA</strong>. It is what makes this book's Chapter 6 walkthrough possible on free Colab, and it is a legitimate, publishable method — the QLoRA paper itself is a NeurIPS publication, and hundreds of papers since have used it as their training method.</p>
+<h2 id="the-peft-family-beyond-lora-awareness-level">The PEFT Family Beyond LoRA (Awareness Level)</h2>
+<p>You will encounter these names; know what they are at one paragraph each:</p>
+<ul>
+<li><strong>Adapters (classic):</strong> small bottleneck layers inserted <em>between</em> transformer layers. The original PEFT idea; LoRA largely superseded it because adapters add inference latency while LoRA merges away.</li>
+<li><strong>Prefix/prompt tuning:</strong> learnable virtual tokens prepended to the input instead of changing weights. Extremely parameter-efficient but often weaker than LoRA on hard tasks.</li>
+<li><strong>IA³:</strong> learns three small vectors per layer that rescale activations. Tiny and fast; competitive on some tasks.</li>
+<li><strong>DoRA:</strong> decomposes weights into magnitude and direction components and applies LoRA to the direction. Often slightly outperforms LoRA at similar cost — worth knowing as a one-line config swap in PEFT (<code>use_dora=True</code>) for an ablation.</li>
+</ul>
+<p>For your research, LoRA/QLoRA is the baseline everything else is compared against. If you experiment with alternatives, LoRA is the control condition.</p>
+<h2 id="memory-math-a-worked-example">Memory Math: A Worked Example</h2>
+<p>Let's make the memory savings concrete with numbers you can verify on your own GPU. Take an 8B-parameter model and compare three training setups. (Byte counts: 16-bit = 2 bytes, 32-bit = 4 bytes, 4-bit = 0.5 bytes.)</p>
+<p><strong>Setup A: Full fine-tuning, 16-bit weights, AdamW.</strong>
+- Weights: 8B × 2 = 16 GB
+- Gradients: 8B × 2 = 16 GB
+- AdamW states (two 32-bit numbers per parameter): 8B × 8 = 64 GB
+- Subtotal: ~96 GB, plus activations (several GB more depending on sequence length and batch size)
+- Verdict: needs multiple data-center GPUs or exotic sharding. Not a student setup.</p>
+<p><strong>Setup B: LoRA (16-bit base), r=16 on all linear layers.</strong>
+- Frozen base weights: 16 GB (no gradients, no optimizer state — frozen means frozen)
+- Trainable adapter: ~42M parameters → weights 0.08 GB, gradients 0.08 GB, AdamW states 0.34 GB
+- Subtotal: ~16.5 GB plus activations
+- Verdict: fits on a 24 GB GPU (RTX 4090, A10), tight on 16 GB once activations are counted. This is why LoRA alone, without quantization, still strains a Colab T4.</p>
+<p><strong>Setup C: QLoRA (4-bit NF4 base), r=16.</strong>
+- Frozen base weights: 8B × 0.5 = 4 GB
+- Adapter + optimizer states: ~0.5 GB (as above; paged_adamw_8bit halves the optimizer memory further)
+- Activations with gradient checkpointing: ~2–4 GB for batch 2, seq length 1024
+- Subtotal: roughly 7–10 GB
+- Verdict: comfortable on a 16 GB T4 with headroom. This is the Chapter 6 walkthrough, and now you see exactly why it fits.</p>
+<p>Two lessons fall out of the arithmetic. First, the optimizer states are the silent killer in full fine-tuning — 64 GB of the 96 GB total. Any method that avoids optimizer state on the base weights (which is all of PEFT) wins enormously. Second, quantization's contribution is specifically shrinking the <em>frozen</em> weights (16 GB → 4 GB); the adapter was already tiny. When someone asks "why not just LoRA without quantization?", the answer is the 12 GB difference in frozen-weight storage — exactly the gap between fitting and not fitting on free hardware.</p>
+<p>You can confirm all of this empirically: after loading your model in Chapter 6's Step 1, run <code>nvidia-smi</code> and compare against the 4 GB prediction; after attaching the adapter, run <code>model.print_trainable_parameters()</code> and multiply out the bytes. Making the theory touch the metal once builds intuition that lasts.</p>
+<h2 id="lora-variants-in-one-page-dora-rslora-and-friends">LoRA Variants in One Page: DoRA, rsLoRA, and Friends</h2>
+<p>The PEFT library offers LoRA variants selectable with one-line config changes. Know what they are so you can run them as ablations:</p>
+<ul>
+<li><strong>DoRA (Weight-Decomposed Low-Rank Adaptation).</strong> Decomposes each weight into a magnitude vector and a direction matrix, applies LoRA to the direction, and trains magnitudes separately. Intuition: learning "how strong" separately from "which way" is a more natural decomposition. Empirically it often beats vanilla LoRA by a small margin at similar cost. Enable with <code>use_dora=True</code> in <code>LoraConfig</code>. The adapter is slightly larger and training slightly slower — worth one ablation run.</li>
+<li><strong>rsLoRA (rank-stabilized LoRA).</strong> Changes the scaling factor from α/r to α/√r. The original scaling can under-serve high ranks (the update shrinks as r grows, partially canceling the extra capacity). If you're experimenting with r=64+, rsLoRA (<code>use_rslora=True</code>) makes high-rank runs behave more sensibly.</li>
+<li><strong>PiSSA.</strong> Initializes A and B from the principal components of the weight matrix (via SVD) instead of random/zero. The idea: start the adapter already pointing along the weight's most important directions, so training converges faster. Useful when training time is the bottleneck.</li>
+<li><strong>LoRA+.</strong> Uses different learning rates for the A and B matrices (higher for B). A small tweak with occasional wins; mostly of interest if you're squeezing the last point of performance.</li>
+</ul>
+<p>For your first project, vanilla LoRA is the right baseline — it's what the literature compares against, and variant gains are usually 0–2 points. Run one variant (DoRA is the best-supported choice) as an ablation <em>after</em> your main results are solid. A paper reporting "LoRA 78.5, DoRA 79.1" shows thoroughness; a paper using an exotic variant as its only method invites questions about whether vanilla LoRA would have sufficed.</p>
+<blockquote>
+<p><strong>For your research:</strong> Your paper's methods section must state the PEFT configuration completely: rank r, alpha, dropout, target modules, quantization type (NF4, double quantization on/off), and the base model with exact version/hash. "We used LoRA" is not reproducible — two papers with "LoRA" and different ranks are different experiments. Also report the trainable parameter count and percentage; reviewers use it to judge whether your comparison to full fine-tuning baselines is fair.</p>
+</blockquote>
+<h3 id="key-takeaways_3">Key Takeaways</h3>
+<ul>
+<li>Full fine-tuning stores weights + gradients + optimizer state (~84 GB for 7B); PEFT trains a tiny fraction of parameters instead.</li>
+<li>LoRA freezes base weights and learns the update as B×A, two small matrices of rank r — typically 0.1–1% of parameters, mergeable to zero inference overhead.</li>
+<li>QLoRA adds 4-bit NF4 quantization of the frozen base, fitting 7–8B fine-tuning into ~8–12 GB — free-Colab territory — with quality matching 16-bit.</li>
+<li>Start with r=16, alpha=32, attention targets; expand rank and target modules only if validation plateaus.</li>
+<li>Full fine-tuning still wins with big hardware or extreme domain shifts; QLoRA is the honest student default.</li>
+<li>Report the full PEFT config in papers — "we used LoRA" is not reproducible.</li>
+</ul>
+<hr />
+<h1 id="chapter-5-tooling-hugging-face-transformers-trl-axolotl-overview-setup">Chapter 5: Tooling: Hugging Face Transformers, TRL, Axolotl (Overview + Setup)</h1>
+<p>You now understand what fine-tuning is and which method to use. This chapter is about the software that does the heavy lifting. The open-source ecosystem has converged on a standard stack, and learning it once pays off across every project: <strong>Hugging Face Transformers</strong> (models and training primitives), <strong>PEFT</strong> (the adapter library), <strong>TRL</strong> (high-level fine-tuning trainers), and <strong>Axolotl</strong> (configuration-driven training). We will cover what each does, when to reach for it, and get your environment set up.</p>
+<h2 id="the-stack-layer-by-layer">The Stack, Layer by Layer</h2>
+<p><strong>Hugging Face Transformers</strong> is the foundation. It provides: thousands of pre-trained models loadable in two lines (<code>AutoModelForCausalLM.from_pretrained(...)</code>), tokenizers that convert text to the numbers models consume, and the <code>Trainer</code> class — a general training loop handling batching, optimization, checkpointing, logging, and multi-GPU distribution. Everything else in this chapter builds on it. If you learn one library deeply, make it this one.</p>
+<p><strong>PEFT</strong> (Parameter-Efficient Fine-Tuning) is Hugging Face's adapter library. It implements LoRA, QLoRA support, DoRA, IA³, prefix tuning, and more, with a uniform interface: define a config, wrap your model with <code>get_peft_model</code>, train normally, save a small adapter. Chapter 4 already showed its core API.</p>
+<p><strong>TRL</strong> (Transformer Reinforcement Learning — the name is historical; it now covers all post-training) provides <strong>SFTTrainer</strong>, a specialized trainer for supervised fine-tuning that handles the fiddly details: applying chat templates, masking instruction tokens from the loss, packing short examples together for efficiency, and integrating with PEFT in a few lines. For instruction tuning, SFTTrainer is the single most productive tool in the ecosystem — it turns what used to be 300 lines of custom training code into about 30.</p>
+<p><strong>Axolotl</strong> sits one level higher: instead of writing Python training scripts, you write a <strong>YAML config file</strong> describing everything (base model, dataset, LoRA settings, hyperparameters), and Axolotl runs the training. This is superb for research because the config file <em>is</em> the experiment specification — version-controlled, diffable, and directly publishable. Many published fine-tuning experiments now ship their Axolotl configs as reproducibility artifacts.</p>
+<p>Supporting libraries you will meet: <strong>bitsandbytes</strong> (the quantization engine behind QLoRA's 4-bit loading), <strong>datasets</strong> (Hugging Face's data library — streaming, caching, and preprocessing for huge files), and <strong>accelerate</strong> (handles device placement and multi-GPU behind the scenes).</p>
+<h2 id="choosing-your-tool-for-the-job">Choosing Your Tool for the Job</h2>
+<ul>
+<li><strong>Learning / first experiments / full control:</strong> raw Transformers <code>Trainer</code> + PEFT. You see every step; debugging teaches you the most.</li>
+<li><strong>Standard instruction tuning (the 90% case):</strong> TRL's <code>SFTTrainer</code> + PEFT. Minimal code, correct defaults, fast iteration.</li>
+<li><strong>Systematic experiments / ablations / sharing:</strong> Axolotl YAML configs. Your future self — and your reviewers — will thank you.</li>
+<li><strong>RLHF or preference optimization (DPO):</strong> TRL again (<code>DPOTrainer</code>). Beyond this book's scope, but good to know the same library covers it.</li>
+</ul>
+<p>A common student path: prototype with SFTTrainer in a Colab notebook (Chapter 6), then graduate to Axolotl configs when running the serious ablation grid for the paper.</p>
+<h2 id="environment-setup">Environment Setup</h2>
+<p>You need Python 3.10+, PyTorch with CUDA, and a GPU with at least ~12–16 GB VRAM for QLoRA on 7–8B models (a Colab T4 qualifies). Install the stack:</p>
+<pre><code class="language-bash"># Core stack (versions move fast; these were current and mutually compatible
+# at time of writing — check the TRL docs if you hit version conflicts)
+pip install torch --index-url https://download.pytorch.org/whl/cu121
+pip install transformers datasets accelerate peft trl bitsandbytes
+</code></pre>
+<p>Verify the GPU is visible and quantization works:</p>
+<pre><code class="language-python">import torch
+print(torch.cuda.is_available())          # must be True
+print(torch.cuda.get_device_name(0))      # e.g. &quot;Tesla T4&quot;
+
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type=&quot;nf4&quot;,            # NormalFloat4, per the QLoRA paper
+    bnb_4bit_use_double_quant=True,       # double quantization: saves a bit more memory
+    bnb_4bit_compute_dtype=torch.bfloat16 # compute in bfloat16 for stability
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    &quot;meta-llama/Llama-3.1-8B&quot;,            # any causal LM; gated models need HF access approval
+    quantization_config=bnb_config,
+    device_map=&quot;auto&quot;,
+)
+print(&quot;quantized model loaded OK&quot;)
+</code></pre>
+<p>Two setup notes that save hours of confusion:</p>
+<ol>
+<li><strong>Gated models</strong> (Llama, Gemma) require accepting the license on the Hugging Face website and logging in (<code>huggingface-cli login</code>) before download. Do this once; the token is cached.</li>
+<li><strong>Disk space:</strong> model downloads are large (8B ≈ 16 GB in 16-bit; quantized downloads are smaller since quantization happens on load). Colab gives you limited disk — download once per session, and consider <code>huggingface_hub</code>'s cache settings if you run many experiments.</li>
+</ol>
+<h2 id="axolotl-setup-and-a-minimal-config">Axolotl Setup and a Minimal Config</h2>
+<p>Axolotl installs as a package and runs from a YAML file:</p>
+<pre><code class="language-bash">pip install axolotl
+# or, for the latest: pip install git+https://github.com/axolotl-ai-cloud/axolotl.git
+</code></pre>
+<p>A minimal but complete Axolotl config for QLoRA instruction tuning:</p>
+<pre><code class="language-yaml"># axolotl-config.yaml
+base_model: meta-llama/Llama-3.1-8B
+model_type: LlamaForCausalLM
+tokenizer_type: AutoTokenizer
+
+load_in_4bit: true
+adapter: qlora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules: [q_proj, v_proj]
+
+datasets:
+  - path: data/train.json
+    type:
+      system_prompt: &quot;&quot;
+      field_system: null
+      field_instruction: instruction
+      field_input: input
+      field_output: output
+      format: &quot;{instruction} {input} {output}&quot;
+      no_input_format: &quot;{instruction} {output}&quot;
+
+val_set_size: 0.05
+sequence_len: 2048
+sample_packing: true
+
+num_epochs: 3
+micro_batch_size: 2
+gradient_accumulation_steps: 8
+learning_rate: 0.0002
+optimizer: paged_adamw_8bit
+lr_scheduler: cosine
+warmup_steps: 30
+
+output_dir: ./outputs/run-01
+save_steps: 200
+logging_steps: 10
+</code></pre>
+<p>Run it with <code>axolotl train axolotl-config.yaml</code>. Every hyperparameter in this file will be explained in Chapter 7; for now, notice the property that matters: <strong>this file fully specifies the experiment</strong>. Commit it to git with a tag, and anyone — including you in six months — can reproduce the run exactly.</p>
+<h2 id="what-each-tool-handles-vs-what-you-handle">What Each Tool Handles vs. What You Handle</h2>
+<p>A clear division of labor prevents both magical thinking and unnecessary suffering:</p>
+<ul>
+<li><strong>The libraries handle:</strong> tokenization details, chat templates, loss masking, gradient accumulation, mixed precision, checkpointing, distributed training, quantization math.</li>
+<li><strong>You handle:</strong> the dataset (quality, format, splits), the evaluation (metrics, baselines, test discipline), the hyperparameters (chosen deliberately, not by default), and the scientific judgment (what the results mean).</li>
+</ul>
+<p>Beginners often invert this: they obsess over library internals while feeding the model sloppy data and evaluating on vibes. Chapters 3 and 8 exist to keep you on the right side of that line.</p>
+<h2 id="reproducibility-in-practice-environments-that-dont-rot">Reproducibility in Practice: Environments That Don't Rot</h2>
+<p>Chapter 5's takeaway said "freeze and record exact library versions." Here's how to actually do it so the environment still works in six months:</p>
+<p><strong>The requirements file.</strong> After a working run, capture the environment:</p>
+<pre><code class="language-bash">pip freeze &gt; requirements-run01.txt
+</code></pre>
+<p>This file goes into git next to the Axolotl config or training script. When you (or a reviewer) need to rerun, create a fresh environment and <code>pip install -r requirements-run01.txt</code>. Note: <code>pip freeze</code> on Colab captures Colab-specific packages too — that's fine; what matters is that transformers/peft/trl/bitsandbytes/torch versions are pinned.</p>
+<p><strong>The one-line version log.</strong> In addition to the freeze file, print versions into your training logs:</p>
+<pre><code class="language-python">import transformers, peft, trl, torch
+print(f&quot;transformers={transformers.__version__} peft={peft.__version__} trl={trl.__version__} torch={torch.__version__}&quot;)
+</code></pre>
+<p>When a run from three months ago behaves differently today, the first thing you check is whether the environment changed — and this line answers it in seconds.</p>
+<p><strong>Randomness control.</strong> Set seeds everywhere, not just in the trainer: Python's <code>random</code>, NumPy, and PyTorch all have separate RNGs. Hugging Face's <code>set_seed(42)</code> handles all three plus CUDA. Do it at the top of every script. Perfect determinism on GPUs isn't guaranteed even with seeds (some CUDA operations are nondeterministic), but seeded runs are <em>close enough</em> that a large discrepancy signals a real problem, not noise.</p>
+<p><strong>What to version-control.</strong> Commit: configs, training scripts, eval scripts, requirements files, the data preparation script, and a README describing the run order. Do NOT commit: model weights, datasets (use releases or data versioning if large), or API tokens. A good rule: the repository should let a stranger go from "git clone" to "reproduced results" following only the README.</p>
+<p><strong>The environment decay problem.</strong> Libraries move fast; a requirements file from today may fail to install in a year (a dependency dropped an old wheel, a CUDA version mismatch). For thesis-critical reproducibility, the gold standard is a container (Docker) or a full environment export. For most student projects, the pinned requirements file plus the version log is sufficient — just re-verify the install works <em>before</em> you need it, e.g., once at thesis-writing time.</p>
+<h2 id="choosing-a-base-model-a-practical-workflow">Choosing a Base Model: A Practical Workflow</h2>
+<p>The stack is only half the decision — <em>which</em> model to fine-tune matters enormously, and students often default to whatever is most famous. Here's a deliberate selection workflow:</p>
+<p><strong>Step 1: List candidates in your size class.</strong> For QLoRA on a 16 GB GPU: 7–9B models (Llama-3.1-8B, Qwen2.5-7B, Gemma-2-9B, Phi-3-medium). For CPU-only or tiny GPUs: 1–3B models (Qwen2.5-1.5B, Llama-3.2-1B/3B). Don't start with 70B models — prove the pipeline on 8B first.</p>
+<p><strong>Step 2: Check the license.</strong> Llama and Gemma are free for research but have custom licenses with conditions; Qwen and Phi have their own terms; fully open models (e.g., OLMo, Falcon) use permissive licenses. If your thesis might become a commercial product, license matters from day one. Note the license in your experiment plan.</p>
+<p><strong>Step 3: Run a 200-example probe.</strong> Before any training, score each candidate zero-shot and few-shot on 200 examples representative of your task. This takes an afternoon and often reveals a clear winner — e.g., Qwen outperforming Llama on multilingual tasks, or Phi punching above its size on reasoning. The probe also gives you the base baselines Chapter 8 requires. Skipping this and discovering mid-project that another base model was 8 points better is an expensive mistake.</p>
+<p><strong>Step 4: Check tokenizer fit for your language.</strong> Tokenizers trained mostly on English split other languages into many tiny pieces ("fertility" — tokens per word). High fertility means your sequences are longer, training is slower, and the model sees less context. A quick check: tokenize 100 sentences of your data with each candidate's tokenizer and compare average tokens per sentence. For non-English projects, this single check can matter more than benchmark scores.</p>
+<p><strong>Step 5: Prefer instruction-tuned variants as starting points.</strong> For instruction tuning, starting from an <em>instruct</em> model (e.g., Llama-3.1-8B-Instruct) rather than the raw base usually works better — it already follows instructions, so your fine-tuning refines rather than teaches the format. The exception: if the instruct variant's alignment conflicts with your task (rare), use the base.</p>
+<p>Document the probe results in a small table in your paper's appendix. "We selected Qwen2.5-7B-Instruct after a 200-example probe (62.1 vs. 54.3 for Llama-3.1-8B)" is one sentence that preempts the reviewer's "why this model?" question entirely.</p>
+<h2 id="debugging-installation-issues-the-usual-suspects">Debugging Installation Issues (The Usual Suspects)</h2>
+<p>Environment setup fails in predictable ways. Here are the four most common, with fixes:</p>
+<p><strong>1. bitsandbytes CUDA errors.</strong> The classic: <code>CUDA SETUP: ... library not found</code> or version mismatch warnings. bitsandbytes ships precompiled against specific CUDA versions; Colab's CUDA usually works with the default pip install, but on custom machines you may need <code>pip install bitsandbytes --no-cache-dir</code> or the source build. First check: does <code>python -c "import bitsandbytes"</code> succeed? If the import works, the 4-bit loading in Step 1 of Chapter 6 will almost certainly work too.</p>
+<p><strong>2. torch / transformers version conflicts.</strong> Symptom: import errors mentioning <code>accelerate</code> or missing trainer arguments (e.g., <code>eval_strategy</code> vs the older <code>evaluation_strategy</code>). The ecosystem renames arguments across versions — <code>eval_strategy</code> is current; older code uses <code>evaluation_strategy</code>. When copying code from blog posts, check which transformers version it assumed. Your pinned requirements file (Chapter 5's reproducibility section) is the defense.</p>
+<p><strong>3. "Model not found" on gated models.</strong> You accepted the license but downloads still fail → you forgot <code>huggingface-cli login</code>, or you're logged in with a different account than the one that accepted the license. Run <code>huggingface-cli whoami</code> to verify. For non-gated alternatives needing no approval (Phi-3-mini, Qwen2.5), skip the gate entirely while learning.</p>
+<p><strong>4. Disk full during download.</strong> The 8B download stalls partway. Check <code>df -h</code>; clear the pip cache and old checkpoints. On Colab, a factory reset (Runtime → Disconnect and delete runtime) gives a clean slate — then reinstall from your pinned requirements in one cell.</p>
+<p>General rule: fix the environment <em>once</em>, then freeze it. Every hour spent fighting installs after the pipeline works is an hour stolen from data and evaluation.</p>
+<blockquote>
+<p><strong>For your research:</strong> Decide your tooling <em>before</em> the main experiments and freeze versions (<code>pip freeze &gt; requirements.txt</code>, or a Docker/container spec). Note the exact library versions in your paper's appendix or repository README. "Transformers 4.x" is not reproducible; "transformers==4.44.2, peft==0.12.0, trl==0.9.6" is. Reviewers increasingly check this, and future-you will need it when a library update breaks your old scripts two weeks before a deadline.</p>
+</blockquote>
+<h3 id="key-takeaways_4">Key Takeaways</h3>
+<ul>
+<li>Standard stack: Transformers (foundation) → PEFT (adapters) → TRL/SFTTrainer (instruction-tuning trainer) → Axolotl (config-driven experiments).</li>
+<li>SFTTrainer + PEFT is the productive default for instruction tuning; Axolotl YAML configs are the reproducible default for paper experiments.</li>
+<li>Setup: PyTorch with CUDA, <code>pip install transformers datasets accelerate peft trl bitsandbytes</code>, verify GPU + 4-bit loading before anything else.</li>
+<li>Accept gated-model licenses and <code>huggingface-cli login</code> once; watch Colab disk space.</li>
+<li>Libraries handle mechanics (tokenization, masking, checkpointing); you handle data, evaluation, hyperparameters, and interpretation.</li>
+<li>Freeze and record exact library versions — reproducibility starts with the environment.</li>
+</ul>
+<hr />
+<h1 id="chapter-6-training-on-one-gpu-free-colab-a-complete-walkthrough">Chapter 6: Training on One GPU / Free Colab: A Complete Walkthrough</h1>
+<p>This is the chapter where theory becomes a running model. We will fine-tune an 8-billion-parameter instruction model with QLoRA on a single 16 GB GPU — the kind Google Colab gives you for free — from data loading to a saved, usable adapter. Follow along in a Colab notebook (GPU runtime: Runtime → Change runtime type → T4 GPU) or any machine with a CUDA GPU. Every step is explained; nothing is magic.</p>
+<h2 id="step-0-setup-and-sanity-checks">Step 0: Setup and Sanity Checks</h2>
+<p>Open a fresh Colab notebook with a GPU runtime and run:</p>
+<pre><code class="language-python"># Install the stack (takes a few minutes)
+!pip install -q transformers datasets accelerate peft trl bitsandbytes
+
+import torch
+assert torch.cuda.is_available(), &quot;No GPU! Check Runtime &gt; Change runtime type.&quot;
+print(torch.cuda.get_device_name(0))
+print(f&quot;VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB&quot;)
+</code></pre>
+<p>You should see something like <code>Tesla T4</code> and <code>VRAM: 15.9 GB</code>. If Colab gives you a weaker GPU, the walkthrough still works — training will just be slower.</p>
+<h2 id="step-1-load-the-base-model-in-4-bit">Step 1: Load the Base Model in 4-Bit</h2>
+<p>We will use a small, strong open model. Llama-3.1-8B is the canonical choice (requires free Hugging Face access approval); alternatives that need no approval include Microsoft's Phi-3-mini or Google's Gemma-2-2B. Pick one and stick with it.</p>
+<pre><code class="language-python">from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+MODEL_ID = &quot;meta-llama/Llama-3.1-8B&quot;   # or &quot;microsoft/Phi-3-mini-4k-instruct&quot;
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type=&quot;nf4&quot;,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.bfloat16,
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_ID,
+    quantization_config=bnb_config,
+    device_map=&quot;auto&quot;,
+)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+tokenizer.pad_token = tokenizer.eos_token   # causal LMs often lack a pad token; eos works
+tokenizer.padding_side = &quot;right&quot;
+</code></pre>
+<p>Watch the memory after loading: <code>!nvidia-smi</code> should show roughly 5–6 GB used. The 8B weights in 4-bit occupy under 5 GB; the rest is overhead.</p>
+<h2 id="step-2-prepare-the-dataset">Step 2: Prepare the Dataset</h2>
+<p>For this walkthrough we will build a tiny demonstration dataset — 300 examples teaching the model to answer questions in a strict format (a short answer followed by a one-line justification). In your real project this is where Chapter 3's pipeline goes. Here, we generate a toy dataset so the mechanics are visible end to end:</p>
+<pre><code class="language-python">from datasets import Dataset
+
+# Toy data: in your project, replace this with your real curated dataset
+topics = [&quot;photosynthesis&quot;, &quot;gravity&quot;, &quot;elections&quot;, &quot;vaccines&quot;, &quot;inflation&quot;]
+def make_example(i):
+    t = topics[i % len(topics)]
+    return {
+        &quot;instruction&quot;: f&quot;Explain {t} in simple terms.&quot;,
+        &quot;input&quot;: &quot;&quot;,
+        &quot;output&quot;: f&quot;{t.capitalize()} is a process where ... [short answer].\nWhy: [one-line justification].&quot;
+    }
+
+raw = [make_example(i) for i in range(300)]
+
+def to_chat(ex):
+    # SFTTrainer works best with chat-formatted messages
+    messages = [
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: ex[&quot;instruction&quot;] + (&quot; &quot; + ex[&quot;input&quot;] if ex[&quot;input&quot;] else &quot;&quot;)},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: ex[&quot;output&quot;]},
+    ]
+    return {&quot;messages&quot;: messages}
+
+dataset = Dataset.from_list([to_chat(ex) for ex in raw])
+dataset = dataset.train_test_split(test_size=0.1, seed=42)
+print(dataset)
+# DatasetDict({train: 270 rows, test: 30 rows})
+</code></pre>
+<p>Two things to notice: we use the <strong>chat format</strong> (lists of role/content messages) because modern tokenizers apply the model's native chat template via <code>apply_chat_template</code>, and we split off a <strong>validation set</strong> (the 30 rows) that training will never see. In a real project your dataset would be thousands of examples built per Chapter 3 — the code shape is identical.</p>
+<h2 id="step-3-attach-the-lora-adapter">Step 3: Attach the LoRA Adapter</h2>
+<pre><code class="language-python">from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+model = prepare_model_for_kbit_training(model)
+
+peft_config = LoraConfig(
+    r=16,
+    lora_alpha=32,
+    lora_dropout=0.05,
+    bias=&quot;none&quot;,
+    task_type=&quot;CAUSAL_LM&quot;,
+    target_modules=[&quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;,
+                    &quot;gate_proj&quot;, &quot;up_proj&quot;, &quot;down_proj&quot;],
+)
+
+model = get_peft_model(model, peft_config)
+model.print_trainable_parameters()
+</code></pre>
+<p>Expected output: something like <code>trainable params: 41,943,040 || all params: 8,031,261,440 || trainable%: 0.52%</code>. Half a percent. That tiny fraction is everything you are about to train.</p>
+<h2 id="step-4-configure-and-launch-training-with-sfttrainer">Step 4: Configure and Launch Training with SFTTrainer</h2>
+<pre><code class="language-python">from trl import SFTTrainer, SFTConfig
+
+training_args = SFTConfig(
+    output_dir=&quot;./outputs/walkthrough-01&quot;,
+    num_train_epochs=3,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,   # effective batch = 2*8 = 16
+    learning_rate=2e-4,
+    lr_scheduler_type=&quot;cosine&quot;,
+    warmup_steps=30,
+    optim=&quot;paged_adamw_8bit&quot;,        # 8-bit optimizer: less memory, per Dettmers et al.
+    max_seq_length=1024,
+    packing=False,                   # keep False while learning; True later for speed
+    eval_strategy=&quot;steps&quot;,
+    eval_steps=50,
+    save_steps=100,
+    save_total_limit=2,
+    logging_steps=10,
+    report_to=&quot;none&quot;,                # set to &quot;tensorboard&quot; if you want live plots
+    seed=42,
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset[&quot;train&quot;],
+    eval_dataset=dataset[&quot;test&quot;],
+)
+trainer.train()
+</code></pre>
+<p>What happens now: the trainer tokenizes your messages with the chat template, masks the user turns so loss is computed only on assistant responses, and runs the optimization loop. On a T4, 270 examples × 3 epochs takes roughly 10–25 minutes. You will see the training loss printed every 10 steps — it should trend downward, noisily. The eval loss every 50 steps tells you whether the model is actually improving on unseen examples (Chapter 9 explains how to read these curves).</p>
+<p><strong>If you run out of memory:</strong> the three emergency levers are (1) <code>per_device_train_batch_size=1</code>, (2) <code>max_seq_length=512</code>, and (3) <code>gradient_checkpointing=True</code> (trades compute for memory by recomputing activations). Apply in that order.</p>
+<h2 id="step-5-save-the-adapter-and-test-it">Step 5: Save the Adapter and Test It</h2>
+<pre><code class="language-python">trainer.save_model(&quot;./outputs/walkthrough-01/final&quot;)
+# This saves ONLY the adapter (~80-150 MB), not the 8B base model.
+</code></pre>
+<p>Now the moment of truth — generate with the fine-tuned model and compare against the base:</p>
+<pre><code class="language-python">model.eval()
+prompt = &quot;Explain gravity in simple terms.&quot;
+inputs = tokenizer.apply_chat_template(
+    [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt}],
+    return_tensors=&quot;pt&quot;, add_generation_prompt=True,
+).to(model.device)
+
+with torch.no_grad():
+    out = model.generate(**{&quot;input_ids&quot;: inputs}, max_new_tokens=120, do_sample=False)
+print(tokenizer.decode(out[0], skip_special_tokens=True))
+</code></pre>
+<p>You should see the response follow your trained format (short answer + "Why:" line). To feel the difference, load the base model without the adapter and run the same prompt — the base model answers in its generic style. That contrast, however small on toy data, is fine-tuning made visible.</p>
+<h2 id="step-6-reloading-and-merging-optional-but-useful">Step 6: Reloading and Merging (Optional but Useful)</h2>
+<p>To use the adapter later without retraining:</p>
+<pre><code class="language-python">from peft import PeftModel
+
+base = AutoModelForCausalLM.from_pretrained(MODEL_ID, quantization_config=bnb_config, device_map=&quot;auto&quot;)
+model = PeftModel.from_pretrained(base, &quot;./outputs/walkthrough-01/final&quot;)
+</code></pre>
+<p>To produce a single standalone model (e.g., for deployment), merge the adapter into the base weights in 16-bit and save:</p>
+<pre><code class="language-python"># Load base in 16-bit (no quantization) for a clean merge — needs more VRAM/RAM
+base16 = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16, device_map=&quot;auto&quot;)
+merged = PeftModel.from_pretrained(base16, &quot;./outputs/walkthrough-01/final&quot;).merge_and_unload()
+merged.save_pretrained(&quot;./outputs/walkthrough-01/merged&quot;)
+</code></pre>
+<p>Merging needs the full model in 16-bit (~16 GB for 8B), which may exceed Colab VRAM — do it on a bigger machine or accept the adapter format, which is the standard for research sharing anyway.</p>
+<h2 id="what-just-happened-end-to-end">What Just Happened, End to End</h2>
+<p>You downloaded an 8B model, quantized it to 4-bit, attached a 42M-parameter trainable adapter (0.5% of weights), trained it on 270 examples with loss masked to assistant responses, validated on held-out examples, and saved a ~100 MB adapter that changes the model's behavior. Total cost: zero rupees, one Colab session. This is the complete loop that every fine-tuning project — from student experiments to industry pipelines — follows. Everything else in this book is about doing each step <em>well</em>: better data (Ch. 3), better hyperparameters (Ch. 7), honest evaluation (Ch. 8), and credible reporting (Ch. 12).</p>
+<h2 id="reading-your-first-training-run-a-guided-tour-of-the-logs">Reading Your First Training Run: A Guided Tour of the Logs</h2>
+<p>When you launch <code>trainer.train()</code>, you'll see a stream of log lines. Here's how to read them like a practitioner, using a typical healthy run as reference:</p>
+<pre><code>Step 10:  loss 2.84, lr 6.7e-05
+Step 20:  loss 2.31, lr 1.3e-04
+Step 30:  loss 1.92, lr 2.0e-04   &lt;- warmup ends, LR at full value
+Step 40:  loss 1.75, lr 1.99e-04
+Step 50:  loss 1.61, eval_loss 1.70
+Step 60:  loss 1.58, lr 1.98e-04
+...
+Step 200: loss 0.94, eval_loss 1.12
+</code></pre>
+<p><strong>What healthy looks like:</strong> loss starts high (the model is surprised by your data's format — 2.5–3.5 is typical for a new task), drops steeply in the first 10–20% of steps (the model quickly learns the format), then declines gradually. Eval loss tracks training loss with a small gap. The learning rate ramps up during warmup (first 30 steps here) then barely visibly decays under cosine scheduling.</p>
+<p><strong>Checkpoints to watch for:</strong>
+- <em>Steps 1–30 (warmup):</em> loss should fall, not spike. A spike here with recovery is usually harmless; a spike without recovery means LR too high.
+- <em>First eval (step 50):</em> eval_loss moderately above train loss is normal. Eval loss <em>far</em> above train loss (2× or more) this early suggests a data or template bug — e.g., eval examples formatted differently.
+- <em>Mid-training:</em> both losses falling slowly. This is the long middle where the model absorbs the task. Resist the urge to intervene; noise is normal.
+- <em>Late training:</em> train loss still falling, eval loss flattening or ticking up — you're entering the overfitting zone (Chapter 9). Note the step where eval was lowest; that's your candidate best checkpoint.</p>
+<p><strong>When to abort a run (and it's always okay to abort):</strong> loss NaN at any point; loss flat after 15% of steps (something structural is wrong — check the data pipeline before burning more compute); eval loss 3× train loss (template/label bug); or GPU memory errors that persist after the OOM triage. A two-hour run aborted at minute 20 with a lesson learned is cheap tuition. A two-hour run left to finish broken is just waste.</p>
+<p><strong>The qualitative spot-check:</strong> every ~100 steps, generate from 2–3 fixed prompts (keep them constant across the whole run) and eyeball the outputs. Numbers tell you <em>that</em> it's learning; outputs tell you <em>what</em> it's learning. If the loss falls but outputs get worse (more repetitive, format drifting), trust the outputs — the metric is lying about what you care about, and you need a better eval (Chapter 8).</p>
+<h2 id="extending-the-walkthrough-packing-resuming-and-longer-runs">Extending the Walkthrough: Packing, Resuming, and Longer Runs</h2>
+<p>Once the basic walkthrough works, three upgrades make it production-grade for real experiments:</p>
+<p><strong>Sequence packing.</strong> In the walkthrough, <code>packing=False</code> means each training example is padded to <code>max_seq_length</code> — with short examples, most of the GPU's work is processing padding tokens, pure waste. Setting <code>packing=True</code> concatenates multiple short examples into each sequence (with proper attention masking so examples don't attend to each other). Throughput often nearly doubles on short-example datasets. Enable it only <em>after</em> the pipeline is debugged — packing makes per-example debugging harder, which is why the walkthrough starts without it.</p>
+<p><strong>Resuming from checkpoints.</strong> Long Colab sessions disconnect. Because we set <code>save_steps=100</code> and <code>save_total_limit=2</code>, interrupted runs leave checkpoints behind. Resume with:</p>
+<pre><code class="language-python">trainer.train(resume_from_checkpoint=&quot;./outputs/walkthrough-01/checkpoint-500&quot;)
+</code></pre>
+<p>The trainer restores model weights, optimizer state, and the data loader position — training continues as if uninterrupted. Make resuming your default reflex after any disconnection rather than restarting from scratch.</p>
+<p><strong>Scaling to real data sizes.</strong> The walkthrough's 270 examples finish in minutes; your real dataset of 5,000–20,000 examples needs hours. Two adjustments: raise <code>eval_steps</code> and <code>save_steps</code> proportionally (evaluating every 50 steps on a 5,000-example run wastes time — every 200–500 steps is plenty), and lower <code>logging_steps</code> noise by watching trends rather than individual values. Everything else — the code shape, the adapter, the eval discipline — is identical. That's the point of the walkthrough: the toy run and the thesis run differ in <em>scale</em>, not in <em>structure</em>.</p>
+<p><strong>A note on <code>do_sample=False</code> in evaluation.</strong> The walkthrough generates with greedy decoding (always the most likely token) for determinism — the same prompt gives the same output every time, which is what you want when comparing models. For qualitative exploration (getting a feel for the model's style), sampling with <code>temperature=0.7</code> shows the range of behaviors. Use greedy for measurement, sampling for exploration, and never mix them within one comparison.</p>
+<h2 id="sharing-your-adapter-on-the-hugging-face-hub">Sharing Your Adapter on the Hugging Face Hub</h2>
+<p>Your trained adapter is a research artifact worth sharing — and the Hub makes it a three-line operation:</p>
+<pre><code class="language-python">from peft import PeftModel
+
+# Push the adapter (only ~100 MB) to the Hub
+model.push_to_hub(&quot;your-username/my-task-adapter-v1&quot;)
+tokenizer.push_to_hub(&quot;your-username/my-task-adapter-v1&quot;)
+</code></pre>
+<p>Anyone can then reproduce your results without retraining:</p>
+<pre><code class="language-python">from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+base = AutoModelForCausalLM.from_pretrained(&quot;meta-llama/Llama-3.1-8B&quot;, device_map=&quot;auto&quot;)
+tokenizer = AutoTokenizer.from_pretrained(&quot;your-username/my-task-adapter-v1&quot;)
+model = PeftModel.from_pretrained(base, &quot;your-username/my-task-adapter-v1&quot;)
+</code></pre>
+<p>Three practices make a shared adapter genuinely useful rather than a mysterious binary: <strong>(1)</strong> fill in the model card — base model, dataset description, training config, evaluation scores, intended use and limitations; <strong>(2)</strong> version your uploads (<code>-v1</code>, <code>-v2</code>) instead of overwriting, so citations remain stable; <strong>(3)</strong> link the adapter from your paper's repository README alongside the eval script. A well-documented adapter gets downloaded, cited, and built upon — the closest thing fine-tuning research has to compounding interest. (Note: only push adapters trained on data you have the right to share, and never push datasets containing private information — Chapter 3's licensing and privacy notes apply here too.)</p>
+<blockquote>
+<p><strong>For your research:</strong> Run this walkthrough verbatim before touching your real data. It validates your entire environment (GPU, installs, disk, versions) in under an hour and gives you a known-good training script to adapt. Keep the notebook — when your real run breaks at 2 AM, you will diff against this working baseline to find what changed. Every serious practitioner keeps a "hello world" training script for exactly this reason.</p>
+</blockquote>
+<h3 id="key-takeaways_5">Key Takeaways</h3>
+<ul>
+<li>A full QLoRA fine-tune of an 8B model fits on a free Colab T4: 4-bit base (~5 GB) + tiny adapter + 8-bit optimizer.</li>
+<li>The loop: load quantized base → prepare data in chat format with a held-out split → attach LoRA → SFTTrainer → save adapter.</li>
+<li>SFTTrainer handles chat templates and response-only loss masking; you supply data and hyperparameters.</li>
+<li>OOM triage, in order: batch size 1 → shorter max_seq_length → gradient checkpointing.</li>
+<li>The adapter (~100 MB) is your portable artifact; merging is optional and needs 16-bit VRAM.</li>
+<li>Always build a working toy run first — it becomes your debugging baseline for the real project.</li>
+</ul>
+<hr />
+<h1 id="chapter-7-hyperparameters-that-actually-matter-lr-rank-epochs-batch-size">Chapter 7: Hyperparameters That Actually Matter (LR, Rank, Epochs, Batch Size)</h1>
+<p>Hyperparameters are the settings you choose before training that control <em>how</em> the model learns: how big each step is, how many trainable parameters the adapter has, how many times the model sees your data, how many examples it processes at once. Beginners treat them as mystical incantations copied from blog posts. Researchers treat them as experimental variables with known effects, sensible defaults, and a cheap tuning procedure. This chapter makes you the second kind.</p>
+<h2 id="the-four-that-matter-most">The Four That Matter Most</h2>
+<p>Dozens of knobs exist; four dominate outcomes in QLoRA instruction tuning.</p>
+<h3 id="1-learning-rate-lr-the-step-size">1. Learning Rate (LR): The Step Size</h3>
+<p>The learning rate scales every weight update (Chapter 2). Too small and the model barely learns — training loss crawls down, you waste compute, and the model underfits your data. Too large and updates overshoot: loss spikes, oscillates, or explodes to NaN, and the model can be damaged — fluent capabilities degrade because you blasted the weights out of their good valley.</p>
+<p><strong>Sensible range for QLoRA instruction tuning: 1e-4 to 3e-4</strong> (0.0001 to 0.0003). The QLoRA paper used 2e-4, and it remains the default starting point across the field. Full fine-tuning uses much smaller values (1e-5 to 5e-5) because it updates all weights — with LoRA's tiny parameter count, a larger LR is safe and needed.</p>
+<p><strong>How to diagnose LR problems from the loss curve:</strong>
+- Loss decreases smoothly then plateaus → LR is fine; you may need more epochs or data.
+- Loss barely moves after hundreds of steps → LR too small (or data/adapter problem). Try 3× larger.
+- Loss oscillates wildly or spikes upward → LR too large. Halve it and restart.
+- Loss becomes NaN → LR far too large, or mixed-precision instability. Halve LR; if it persists, check data for corrupt examples (a single garbage example with extreme tokens can do this).</p>
+<p><strong>The cheap LR test:</strong> run 200–300 steps at 1e-4, 2e-4, and 4e-4 on a subset of data, and pick the one with the lowest validation loss. Three short runs beat one long guess.</p>
+<h3 id="2-lora-rank-r-the-adapters-capacity">2. LoRA Rank (r): The Adapter's Capacity</h3>
+<p>Rank controls how many trainable parameters the adapter has (Chapter 4): roughly, capacity scales with r. Too small and the adapter cannot express your task's patterns — validation performance plateaus below what the data supports (<strong>underfitting from capacity</strong>). Too large and the adapter memorizes training examples instead of generalizing, especially on small datasets (<strong>overfitting from capacity</strong>), while also slowing training and inflating the adapter file.</p>
+<p><strong>Defaults: r=8 or 16</strong> for format/style tasks; <strong>r=32–64</strong> for hard domain adaptation. Keep alpha proportional (alpha = 2× r is the common convention, so the alpha/r scaling stays constant).</p>
+<p><strong>How to tune:</strong> fix everything else, train with r ∈ {8, 16, 32}, and compare validation loss <em>and</em> a task metric (Chapter 8). If r=32 beats r=8 substantially, your task needs capacity — try 64. If all three are similar, keep 8 or 16 (smaller generalizes better and trains faster). Report this ablation; it is a one-paragraph result reviewers respect.</p>
+<h3 id="3-epochs-how-many-passes-over-the-data">3. Epochs: How Many Passes Over the Data</h3>
+<p>One <strong>epoch</strong> = one full pass through the training set. Too few epochs and the model hasn't absorbed the patterns (<strong>underfitting</strong>). Too many and it starts memorizing specific examples — training loss keeps falling while validation loss rises (<strong>overfitting</strong>, Chapter 9).</p>
+<p><strong>Defaults: 2–5 epochs</strong> for instruction tuning on thousands of examples. With very small datasets (a few hundred), even 3 epochs can overfit — watch validation loss. With very large datasets (100k+), 1–2 epochs often suffice because each epoch contains so many updates.</p>
+<p><strong>The right procedure:</strong> train for more epochs than you need (say 5–8) with <strong>checkpointing</strong> (save every N steps), then pick the checkpoint with the best validation score — this is <strong>early stopping</strong> done manually. Never pick the final checkpoint by default; the best one is often in the middle. SFTTrainer/Axolotl can automate this with <code>load_best_model_at_end=True</code> plus a metric.</p>
+<h3 id="4-batch-size-how-many-examples-per-update">4. Batch Size: How Many Examples Per Update</h3>
+<p>The batch size is how many examples the model processes before each weight update. Larger batches give smoother, more reliable gradient estimates (less noise per step) and better GPU utilization — but use more memory. Smaller batches are noisier, which can actually help escape sharp, overfit minima, but train less efficiently.</p>
+<p><strong>The memory trick — gradient accumulation:</strong> you can simulate a large batch on a small GPU. Process <code>micro_batch_size</code> examples at a time, accumulate gradients over <code>gradient_accumulation_steps</code> mini-batches, then update once. Effective batch = micro × accumulation × (number of GPUs). Chapter 6 used 2 × 8 = 16. <strong>Effective batch sizes of 16–128</strong> are the normal range for QLoRA instruction tuning.</p>
+<p><strong>Practical rule:</strong> set micro batch to the largest that fits in memory (try 4, then 2, then 1), then set accumulation steps to reach your target effective batch. If you change the effective batch substantially, consider scaling the learning rate mildly (larger batch → slightly larger LR is the textbook guidance, though in the 16–128 range most practitioners keep LR fixed).</p>
+<h2 id="the-second-tier-still-worth-setting-deliberately">The Second Tier: Still Worth Setting Deliberately</h2>
+<ul>
+<li><strong>LR scheduler:</strong> how LR changes during training. <strong>Cosine decay</strong> (LR smoothly falls to near zero) is the default and works well. <strong>Linear warmup</strong> (LR ramps up over the first ~3–5% of steps) prevents early instability — always use some warmup (e.g., 30–100 steps).</li>
+<li><strong>Optimizer:</strong> <code>paged_adamw_8bit</code> is the QLoRA-era default — AdamW with 8-bit optimizer states (less memory) and paging (spills to CPU RAM gracefully instead of crashing on spikes). Use it unless you have a reason not to.</li>
+<li><strong>Weight decay:</strong> mild regularization (0.01 is common) that discourages weights from growing large. Small effect in LoRA; leave at default.</li>
+<li><strong>Dropout (lora_dropout):</strong> 0.05 is standard; raise to 0.1 if you see overfitting on small data.</li>
+<li><strong>Max sequence length:</strong> truncate/pad examples to this. Longer = more memory. Set it to cover ~95% of your examples (check your data's length distribution; don't pay for 4096 tokens when 95% of examples are under 800).</li>
+<li><strong>Seed:</strong> fix it (42 is tradition) for reproducibility. For final results, ideally train with 2–3 seeds and report mean ± std — seed variance is real and reviewers know it.</li>
+</ul>
+<h2 id="a-principled-tuning-procedure-cheap-and-honest">A Principled Tuning Procedure (Cheap and Honest)</h2>
+<p>You cannot grid-search everything — each full run costs hours. Use this staged procedure:</p>
+<ol>
+<li><strong>Fix data and evaluation first</strong> (Chapters 3, 8). Tuning hyperparameters against a broken eval is worse than useless.</li>
+<li><strong>Coarse pass on a data subset:</strong> train on ~20% of data for 1 epoch across LR ∈ {1e-4, 2e-4, 4e-4}. Pick the best LR by validation loss. (~3 short runs)</li>
+<li><strong>Rank ablation:</strong> at the chosen LR, try r ∈ {8, 16, 32} on the full data for 2–3 epochs. Pick by validation task metric. (~3 medium runs)</li>
+<li><strong>Epoch selection:</strong> train the winner for 5+ epochs with checkpointing; pick the best checkpoint by validation. (1 long run)</li>
+<li><strong>Final run:</strong> retrain the winning configuration with 2–3 seeds; report mean ± std on the locked test set. (2–3 long runs — this is the number in your paper)</li>
+</ol>
+<p>Total: roughly 8–10 training runs, most of them short. This is affordable on Colab (spread over days) or a single cloud GPU (hours), and it is <em>exactly</em> the methodology section reviewers want to read.</p>
+<h2 id="reading-the-loss-curve">Reading the Loss Curve</h2>
+<p><img alt="Training loss curves: healthy decline vs overfitting" src="media-generation-book-17-fig2-0-f93a8932-cd44-4a6f-ad9d-91646087730e.webp" /></p>
+<p><em>Figure: Training loss (falling) versus validation loss (falling, then rising) — the signature of overfitting.</em></p>
+<p>Learn to read these two curves at a glance:</p>
+<ul>
+<li><strong>Both falling:</strong> healthy learning. Continue.</li>
+<li><strong>Training falling, validation flat:</strong> the model has learned what it can from this data/adapter; more epochs won't help. Try more data or higher rank.</li>
+<li><strong>Training falling, validation rising:</strong> overfitting — stop, use an earlier checkpoint, add regularization, or get more data.</li>
+<li><strong>Both flat from the start:</strong> LR too small, or a data/template bug (e.g., labels misaligned). Debug before burning compute.</li>
+<li><strong>Sudden spike then recovery:</strong> usually a bad batch; if it recovers, ignore. If spikes repeat, lower LR.</li>
+</ul>
+<p>Log both curves from step one (TensorBoard or even the printed logs). The number of student projects that trained blind for six hours and discovered a flat line at the end is too large to count. Don't join them.</p>
+<h2 id="interaction-effects-why-hyperparameters-cant-be-tuned-independently">Interaction Effects: Why Hyperparameters Can't Be Tuned Independently</h2>
+<p>The staged tuning procedure in this chapter tunes one thing at a time, which is practical — but hyperparameters interact, and knowing the main interactions prevents confusing results:</p>
+<p><strong>Learning rate × batch size.</strong> Larger batches produce less noisy gradients, which tolerate (and sometimes benefit from) slightly larger learning rates. If you double your effective batch, nudging LR up by ~1.4× (square-root scaling, the common heuristic) is reasonable — but in the 16–128 batch range, most practitioners keep LR fixed and do fine. The dangerous direction is shrinking the batch (e.g., to fit memory) while keeping LR high: noisier gradients + big steps = instability. If you cut batch size 4× for memory reasons, consider halving LR as compensation.</p>
+<p><strong>Rank × data size.</strong> Small data + high rank is the classic overfitting recipe (Chapter 9): the adapter has capacity to memorize every example. The interaction runs both ways — with 50,000 diverse examples, r=64 may generalize beautifully where it memorized on 1,000. Rule of thumb: scale rank with data, not with ambition. If you increase data 10×, revisiting rank upward is legitimate; if data stays fixed, higher rank mostly buys memorization.</p>
+<p><strong>Epochs × learning rate.</strong> More epochs at a high LR drives the model further from base behavior (more forgetting, Chapter 9); fewer epochs at a low LR may underfit. The product that matters is roughly "total distance traveled" — LR × steps. This is why the cosine schedule (which decays LR to near zero) pairs naturally with fixed epoch coun
